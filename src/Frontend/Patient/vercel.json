@@ -1,0 +1,8 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "",
+  "buildCommand": "bash ../../../deploy/vercel/build.sh LandaDoc.Patient.csproj",
+  "outputDirectory": "publish/wwwroot",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+}
