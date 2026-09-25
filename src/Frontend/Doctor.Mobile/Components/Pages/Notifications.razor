@@ -1,0 +1,54 @@
+@page "/notifications"
+@attribute [Authorize]
+
+<PageTitle>Notifications</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">@Lang["Notifications"]</MudText>
+
+@if (_loading)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else if (_notifications.Count == 0)
+{
+    <MudText>@Lang["No notifications."]</MudText>
+}
+else
+{
+    <MudList T="string">
+        @foreach (var n in _notifications)
+        {
+            <MudListItem T="string" OnClick="@(() => MarkRead(n))">
+                <div style="@(n.IsRead ? "" : "font-weight:bold")">
+                    @n.Title
+                    <MudText Typo="Typo.body2">@n.Body</MudText>
+                    <MudText Typo="Typo.caption">@n.CreatedAt.ToLocalTime().ToString("g")</MudText>
+                </div>
+            </MudListItem>
+        }
+    </MudList>
+}
+
+@code {
+    [Inject] private INotificationApiClient NotificationsApi { get; set; } = default!;
+    [Inject] private ILanguageService Lang { get; set; } = default!;
+
+    private bool _loading = true;
+    private List<NotificationDto> _notifications = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _notifications = await NotificationsApi.GetMineAsync(unreadOnly: false);
+        _loading = false;
+    }
+
+    private async Task MarkRead(NotificationDto n)
+    {
+        if (n.IsRead) return;
+        if (await NotificationsApi.MarkReadAsync(n.Id))
+        {
+            var index = _notifications.IndexOf(n);
+            _notifications[index] = n with { IsRead = true };
+        }
+    }
+}

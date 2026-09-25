@@ -1,0 +1,65 @@
+@page "/status"
+@attribute [Authorize]
+
+<PageTitle>Account status</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">@Lang["Account status"]</MudText>
+
+@if (_loading)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else
+{
+    @if (_profile is null)
+    {
+        <MudAlert Severity="Severity.Info" Class="mb-4">
+            @Lang["You haven't set up your doctor profile yet."]
+        </MudAlert>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/profile">@Lang["Set up profile"]</MudButton>
+    }
+    else
+    {
+        <MudAlert Severity="@StatusSeverity(_profile.Status)" Class="mb-4">
+            @StatusMessage(_profile.Status)
+        </MudAlert>
+        @if (_profile.Status == DoctorApprovalStatus.Approved)
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/appointments">@Lang["Go to appointments"]</MudButton>
+        }
+        else
+        {
+            <MudButton Variant="Variant.Outlined" Href="/profile">@Lang["Edit profile"]</MudButton>
+        }
+    }
+}
+
+@code {
+    [Inject] private IAdminApiClient Admin { get; set; } = default!;
+    [Inject] private ILanguageService Lang { get; set; } = default!;
+
+    private bool _loading = true;
+    private DoctorProfileDto? _profile;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _profile = await Admin.GetMyProfileAsync();
+        _loading = false;
+    }
+
+    private static Severity StatusSeverity(DoctorApprovalStatus status) => status switch
+    {
+        DoctorApprovalStatus.Approved => Severity.Success,
+        DoctorApprovalStatus.Suspended => Severity.Error,
+        DoctorApprovalStatus.Rejected => Severity.Error,
+        _ => Severity.Warning
+    };
+
+    private string StatusMessage(DoctorApprovalStatus status) => status switch
+    {
+        DoctorApprovalStatus.Approved => Lang["Your account is approved. You're ready to see patients."],
+        DoctorApprovalStatus.Suspended => Lang["Your account has been suspended. Contact support for details."],
+        DoctorApprovalStatus.Rejected => Lang["Your application was not approved."],
+        _ => Lang["Your profile is awaiting admin approval. You'll be able to accept appointments once approved."]
+    };
+}

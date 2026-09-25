@@ -1,0 +1,130 @@
+@page "/documents"
+@attribute [Authorize]
+
+<PageTitle>Documents</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">@Lang["My documents"]</MudText>
+
+<MudPaper Class="pa-6 mb-6">
+    <MudText Typo="Typo.h6" Class="mb-3">@Lang["Upload a document"]</MudText>
+    <MudGrid>
+        <MudItem xs="12" sm="6">
+            <MudSelect T="string" Label="@Lang["Category"]" @bind-Value="_category">
+                <MudSelectItem Value="@("LabResult")">@Lang["docCategory.LabResult"]</MudSelectItem>
+                <MudSelectItem Value="@("Prescription")">@Lang["docCategory.Prescription"]</MudSelectItem>
+                <MudSelectItem Value="@("Report")">@Lang["docCategory.Report"]</MudSelectItem>
+                <MudSelectItem Value="@("Other")">@Lang["docCategory.Other"]</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="6">
+            <MudFileUpload T="IBrowserFile" FilesChanged="OnFileSelected">
+                <CustomContent Context="fileUpload">
+                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.AttachFile"
+                               OnClick="@(() => fileUpload.OpenFilePickerAsync())">
+                        @(_selectedFile?.Name ?? Lang["Choose file"])
+                    </MudButton>
+                </CustomContent>
+            </MudFileUpload>
+        </MudItem>
+    </MudGrid>
+
+    @if (_error is not null)
+    {
+        <MudAlert Severity="Severity.Error" Class="mt-3">@_error</MudAlert>
+    }
+
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-3" Disabled="@(_selectedFile is null || _uploading)" OnClick="Upload">
+        @Lang["Upload"]
+    </MudButton>
+</MudPaper>
+
+@if (_loading)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else if (_documents.Count == 0)
+{
+    <MudText>@Lang["No documents uploaded yet."]</MudText>
+}
+else
+{
+    <MudTable Items="_documents" Hover="true">
+        <HeaderContent>
+            <MudTh>@Lang["File"]</MudTh>
+            <MudTh>@Lang["Category"]</MudTh>
+            <MudTh>@Lang["Uploaded"]</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.FileName</MudTd>
+            <MudTd>@Lang[$"docCategory.{context.Category}"]</MudTd>
+            <MudTd>@context.CreatedAt.ToLocalTime().ToString("d")</MudTd>
+            <MudTd><MudLink OnClick="@(() => Download(context.Id))">@Lang["Download"]</MudLink></MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    [Inject] private IDocumentApiClient DocumentsApi { get; set; } = default!;
+    [Inject] private JwtAuthenticationStateProvider AuthState { get; set; } = default!;
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+    [Inject] private ILanguageService Lang { get; set; } = default!;
+
+    private bool _loading = true;
+    private List<DocumentDto> _documents = [];
+    private string _category = "Other";
+    private IBrowserFile? _selectedFile;
+    private bool _uploading;
+    private string? _error;
+    private Guid _patientId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthState.GetAuthenticationStateAsync();
+        _patientId = Guid.Parse(authState.User.FindFirst(
+            "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier")!.Value);
+
+        _documents = await DocumentsApi.GetForPatientAsync(_patientId);
+        _loading = false;
+    }
+
+    private void OnFileSelected(IBrowserFile file) => _selectedFile = file;
+
+    private async Task Upload()
+    {
+        if (_selectedFile is null) return;
+        _error = null;
+        _uploading = true;
+
+        try
+        {
+            await using var stream = _selectedFile.OpenReadStream(25_000_000);
+            var resp = await DocumentsApi.UploadAsync(
+                _patientId, null, null, _category, stream, _selectedFile.Name, _selectedFile.ContentType);
+
+            if (resp.IsSuccessStatusCode)
+            {
+                _documents = await DocumentsApi.GetForPatientAsync(_patientId);
+                _selectedFile = null;
+            }
+            else
+            {
+                _error = Lang["Upload failed. Please try again."];
+            }
+        }
+        catch (Exception)
+        {
+            _error = Lang["File is too large (max 25 MB)."];
+        }
+        finally
+        {
+            _uploading = false;
+        }
+    }
+
+    private async Task Download(Guid documentId)
+    {
+        var url = await DocumentsApi.GetDownloadUrlAsync(documentId);
+        if (url is not null) Navigation.NavigateTo(url, forceLoad: true);
+    }
+}

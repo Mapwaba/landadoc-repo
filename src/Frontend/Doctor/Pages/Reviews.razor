@@ -1,0 +1,54 @@
+@page "/reviews"
+@attribute [Authorize]
+
+<PageTitle>My reviews</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">@Lang["My reviews"]</MudText>
+
+@if (_loading)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else if (_reviews.Count == 0)
+{
+    <MudText>@Lang["No reviews yet."]</MudText>
+}
+else
+{
+    <MudText Typo="Typo.subtitle1" Class="mb-3">
+        @Lang["Average:"] <MudRating SelectedValue="@_averageRounded" ReadOnly="true" /> (@string.Format(Lang["reviewCount"], _reviews.Count, _reviews.Count == 1 ? "" : "s"))
+    </MudText>
+
+    @foreach (var review in _reviews)
+    {
+        <MudPaper Class="pa-4 mb-2">
+            <MudRating SelectedValue="review.Rating" ReadOnly="true" />
+            @if (!string.IsNullOrWhiteSpace(review.Comment))
+            {
+                <MudText Class="mt-1">@review.Comment</MudText>
+            }
+            <MudText Typo="Typo.caption">@review.CreatedAt.ToLocalTime().ToString("d")</MudText>
+        </MudPaper>
+    }
+}
+
+@code {
+    [Inject] private IReviewApiClient ReviewsApi { get; set; } = default!;
+    [Inject] private JwtAuthenticationStateProvider AuthState { get; set; } = default!;
+    [Inject] private ILanguageService Lang { get; set; } = default!;
+
+    private bool _loading = true;
+    private List<ReviewDto> _reviews = [];
+    private int _averageRounded;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthState.GetAuthenticationStateAsync();
+        var doctorId = Guid.Parse(authState.User.FindFirst(
+            "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier")!.Value);
+
+        _reviews = (await ReviewsApi.GetForDoctorAsync(doctorId)).ToList();
+        _averageRounded = _reviews.Count > 0 ? (int)Math.Round(_reviews.Average(r => r.Rating)) : 0;
+        _loading = false;
+    }
+}

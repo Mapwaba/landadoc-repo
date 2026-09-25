@@ -1,0 +1,78 @@
+.hero {
+    background: linear-gradient(135deg, #1976D2, #1565C0);
+    border-radius: 12px;
+    padding: 32px;
+    text-align: center;
+    margin-bottom: 28px;
+}
+
+.hero-title {
+    color: white;
+    font-size: 1.75rem;
+    font-weight: 800;
+    margin: 0 0 8px;
+}
+
+.hero-subtitle {
+    color: rgba(255, 255, 255, 0.85);
+    margin: 0;
+    font-size: 0.95rem;
+}
+
+.landadoc-card {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    height: 100%;
+    box-sizing: border-box;
+    border-bottom: 4px solid #1565C0;
+}
+
+.landadoc-card-blue {
+    border-bottom-color: #1565C0;
+}
+
+.landadoc-card-green {
+    border-bottom-color: #388E3C;
+}
+
+.quick-links {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.quick-link-card {
+    flex: 1 1 240px;
+    padding: 20px;
+    border-bottom-color: #F59E0B;
+}
+
+.quick-link-title {
+    font-weight: 700;
+    font-size: 16px;
+    margin-bottom: 6px;
+    color: #212121;
+}
+
+.quick-link-desc {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 14px;
+    line-height: 1.5;
+}
+
+.quick-link-button {
+    display: inline-block;
+    background: #1565C0;
+    color: white !important;
+    font-weight: 600;
+    font-size: 13px;
+    padding: 8px 18px;
+    border-radius: 6px;
+    text-decoration: none;
+}
+
+.quick-link-button:hover {
+    opacity: 0.92;
+}

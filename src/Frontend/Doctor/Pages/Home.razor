@@ -1,0 +1,20 @@
+@page "/"
+
+<PageTitle>LandaDoc for Doctors</PageTitle>
+
+<MudText Typo="Typo.h3" Class="mb-4">@Lang["LandaDoc for Doctors"]</MudText>
+<MudText Class="mb-6">@Lang["Manage your schedule, appointments, and patients in one place."]</MudText>
+
+<AuthorizeView>
+    <Authorized>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/appointments">@Lang["Go to appointments"]</MudButton>
+    </Authorized>
+    <NotAuthorized>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/register" Class="mr-2">@Lang["Get started"]</MudButton>
+        <MudButton Variant="Variant.Outlined" Href="/login">@Lang["Log in"]</MudButton>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    [Inject] private ILanguageService Lang { get; set; } = default!;
+}

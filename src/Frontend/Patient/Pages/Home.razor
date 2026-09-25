@@ -1,0 +1,265 @@
+@page "/"
+@page "/doctors"
+
+<PageTitle>LandaDoc</PageTitle>
+
+<div class="hero">
+    <h1 class="hero-title">@Lang["Welcome to LandaDoc"]</h1>
+    <p class="hero-subtitle">@Lang["Find a doctor, see their availability, and book an appointment — all in one place."]</p>
+
+    <div class="search-bar">
+        <div class="search-field">
+            <MudTextField T="string" Label="@Lang["Specialty"]" @bind-Value="_specialty" @bind-Value:after="Search"
+                           Immediate="true" DebounceInterval="300" Variant="Variant.Text" Margin="Margin.Dense" />
+        </div>
+        <div class="search-divider"></div>
+        <div class="search-field">
+            <MudTextField T="string" Label="@Lang["City"]" @bind-Value="_city" @bind-Value:after="Search"
+                           Immediate="true" DebounceInterval="300" Variant="Variant.Text" Margin="Margin.Dense" />
+        </div>
+        <div class="search-divider"></div>
+        <div class="search-field">
+            <MudTextField T="string" Label="@Lang["Search by name"]" @bind-Value="_query" @bind-Value:after="Search"
+                           Immediate="true" DebounceInterval="300" Variant="Variant.Text" Margin="Margin.Dense" />
+        </div>
+        <button class="search-button" @onclick="Search">@Lang["Find a doctor"]</button>
+    </div>
+</div>
+
+<div class="feature-row">
+    <div class="feature-card feature-card-blue">
+        <div class="feature-icon">📋</div>
+        <div class="feature-title">@Lang["Easy access"]</div>
+        <div class="feature-desc">@Lang["Find all your practitioners and history in one click."]</div>
+    </div>
+    <div class="feature-card feature-card-green">
+        <div class="feature-icon">🗓️</div>
+        <div class="feature-title">@Lang["Book anytime, 24/7"]</div>
+        <div class="feature-desc">@Lang["Book whenever, wherever you are, without waiting."]</div>
+    </div>
+    <div class="feature-card feature-card-amber">
+        <div class="feature-icon">🔔</div>
+        <div class="feature-title">@Lang["SMS reminders"]</div>
+        <div class="feature-desc">@Lang["Get automatic reminders so you never miss an appointment again."]</div>
+    </div>
+</div>
+
+<MudGrid Class="mb-8">
+    <MudItem xs="12" md="6">
+        <div class="landadoc-card">
+        <div class="chart-card">
+            <div class="chart-card-title">
+                <MudText Typo="Typo.h6" Class="mb-2">@Lang["Patients & Doctors"]</MudText>
+            </div>
+            @if (_loadingStats)
+            {
+                <MudProgressCircular Indeterminate="true" />
+            }
+            else
+            {
+                <MudChart T="double" ChartType="ChartType.Donut" ChartSeries="@_userSeries" ChartLabels="@_userLabels"
+                          Width="220px" Height="220px" />
+                <div class="chart-legend-list">
+                    <div class="chart-legend-row">
+                        <span class="chart-legend-label"><span class="legend-dot" style="background:@_palette[0]"></span>@Lang["Patients"]</span>
+                        <span class="chart-legend-value">@_patientCount</span>
+                    </div>
+                    <div class="chart-legend-row">
+                        <span class="chart-legend-label"><span class="legend-dot" style="background:@_palette[1]"></span>@Lang["Doctors"]</span>
+                        <span class="chart-legend-value">@_doctorCount</span>
+                    </div>
+                </div>
+            }
+        </div>
+        </div>
+    </MudItem>
+    <MudItem xs="12" md="6">
+        <div class="landadoc-card">
+        <div class="chart-card">
+            <div class="chart-card-title">
+                <MudText Typo="Typo.h6" Class="mb-1">@Lang["Appointments by doctor"]</MudText>
+                <MudText Typo="Typo.caption" Class="mb-2" Color="Color.Secondary">@Lang["Click a doctor or a slice to see their availability"]</MudText>
+            </div>
+            @if (_loadingStats)
+            {
+                <MudProgressCircular Indeterminate="true" />
+            }
+            else if (_apptDoctorIds.Count == 0)
+            {
+                <MudText Typo="Typo.body2">@Lang["No appointments yet."]</MudText>
+            }
+            else
+            {
+                <MudChart T="double" ChartType="ChartType.Donut" ChartSeries="@_apptSeries" ChartLabels="@_apptLabels"
+                          SelectedIndex="_selectedApptIndex" SelectedIndexChanged="OnApptSliceSelected"
+                          Width="220px" Height="220px" />
+                <div class="chart-legend-list">
+                    @for (var i = 0; i < _apptDoctorIds.Count; i++)
+                    {
+                        var index = i;
+                        <div class="chart-legend-row chart-legend-row-clickable" @onclick="@(() => GoToDoctor(_apptDoctorIds[index]))">
+                            <span class="chart-legend-label"><span class="legend-dot" style="background:@_palette[index % _palette.Length]"></span>@_apptLabels[index]</span>
+                            <span class="chart-legend-value">@_apptCounts[index]</span>
+                        </div>
+                    }
+                    <div class="chart-legend-row chart-legend-total">
+                        <span>@string.Format(Lang["totalAppointmentsCount"], _totalAppointments)</span>
+                    </div>
+                </div>
+            }
+        </div>
+        </div>
+    </MudItem>
+</MudGrid>
+
+@if (HasSearchCriteria)
+{
+    <MudText Typo="Typo.h4" Class="mb-4">@Lang["Find a doctor"]</MudText>
+
+    if (_loadingSearch)
+    {
+        <MudProgressCircular Indeterminate="true" />
+    }
+    else if (_results.Count == 0)
+    {
+        <MudAlert Severity="Severity.Info">@Lang["No doctors found matching your search."]</MudAlert>
+    }
+    else
+    {
+        <MudGrid>
+            @foreach (var doctor in PagedResults)
+            {
+                <MudItem xs="12" sm="6" md="4">
+                    <div class="landadoc-card doctor-card">
+                        <div class="doctor-card-header">
+                            <div class="doctor-avatar">@Initials(doctor.FirstName, doctor.LastName)</div>
+                            <div>
+                                <div class="doctor-name">@Lang["Dr."] @doctor.FirstName @doctor.LastName</div>
+                                <div class="doctor-specialty">@doctor.Specialty</div>
+                            </div>
+                        </div>
+                        @if (doctor.Clinics.Count > 0)
+                        {
+                            <div class="mt-2">
+                                @foreach (var clinic in doctor.Clinics)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Class="mr-1 mb-1">@clinic.Name — @clinic.City</MudChip>
+                                }
+                            </div>
+                        }
+                        <MudRating SelectedValue="@((int)Math.Round(doctor.AverageRating))" ReadOnly="true" Class="mt-2" />
+                        <MudText Typo="Typo.caption">(@string.Format(Lang["reviewCount"], doctor.RatingCount, doctor.RatingCount == 1 ? "" : "s"))</MudText>
+                        <MudText Typo="Typo.subtitle1" Class="mt-2">$@doctor.ConsultationFee.ToString("0.00")</MudText>
+                        <div class="mt-3">
+                            <a class="doctor-card-button" href="@($"/doctors/{doctor.DoctorId}")">@Lang["View profile"]</a>
+                        </div>
+                    </div>
+                </MudItem>
+            }
+        </MudGrid>
+
+        if (TotalPages > 1)
+        {
+            <div class="d-flex justify-center mt-4">
+                <MudPagination Count="@TotalPages" Selected="_page" SelectedChanged="OnPageChanged" />
+            </div>
+        }
+    }
+}
+
+@code {
+    [Inject] private ISearchApiClient SearchApi { get; set; } = default!;
+    [Inject] private IIdentityApiClient IdentityApi { get; set; } = default!;
+    [Inject] private IAppointmentApiClient AppointmentApi { get; set; } = default!;
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+    [Inject] private ILanguageService Lang { get; set; } = default!;
+
+    private readonly string[] _palette = ["#2979FF", "#1DE9B6", "#FFC400", "#FF6E40", "#E91E63", "#7C4DFF", "#00BFA5", "#FFAB00"];
+
+    private const int PageSize = 9;
+
+    private string? _specialty;
+    private string? _city;
+    private string? _query;
+    private bool _loadingSearch;
+    private List<DoctorSearchResultDto> _results = [];
+    private int _page = 1;
+
+    private IEnumerable<DoctorSearchResultDto> PagedResults => _results.Skip((_page - 1) * PageSize).Take(PageSize);
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling(_results.Count / (double)PageSize));
+    private bool HasSearchCriteria =>
+        !string.IsNullOrWhiteSpace(_specialty) || !string.IsNullOrWhiteSpace(_city) || !string.IsNullOrWhiteSpace(_query);
+
+    private bool _loadingStats = true;
+    private int _patientCount;
+    private int _doctorCount;
+    private int _totalAppointments;
+    private List<ChartSeries<double>> _userSeries = [];
+    private string[] _userLabels = [];
+    private List<ChartSeries<double>> _apptSeries = [];
+    private string[] _apptLabels = [];
+    private List<int> _apptCounts = [];
+    private List<Guid> _apptDoctorIds = [];
+    private int _selectedApptIndex = -1;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadStats();
+    }
+
+    private async Task Search()
+    {
+        if (!HasSearchCriteria)
+        {
+            _results = [];
+            _page = 1;
+            return;
+        }
+
+        _loadingSearch = true;
+        _results = (await SearchApi.SearchDoctorsAsync(_specialty, _city, _query)).ToList();
+        _page = 1;
+        _loadingSearch = false;
+    }
+
+    private void OnPageChanged(int page) => _page = page;
+
+    private async Task LoadStats()
+    {
+        _loadingStats = true;
+
+        var counts = await IdentityApi.GetStatsAsync();
+        _patientCount = counts?.PatientCount ?? 0;
+        _doctorCount = counts?.DoctorCount ?? 0;
+        _userLabels = [Lang["Patients"], Lang["Doctors"]];
+        _userSeries = [new ChartSeries<double> { Name = "Users", Data = new ChartData<double>([_patientCount, _doctorCount]) }];
+
+        var apptStats = await AppointmentApi.GetStatsByDoctorAsync();
+        _totalAppointments = apptStats?.TotalCount ?? 0;
+        var topDoctors = (apptStats?.ByDoctor ?? []).Take(8).ToList();
+
+        var names = await Task.WhenAll(topDoctors.Select(async d =>
+        {
+            var doctor = await SearchApi.GetDoctorAsync(d.DoctorId);
+            return doctor is null ? "Unknown" : $"{Lang["Dr."]} {doctor.FirstName} {doctor.LastName}";
+        }));
+
+        _apptLabels = names;
+        _apptCounts = topDoctors.Select(d => d.Count).ToList();
+        _apptDoctorIds = topDoctors.Select(d => d.DoctorId).ToList();
+        _apptSeries = [new ChartSeries<double> { Name = "Appointments", Data = new ChartData<double>(_apptCounts.Select(c => (double)c).ToList()) }];
+
+        _loadingStats = false;
+    }
+
+    private void OnApptSliceSelected(int index)
+    {
+        _selectedApptIndex = index;
+        if (index >= 0 && index < _apptDoctorIds.Count) GoToDoctor(_apptDoctorIds[index]);
+    }
+
+    private void GoToDoctor(Guid doctorId) => Navigation.NavigateTo($"/doctors/{doctorId}");
+
+    private static string Initials(string firstName, string lastName) =>
+        $"{(firstName.Length > 0 ? firstName[0] : ' ')}{(lastName.Length > 0 ? lastName[0] : ' ')}".Trim().ToUpperInvariant();
+}

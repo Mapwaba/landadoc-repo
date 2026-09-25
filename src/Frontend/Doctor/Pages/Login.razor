@@ -1,0 +1,67 @@
+@page "/login"
+
+<PageTitle>Log in</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">@Lang["Log in"]</MudText>
+
+<div class="d-flex justify-center mt-8">
+    <MudPaper Class="pa-6" MaxWidth="450px" Style="width:100%;">
+        <MudForm @ref="_form">
+            <MudTextField T="string" Label="@Lang["Email"]" @bind-Value="_email" InputType="InputType.Email" Required="true" Class="mb-3" />
+            <MudTextField T="string" Label="@Lang["Password"]" @bind-Value="_password" InputType="InputType.Password" Required="true" Class="mb-3" />
+
+            @if (_error is not null)
+            {
+                <MudAlert Severity="Severity.Error" Class="mb-3">@_error</MudAlert>
+            }
+
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="Submit" Disabled="_submitting">
+                @Lang["Log in"]
+            </MudButton>
+        </MudForm>
+        <MudText Class="mt-4">@Lang["No account yet?"] <MudLink Href="/register">@Lang["Register"]</MudLink></MudText>
+    </MudPaper>
+</div>
+
+@code {
+    [Inject] private IIdentityApiClient Identity { get; set; } = default!;
+    [Inject] private JwtAuthenticationStateProvider AuthState { get; set; } = default!;
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+    [Inject] private ILanguageService Lang { get; set; } = default!;
+
+    private MudForm _form = default!;
+    private string _email = "";
+    private string _password = "";
+    private bool _submitting;
+    private string? _error;
+
+    private async Task Submit()
+    {
+        _error = null;
+        await _form.ValidateAsync();
+        if (!_form.IsValid) return;
+
+        _submitting = true;
+        var resp = await Identity.LoginAsync(new LoginRequest(_email, _password));
+        _submitting = false;
+
+        if (resp.IsSuccessStatusCode)
+        {
+            var auth = await resp.Content.ReadFromJsonAsync<AuthResponse>();
+            await AuthState.MarkUserAsAuthenticated(auth!);
+            Navigation.NavigateTo(auth!.User.IsApproved ? "/appointments" : "/status");
+        }
+        else if (resp.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            _error = Lang["Invalid email or password."];
+        }
+        else if (resp.StatusCode == System.Net.HttpStatusCode.Forbidden)
+        {
+            _error = Lang["This account is inactive."];
+        }
+        else
+        {
+            _error = Lang["Log in failed. Please try again."];
+        }
+    }
+}

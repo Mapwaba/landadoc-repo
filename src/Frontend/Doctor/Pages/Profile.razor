@@ -1,0 +1,120 @@
+@page "/profile"
+@attribute [Authorize]
+
+<PageTitle>My profile</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">@Lang["My profile"]</MudText>
+
+@if (_loading)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else
+{
+    <MudPaper Class="pa-6" MaxWidth="600px">
+        <MudForm @ref="_form">
+            @if (_isNew)
+            {
+                <MudTextField T="string" Label="@Lang["First name"]" @bind-Value="_firstName" Required="true" Class="mb-3" />
+                <MudTextField T="string" Label="@Lang["Last name"]" @bind-Value="_lastName" Required="true" Class="mb-3" />
+                <MudTextField T="string" Label="@Lang["Specialty"]" @bind-Value="_specialty" Required="true" Class="mb-3" />
+                <MudTextField T="string" Label="@Lang["License number"]" @bind-Value="_licenseNumber" Class="mb-3" />
+            }
+            else
+            {
+                <MudText Typo="Typo.h6" Class="mb-3">@Lang["Dr."] @_firstName @_lastName — @_specialty</MudText>
+            }
+
+            <MudTextField T="string" Label="@Lang["Bio"]" @bind-Value="_bio" Lines="3" Class="mb-3" />
+            <MudSelect T="Guid" Label="@Lang["Clinics"]" MultiSelection="true" @bind-SelectedValues="_clinicIds" Class="mb-3">
+                @foreach (var clinic in _clinics)
+                {
+                    <MudSelectItem T="Guid" Value="@clinic.Id">@clinic.Name (@clinic.City)</MudSelectItem>
+                }
+            </MudSelect>
+            <MudNumericField T="decimal" Label="@Lang["Consultation fee ($)"]" @bind-Value="_consultationFee" Min="0" Class="mb-3" />
+
+            @if (_error is not null)
+            {
+                <MudAlert Severity="Severity.Error" Class="mb-3">@_error</MudAlert>
+            }
+            @if (_saved)
+            {
+                <MudAlert Severity="Severity.Success" Class="mb-3">@Lang["Profile saved."]</MudAlert>
+            }
+
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Save" Disabled="_saving">
+                @(_isNew ? Lang["Create profile"] : Lang["Save changes"])
+            </MudButton>
+        </MudForm>
+    </MudPaper>
+}
+
+@code {
+    [Inject] private IAdminApiClient Admin { get; set; } = default!;
+    [Inject] private ILanguageService Lang { get; set; } = default!;
+
+    private MudForm _form = default!;
+    private bool _loading = true;
+    private bool _isNew;
+    private bool _saving;
+    private bool _saved;
+    private string? _error;
+
+    private string _firstName = "";
+    private string _lastName = "";
+    private string _specialty = "";
+    private string? _licenseNumber;
+    private string? _bio;
+    private IReadOnlyCollection<Guid> _clinicIds = [];
+    private decimal _consultationFee;
+    private List<ClinicDto> _clinics = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _clinics = await Admin.GetClinicsAsync();
+
+        var profile = await Admin.GetMyProfileAsync();
+        if (profile is null)
+        {
+            _isNew = true;
+        }
+        else
+        {
+            _firstName = profile.FirstName;
+            _lastName = profile.LastName;
+            _specialty = profile.Specialty;
+            _licenseNumber = profile.LicenseNumber;
+            _bio = profile.Bio;
+            _clinicIds = profile.Clinics.Select(c => c.Id).ToList();
+            _consultationFee = profile.ConsultationFee;
+        }
+        _loading = false;
+    }
+
+    private async Task Save()
+    {
+        _error = null;
+        _saved = false;
+        await _form.ValidateAsync();
+        if (!_form.IsValid) return;
+
+        _saving = true;
+        var clinicIds = _clinicIds.ToList();
+        var resp = _isNew
+            ? await Admin.CreateMyProfileAsync(new CreateOwnDoctorProfileRequest(
+                _firstName, _lastName, _specialty, _bio, _licenseNumber, clinicIds, _consultationFee))
+            : await Admin.UpdateMyProfileAsync(new UpdateOwnDoctorProfileRequest(_bio, clinicIds, _consultationFee));
+        _saving = false;
+
+        if (resp.IsSuccessStatusCode)
+        {
+            _saved = true;
+            _isNew = false;
+        }
+        else
+        {
+            _error = Lang["Could not save your profile. Please try again."];
+        }
+    }
+}

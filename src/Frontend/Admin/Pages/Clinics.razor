@@ -1,0 +1,115 @@
+@page "/clinics"
+@attribute [Authorize(Roles = "Admin")]
+
+<PageTitle>Clinics</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">@Lang["Clinics"]</MudText>
+
+<MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mb-4" OnClick="@(() => _showCreateForm = !_showCreateForm)">
+    @(_showCreateForm ? Lang["Cancel"] : Lang["Add clinic"])
+</MudButton>
+
+@if (_showCreateForm)
+{
+    <MudPaper Class="pa-6 mb-6">
+        <MudForm @ref="_createForm">
+            <MudTextField T="string" Label="@Lang["Name"]" @bind-Value="_newName" Required="true" Class="mb-3" />
+            <MudSelect T="ClinicType" Label="@Lang["Type"]" @bind-Value="_newType" Class="mb-3">
+                @foreach (var type in Enum.GetValues<ClinicType>())
+                {
+                    <MudSelectItem T="ClinicType" Value="@type">@Lang[$"clinicType.{type}"]</MudSelectItem>
+                }
+            </MudSelect>
+            <MudTextField T="string" Label="@Lang["Address"]" @bind-Value="_newAddress" Class="mb-3" />
+            <MudTextField T="string" Label="@Lang["City"]" @bind-Value="_newCity" Required="true" Class="mb-3" />
+            <MudTextField T="string" Label="@Lang["Phone"]" @bind-Value="_newPhone" Class="mb-3" />
+
+            @if (_createError is not null)
+            {
+                <MudAlert Severity="Severity.Error" Class="mb-3">@_createError</MudAlert>
+            }
+
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Create" Disabled="_creating">
+                @Lang["Create"]
+            </MudButton>
+        </MudForm>
+    </MudPaper>
+}
+
+@if (_loading)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else
+{
+    <MudTable Items="_clinics" Hover="true">
+        <HeaderContent>
+            <MudTh>@Lang["Name"]</MudTh>
+            <MudTh>@Lang["Type"]</MudTh>
+            <MudTh>@Lang["City"]</MudTh>
+            <MudTh>@Lang["Address"]</MudTh>
+            <MudTh>@Lang["Phone"]</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.Name</MudTd>
+            <MudTd>@Lang[$"clinicType.{context.Type}"]</MudTd>
+            <MudTd>@context.City</MudTd>
+            <MudTd>@context.Address</MudTd>
+            <MudTd>@context.Phone</MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    [Inject] private IAdminApiClient Admin { get; set; } = default!;
+    [Inject] private ILanguageService Lang { get; set; } = default!;
+
+    private bool _loading = true;
+    private List<ClinicDto> _clinics = [];
+
+    private bool _showCreateForm;
+    private MudForm _createForm = default!;
+    private string _newName = "";
+    private ClinicType _newType = ClinicType.PrivatePractice;
+    private string? _newAddress;
+    private string _newCity = "";
+    private string? _newPhone;
+    private bool _creating;
+    private string? _createError;
+
+    protected override async Task OnInitializedAsync() => await Load();
+
+    private async Task Load()
+    {
+        _loading = true;
+        _clinics = await Admin.GetClinicsAsync();
+        _loading = false;
+    }
+
+    private async Task Create()
+    {
+        _createError = null;
+        await _createForm.ValidateAsync();
+        if (!_createForm.IsValid) return;
+
+        _creating = true;
+        var resp = await Admin.CreateClinicAsync(new CreateClinicRequest(
+            _newName, _newType, string.IsNullOrWhiteSpace(_newAddress) ? null : _newAddress,
+            _newCity, string.IsNullOrWhiteSpace(_newPhone) ? null : _newPhone));
+        _creating = false;
+
+        if (resp.IsSuccessStatusCode)
+        {
+            _showCreateForm = false;
+            _newName = "";
+            _newAddress = null;
+            _newCity = "";
+            _newPhone = null;
+            await Load();
+        }
+        else
+        {
+            _createError = Lang["Could not create the clinic."];
+        }
+    }
+}

@@ -1,0 +1,166 @@
+@page "/doctors"
+@attribute [Authorize(Roles = "Admin")]
+
+<PageTitle>Doctors</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">@Lang["Doctors"]</MudText>
+
+<MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mb-4" OnClick="@(() => _showCreateForm = !_showCreateForm)">
+    @(_showCreateForm ? Lang["Cancel"] : Lang["Create doctor profile"])
+</MudButton>
+
+@if (_showCreateForm)
+{
+    <MudPaper Class="pa-6 mb-6">
+        <MudForm @ref="_createForm">
+            <MudSelect T="Guid?" Label="@Lang["Doctor-role user"]" @bind-Value="_selectedUserId" Class="mb-3" Required="true">
+                @foreach (var user in _doctorUsers)
+                {
+                    <MudSelectItem T="Guid?" Value="@((Guid?)user.Id)">@user.FirstName @user.LastName (@user.Email)</MudSelectItem>
+                }
+            </MudSelect>
+            <MudTextField T="string" Label="@Lang["First name"]" @bind-Value="_newFirstName" Required="true" Class="mb-3" />
+            <MudTextField T="string" Label="@Lang["Last name"]" @bind-Value="_newLastName" Required="true" Class="mb-3" />
+            <MudTextField T="string" Label="@Lang["Specialty"]" @bind-Value="_newSpecialty" Required="true" Class="mb-3" />
+            <MudTextField T="string" Label="@Lang["License number"]" @bind-Value="_newLicenseNumber" Class="mb-3" />
+            <MudSelect T="Guid" Label="@Lang["Clinics"]" MultiSelection="true" @bind-SelectedValues="_newClinicIds" Class="mb-3">
+                @foreach (var clinic in _clinics)
+                {
+                    <MudSelectItem T="Guid" Value="@clinic.Id">@clinic.Name (@clinic.City)</MudSelectItem>
+                }
+            </MudSelect>
+            <MudNumericField T="decimal" Label="@Lang["Consultation fee ($)"]" @bind-Value="_newConsultationFee" Min="0" Class="mb-3" />
+
+            @if (_createError is not null)
+            {
+                <MudAlert Severity="Severity.Error" Class="mb-3">@_createError</MudAlert>
+            }
+
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateDoctor" Disabled="_creating">
+                @Lang["Create"]
+            </MudButton>
+        </MudForm>
+    </MudPaper>
+}
+
+<MudSelect T="DoctorApprovalStatus?" Label="@Lang["Filter by status"]" @bind-Value="_statusFilter" @bind-Value:after="LoadDoctors" Class="mb-4" Style="max-width:300px;">
+    <MudSelectItem T="DoctorApprovalStatus?" Value="@((DoctorApprovalStatus?)null)">@Lang["All"]</MudSelectItem>
+    <MudSelectItem T="DoctorApprovalStatus?" Value="@DoctorApprovalStatus.Pending">@Lang["status.Pending"]</MudSelectItem>
+    <MudSelectItem T="DoctorApprovalStatus?" Value="@DoctorApprovalStatus.Approved">@Lang["status.Approved"]</MudSelectItem>
+    <MudSelectItem T="DoctorApprovalStatus?" Value="@DoctorApprovalStatus.Suspended">@Lang["status.Suspended"]</MudSelectItem>
+</MudSelect>
+
+@if (_loading)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else
+{
+    <MudTable Items="_doctors" Hover="true">
+        <HeaderContent>
+            <MudTh>@Lang["Name"]</MudTh>
+            <MudTh>@Lang["Specialty"]</MudTh>
+            <MudTh>@Lang["Clinics"]</MudTh>
+            <MudTh>@Lang["Status"]</MudTh>
+            <MudTh>@Lang["Actions"]</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@Lang["Dr."] @context.FirstName @context.LastName</MudTd>
+            <MudTd>@context.Specialty</MudTd>
+            <MudTd>
+                @foreach (var clinic in context.Clinics)
+                {
+                    <MudChip T="string" Size="Size.Small" Class="mr-1 mb-1">@clinic.Name</MudChip>
+                }
+            </MudTd>
+            <MudTd>@Lang[$"status.{context.Status}"]</MudTd>
+            <MudTd>
+                @if (context.Status is DoctorApprovalStatus.Pending or DoctorApprovalStatus.Suspended)
+                {
+                    <MudButton Size="Size.Small" Color="Color.Success" OnClick="@(() => Approve(context.Id))">@Lang["Approve"]</MudButton>
+                }
+                @if (context.Status == DoctorApprovalStatus.Approved)
+                {
+                    <MudButton Size="Size.Small" Color="Color.Error" OnClick="@(() => Suspend(context.Id))">@Lang["Suspend"]</MudButton>
+                }
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    [Inject] private IAdminApiClient Admin { get; set; } = default!;
+    [Inject] private IIdentityApiClient Identity { get; set; } = default!;
+    [Inject] private ILanguageService Lang { get; set; } = default!;
+
+    private bool _loading = true;
+    private DoctorApprovalStatus? _statusFilter;
+    private List<DoctorProfileDto> _doctors = [];
+    private List<ClinicDto> _clinics = [];
+    private List<UserDto> _doctorUsers = [];
+
+    private bool _showCreateForm;
+    private MudForm _createForm = default!;
+    private Guid? _selectedUserId;
+    private string _newFirstName = "";
+    private string _newLastName = "";
+    private string _newSpecialty = "";
+    private string? _newLicenseNumber;
+    private IReadOnlyCollection<Guid> _newClinicIds = [];
+    private decimal _newConsultationFee;
+    private bool _creating;
+    private string? _createError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _clinics = await Admin.GetClinicsAsync();
+        _doctorUsers = await Identity.GetAdminUsersAsync("Doctor");
+        await LoadDoctors();
+    }
+
+    private async Task LoadDoctors()
+    {
+        _loading = true;
+        _doctors = await Admin.GetAllDoctorsAsync(_statusFilter);
+        _loading = false;
+    }
+
+    private async Task Approve(Guid id)
+    {
+        await Admin.ApproveDoctorAsync(id);
+        await LoadDoctors();
+    }
+
+    private async Task Suspend(Guid id)
+    {
+        await Admin.SuspendDoctorAsync(id, new SuspendDoctorRequest(null));
+        await LoadDoctors();
+    }
+
+    private async Task CreateDoctor()
+    {
+        _createError = null;
+        await _createForm.ValidateAsync();
+        if (!_createForm.IsValid || _selectedUserId is null) return;
+
+        _creating = true;
+        var resp = await Admin.CreateDoctorAsync(new CreateDoctorProfileRequest(
+            _selectedUserId.Value, _newFirstName, _newLastName, _newSpecialty,
+            null, _newLicenseNumber, _newClinicIds.ToList(), _newConsultationFee));
+        _creating = false;
+
+        if (resp.IsSuccessStatusCode)
+        {
+            _showCreateForm = false;
+            await LoadDoctors();
+        }
+        else if (resp.StatusCode == System.Net.HttpStatusCode.Conflict)
+        {
+            _createError = Lang["This user already has a doctor profile."];
+        }
+        else
+        {
+            _createError = Lang["Could not create the doctor profile."];
+        }
+    }
+}

@@ -1,0 +1,344 @@
+@page "/appointments/{AppointmentId:guid}"
+@attribute [Authorize]
+@implements IDisposable
+
+<PageTitle>Appointment</PageTitle>
+
+@if (_loading)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else if (_appointment is null)
+{
+    <MudAlert Severity="Severity.Error">@Lang["Appointment not found."]</MudAlert>
+}
+else
+{
+    <MudPaper Class="pa-6 mb-4">
+        <MudText Typo="Typo.h4">@string.Format(Lang["appointmentWithDoctor"], _doctorName)</MudText>
+        <MudText Typo="Typo.subtitle1" Class="mt-1">@_appointment.SlotStart.ToString("f")</MudText>
+        <MudText Typo="Typo.subtitle2" Class="mt-1">@string.Format(Lang["refNumber"], _appointment.RefNumber)</MudText>
+        <MudChip T="string" Class="mt-2">@Lang[$"status.{_appointment.Status}"]</MudChip>
+        @if (!string.IsNullOrWhiteSpace(_appointment.Motif))
+        {
+            <MudText Class="mt-3">@string.Format(Lang["reasonLabel"], _appointment.Motif)</MudText>
+        }
+    </MudPaper>
+
+    @if (_appointment.Status is AppointmentStatus.Pending or AppointmentStatus.Confirmed)
+    {
+        <MudPaper Class="pa-6 mb-4">
+            <MudText Typo="Typo.h6" Class="mb-3">@Lang["Change appointment"]</MudText>
+            @if (!_showReschedule)
+            {
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="@(() => _showReschedule = true)">
+                    @Lang["Reschedule"]
+                </MudButton>
+            }
+            else
+            {
+                <MudDatePicker Label="@Lang["New date"]" @bind-Date="_newDate" MinDate="DateTime.Today" @bind-Date:after="LoadSlots" />
+
+                @if (_loadingSlots)
+                {
+                    <MudProgressCircular Indeterminate="true" Class="mt-4" />
+                }
+                else if (_newDate is not null)
+                {
+                    @if (_selectedSlot is not null)
+                    {
+                        <MudAlert Severity="Severity.Success" Class="mt-4">
+                            @string.Format(Lang["newSlotFor"], _newDate.Value.ToString("dd/MM/yyyy")) <b>@_selectedSlot</b>
+                            <MudButton Size="Size.Small" Variant="Variant.Text" Class="ml-2" OnClick="ClearSelection">@Lang["Change"]</MudButton>
+                        </MudAlert>
+                    }
+                    else if (_slots.Count == 0)
+                    {
+                        <MudAlert Severity="Severity.Info" Class="mt-4">@Lang["No open slots on this date."]</MudAlert>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.subtitle1" Class="mt-4 mb-2">
+                            @string.Format(Lang["availableSlotsFor"], _newDate.Value.ToString("dd/MM/yyyy"))
+                        </MudText>
+                        @foreach (var slot in _slots)
+                        {
+                            <MudChip T="string" Class="mr-1 mb-1" OnClick="@(() => SelectSlot(slot))">@slot</MudChip>
+                        }
+                    }
+                }
+
+                @if (_rescheduleError is not null)
+                {
+                    <MudAlert Severity="Severity.Error" Class="mt-3">@_rescheduleError</MudAlert>
+                }
+
+                <div class="mt-4">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                               Disabled="@(_selectedSlot is null || _rescheduling)" OnClick="ConfirmReschedule">
+                        @Lang["Confirm new time"]
+                    </MudButton>
+                    <MudButton Variant="Variant.Text" Class="ml-2" OnClick="CancelReschedule">@Lang["Cancel"]</MudButton>
+                </div>
+            }
+        </MudPaper>
+    }
+
+    @if (_payment is not null)
+    {
+        <MudPaper Class="pa-6 mb-4">
+            <MudText Typo="Typo.h6">@Lang["Payment"]</MudText>
+            <MudText>@string.Format(Lang["totalAmountLabel"], _payment.GrossAmount.ToString("0.00")) — <MudChip T="string" Size="Size.Small">@Lang[$"status.{_payment.Status}"]</MudChip></MudText>
+            @if (_payment.Status == PaymentStatus.Pending)
+            {
+                @if (_paymentError is not null)
+                {
+                    <MudAlert Severity="Severity.Error" Class="mt-2">@_paymentError</MudAlert>
+                }
+                @if (_awaitingMokoConfirmation)
+                {
+                    <MudAlert Severity="Severity.Info" Class="mt-3">@_mokoMessage</MudAlert>
+                    <MudProgressCircular Indeterminate="true" Class="mt-2" />
+                }
+                else
+                {
+                    <MudRadioGroup T="PaymentProvider" @bind-Value="_selectedProvider" Class="mt-3">
+                        <MudRadio T="PaymentProvider" Value="PaymentProvider.Stripe">@Lang["Card"]</MudRadio>
+                        <MudRadio T="PaymentProvider" Value="PaymentProvider.MokoAfrika">@Lang["Mobile Money"]</MudRadio>
+                    </MudRadioGroup>
+
+                    @if (_selectedProvider == PaymentProvider.MokoAfrika)
+                    {
+                        <MudTextField @bind-Value="_mokoFullName" Label="@Lang["Full name"]" Class="mt-2" />
+                        <MudTextField @bind-Value="_mokoPhoneNumber" Label="@Lang["Phone number"]" Class="mt-2" />
+                        <MudSelect T="MobileMoneyOperator" @bind-Value="_mokoOperator" Label="@Lang["Mobile money operator"]" Class="mt-2">
+                            <MudSelectItem T="MobileMoneyOperator" Value="MobileMoneyOperator.Airtel">Airtel Money</MudSelectItem>
+                            <MudSelectItem T="MobileMoneyOperator" Value="MobileMoneyOperator.Orange">Orange Money</MudSelectItem>
+                            <MudSelectItem T="MobileMoneyOperator" Value="MobileMoneyOperator.Mpesa">M-Pesa</MudSelectItem>
+                            <MudSelectItem T="MobileMoneyOperator" Value="MobileMoneyOperator.Africell">Africell Money</MudSelectItem>
+                        </MudSelect>
+                    }
+
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-3" Disabled="@(_payingNow || !CanPay)" OnClick="PayNow">
+                        @Lang["Pay now"]
+                    </MudButton>
+                }
+            }
+        </MudPaper>
+    }
+
+    @if (_appointment.Status == AppointmentStatus.Completed && !_alreadyReviewed)
+    {
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Href="@($"/reviews/new/{AppointmentId}")" Class="mb-4">
+            @Lang["Leave a review"]
+        </MudButton>
+    }
+
+    <MudText Typo="Typo.h6" Class="mb-2">@Lang["Documents"]</MudText>
+    @if (_documents.Count == 0)
+    {
+        <MudText>@Lang["No documents linked to this appointment."]</MudText>
+    }
+    else
+    {
+        <MudList T="string">
+            @foreach (var doc in _documents)
+            {
+                <MudListItem T="string">
+                    @doc.FileName (@doc.Category) — <MudLink OnClick="@(() => Download(doc.Id))">@Lang["Download"]</MudLink>
+                </MudListItem>
+            }
+        </MudList>
+    }
+}
+
+@code {
+    [Parameter] public Guid AppointmentId { get; set; }
+    [Inject] private IAppointmentApiClient Appointments { get; set; } = default!;
+    [Inject] private IPaymentApiClient Payments { get; set; } = default!;
+    [Inject] private IDocumentApiClient Documents { get; set; } = default!;
+    [Inject] private IReviewApiClient Reviews { get; set; } = default!;
+    [Inject] private ISearchApiClient Search { get; set; } = default!;
+    [Inject] private IAvailabilityApiClient Availability { get; set; } = default!;
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+    [Inject] private ILanguageService Lang { get; set; } = default!;
+
+    private bool _loading = true;
+    private AppointmentDto? _appointment;
+    private string _doctorName = "—";
+    private PaymentDto? _payment;
+    private List<DocumentDto> _documents = [];
+    private bool _alreadyReviewed;
+    private bool _payingNow;
+    private string? _paymentError;
+    private PaymentProvider _selectedProvider = PaymentProvider.Stripe;
+    private string _mokoFullName = "";
+    private string _mokoPhoneNumber = "";
+    private MobileMoneyOperator _mokoOperator = MobileMoneyOperator.Airtel;
+    private bool _awaitingMokoConfirmation;
+    private string? _mokoMessage;
+    private CancellationTokenSource? _mokoPollCts;
+
+    private bool CanPay => _selectedProvider == PaymentProvider.Stripe
+        || (!string.IsNullOrWhiteSpace(_mokoFullName) && !string.IsNullOrWhiteSpace(_mokoPhoneNumber));
+
+    private bool _showReschedule;
+    private DateTime? _newDate;
+    private bool _loadingSlots;
+    private List<string> _slots = [];
+    private string? _selectedSlot;
+    private bool _rescheduling;
+    private string? _rescheduleError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _appointment = await Appointments.GetByIdAsync(AppointmentId);
+        if (_appointment is not null)
+        {
+            var doctor = await Search.GetDoctorAsync(_appointment.DoctorId);
+            _doctorName = doctor is null ? Lang["Unknown doctor"] : $"{Lang["Dr."]} {doctor.FirstName} {doctor.LastName}";
+
+            _payment = await Payments.GetByAppointmentAsync(AppointmentId);
+            _documents = await Documents.GetForAppointmentAsync(AppointmentId);
+
+            if (_appointment.Status == AppointmentStatus.Completed)
+            {
+                var doctorReviews = await Reviews.GetForDoctorAsync(_appointment.DoctorId);
+                _alreadyReviewed = doctorReviews.Any(r => r.AppointmentId == AppointmentId);
+            }
+        }
+        _loading = false;
+    }
+
+    private async Task LoadSlots()
+    {
+        _selectedSlot = null;
+        if (_newDate is null || _appointment is null) return;
+
+        _loadingSlots = true;
+        _slots = await Availability.GetSlotsAsync(_appointment.DoctorId, DateOnly.FromDateTime(_newDate.Value));
+        _loadingSlots = false;
+    }
+
+    private void SelectSlot(string slot)
+    {
+        _selectedSlot = slot;
+        _slots.Remove(slot);
+    }
+
+    private void ClearSelection()
+    {
+        if (_selectedSlot is null) return;
+        _slots.Add(_selectedSlot);
+        _slots.Sort();
+        _selectedSlot = null;
+    }
+
+    private void CancelReschedule()
+    {
+        _showReschedule = false;
+        _newDate = null;
+        _slots = [];
+        _selectedSlot = null;
+        _rescheduleError = null;
+    }
+
+    private async Task ConfirmReschedule()
+    {
+        if (_newDate is null || _selectedSlot is null || _appointment is null) return;
+        _rescheduleError = null;
+        _rescheduling = true;
+
+        // Match Availability's UTC-day-boundary, bare-wall-clock slot convention (see BookAppointment.razor).
+        var time = TimeOnly.Parse(_selectedSlot);
+        var slotStart = DateTime.SpecifyKind(_newDate.Value.Date.Add(time.ToTimeSpan()), DateTimeKind.Utc);
+
+        var resp = await Appointments.RescheduleAsync(AppointmentId, new RescheduleRequest(slotStart));
+        _rescheduling = false;
+
+        if (resp.IsSuccessStatusCode)
+        {
+            _appointment = await resp.Content.ReadFromJsonAsync<AppointmentDto>(JsonDefaults.Options);
+            CancelReschedule();
+        }
+        else if (resp.StatusCode == System.Net.HttpStatusCode.Conflict)
+        {
+            _rescheduleError = Lang["That slot was just taken, or this appointment can no longer be rescheduled."];
+            await LoadSlots();
+        }
+        else
+        {
+            _rescheduleError = Lang["Could not reschedule. Please try again."];
+        }
+    }
+
+    private async Task PayNow()
+    {
+        if (_payment is null) return;
+        _paymentError = null;
+        _payingNow = true;
+
+        var isMoko = _selectedProvider == PaymentProvider.MokoAfrika;
+        var request = new InitiatePaymentRequest(
+            _selectedProvider,
+            isMoko ? _mokoPhoneNumber : null,
+            isMoko ? _mokoOperator : null,
+            isMoko ? _mokoFullName : null);
+
+        var resp = await Payments.InitiateAsync(_payment.Id, request);
+        if (resp.IsSuccessStatusCode)
+        {
+            var result = await resp.Content.ReadFromJsonAsync<InitiatePaymentResponse>(JsonDefaults.Options);
+            if (result?.CheckoutUrl is not null)
+            {
+                Navigation.NavigateTo(result.CheckoutUrl, forceLoad: true);
+            }
+            else
+            {
+                _mokoMessage = result?.Message ?? Lang["Check your phone to approve the payment."];
+                _awaitingMokoConfirmation = true;
+                _payingNow = false;
+                _ = PollMokoStatusAsync();
+            }
+        }
+        else
+        {
+            _paymentError = isMoko
+                ? Lang["Could not start the mobile money payment. Please try again."]
+                : Lang["Could not start payment. Please try again shortly."];
+            _payingNow = false;
+        }
+    }
+
+    // Moko Afrika confirms/denies asynchronously via webhook — poll for the terminal row
+    // the same way PaymentResult.razor does for its own redirect-based flow.
+    private async Task PollMokoStatusAsync()
+    {
+        _mokoPollCts = new CancellationTokenSource();
+        var attemptsLeft = 8;
+        try
+        {
+            while (attemptsLeft > 0 && !_mokoPollCts.IsCancellationRequested)
+            {
+                await Task.Delay(3000, _mokoPollCts.Token);
+                _payment = await Payments.GetByAppointmentAsync(AppointmentId);
+                if (_payment?.Status != PaymentStatus.Pending) break;
+                attemptsLeft--;
+            }
+        }
+        catch (TaskCanceledException)
+        {
+            return;
+        }
+        _awaitingMokoConfirmation = false;
+        StateHasChanged();
+    }
+
+    private async Task Download(Guid documentId)
+    {
+        var url = await Documents.GetDownloadUrlAsync(documentId);
+        if (url is not null) Navigation.NavigateTo(url, forceLoad: true);
+    }
+
+    public void Dispose() => _mokoPollCts?.Cancel();
+}

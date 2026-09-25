@@ -1,0 +1,101 @@
+@page "/schedule"
+@attribute [Authorize]
+
+<PageTitle>My schedule</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">@Lang["Weekly schedule"]</MudText>
+
+@if (_loading)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else
+{
+    <MudTable Items="_rows" Hover="true">
+        <HeaderContent>
+            <MudTh>@Lang["Day"]</MudTh>
+            <MudTh>@Lang["Open"]</MudTh>
+            <MudTh>@Lang["Open time"]</MudTh>
+            <MudTh>@Lang["Close time"]</MudTh>
+            <MudTh>@Lang["Slot length (min)"]</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@Lang[$"day.{context.Day}"]</MudTd>
+            <MudTd><MudCheckBox T="bool" Value="context.Enabled" ValueChanged="@(v => context.Enabled = v)" /></MudTd>
+            <MudTd><MudTimePicker @bind-Time="context.OpenTime" Disabled="!context.Enabled" /></MudTd>
+            <MudTd><MudTimePicker @bind-Time="context.CloseTime" Disabled="!context.Enabled" /></MudTd>
+            <MudTd><MudNumericField T="int" @bind-Value="context.SlotMinutes" Min="5" Max="240" Disabled="!context.Enabled" /></MudTd>
+        </RowTemplate>
+    </MudTable>
+
+    @if (_error is not null)
+    {
+        <MudAlert Severity="Severity.Error" Class="mt-4">@_error</MudAlert>
+    }
+    @if (_saved)
+    {
+        <MudAlert Severity="Severity.Success" Class="mt-4">@Lang["Schedule saved."]</MudAlert>
+    }
+
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" OnClick="Save" Disabled="_saving">
+        @Lang["Save schedule"]
+    </MudButton>
+}
+
+@code {
+    [Inject] private IAvailabilityApiClient Availability { get; set; } = default!;
+    [Inject] private ILanguageService Lang { get; set; } = default!;
+
+    private bool _loading = true;
+    private bool _saving;
+    private bool _saved;
+    private string? _error;
+    private List<DayRow> _rows = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var existing = await Availability.GetMyScheduleAsync();
+        var byDay = existing.ToDictionary(d => d.Day);
+
+        _rows = Enum.GetValues<DayOfWeekEnum>().Select(day =>
+        {
+            if (byDay.TryGetValue(day, out var d))
+            {
+                return new DayRow
+                {
+                    Day = day, Enabled = true,
+                    OpenTime = d.OpenTime.ToTimeSpan(), CloseTime = d.CloseTime.ToTimeSpan(),
+                    SlotMinutes = d.SlotMinutes
+                };
+            }
+            return new DayRow { Day = day, Enabled = false, OpenTime = new TimeSpan(9, 0, 0), CloseTime = new TimeSpan(17, 0, 0), SlotMinutes = 30 };
+        }).ToList();
+
+        _loading = false;
+    }
+
+    private async Task Save()
+    {
+        _error = null;
+        _saved = false;
+        _saving = true;
+
+        var days = _rows.Where(r => r.Enabled).Select(r => new ScheduleDayDto(
+            r.Day, TimeOnly.FromTimeSpan(r.OpenTime ?? TimeSpan.Zero), TimeOnly.FromTimeSpan(r.CloseTime ?? TimeSpan.Zero), r.SlotMinutes)).ToList();
+
+        var resp = await Availability.SetMyScheduleAsync(new UpdateScheduleRequest(days));
+        _saving = false;
+
+        if (resp.IsSuccessStatusCode) _saved = true;
+        else _error = Lang["Could not save your schedule. Please try again."];
+    }
+
+    private class DayRow
+    {
+        public DayOfWeekEnum Day { get; set; }
+        public bool Enabled { get; set; }
+        public TimeSpan? OpenTime { get; set; }
+        public TimeSpan? CloseTime { get; set; }
+        public int SlotMinutes { get; set; }
+    }
+}

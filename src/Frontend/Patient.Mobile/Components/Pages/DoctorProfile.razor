@@ -1,0 +1,121 @@
+@page "/doctors/{DoctorId:guid}"
+
+<PageTitle>Doctor profile</PageTitle>
+
+@if (_loading)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else if (_doctor is null)
+{
+    <MudAlert Severity="Severity.Error">@Lang["Doctor not found."]</MudAlert>
+}
+else
+{
+    <MudPaper Class="pa-6 mb-6">
+        <MudText Typo="Typo.h4">@Lang["Dr."] @_doctor.FirstName @_doctor.LastName</MudText>
+        <MudText Typo="Typo.subtitle1" Color="Color.Secondary">@_doctor.Specialty</MudText>
+        @if (_doctor.Clinics.Count > 0)
+        {
+            <div class="mt-2">
+                @foreach (var clinic in _doctor.Clinics)
+                {
+                    <MudChip T="string" Class="mr-1 mb-1">@clinic.Name — @clinic.City</MudChip>
+                }
+            </div>
+        }
+        @if (!string.IsNullOrWhiteSpace(_doctor.Bio))
+        {
+            <MudText Class="mt-3">@_doctor.Bio</MudText>
+        }
+        <MudRating SelectedValue="@((int)Math.Round(_doctor.AverageRating))" ReadOnly="true" Class="mt-3" />
+        <MudText Typo="Typo.caption">(@string.Format(Lang["reviewCount"], _doctor.RatingCount, _doctor.RatingCount == 1 ? "" : "s"))</MudText>
+        <MudText Typo="Typo.h6" Class="mt-3">@string.Format(Lang["perConsultation"], _doctor.ConsultationFee.ToString("0.00"))</MudText>
+
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@($"/book/{DoctorId}")" Class="mt-4">
+            @Lang["Book appointment"]
+        </MudButton>
+    </MudPaper>
+
+    <MudPaper Class="pa-6 mb-6">
+        <MudText Typo="Typo.h5" Class="mb-3">@Lang["Availability"]</MudText>
+        <MudDatePicker Label="@Lang["Check a date"]" @bind-Date="_date" MinDate="DateTime.Today" @bind-Date:after="LoadSlots" />
+
+        @if (_loadingSlots)
+        {
+            <MudProgressCircular Indeterminate="true" Class="mt-4" />
+        }
+        else if (_date is not null)
+        {
+            @if (_slots.Count == 0)
+            {
+                <MudAlert Severity="Severity.Info" Class="mt-4">@Lang["No open slots on this date."]</MudAlert>
+            }
+            else
+            {
+                <MudText Typo="Typo.subtitle1" Class="mt-4 mb-2">
+                    @string.Format(Lang["availableSlotsFor"], _date.Value.ToString("dd/MM/yyyy"))
+                </MudText>
+                @foreach (var slot in _slots)
+                {
+                    <MudChip T="string" Class="mr-1 mb-1">@slot</MudChip>
+                }
+            }
+        }
+    </MudPaper>
+
+    <MudText Typo="Typo.h5" Class="mb-3">@Lang["Reviews"]</MudText>
+    @if (_reviews.Count == 0)
+    {
+        <MudText>@Lang["No reviews yet."]</MudText>
+    }
+    else
+    {
+        @foreach (var review in _reviews)
+        {
+            <MudPaper Class="pa-4 mb-2">
+                <MudRating SelectedValue="review.Rating" ReadOnly="true" />
+                @if (!string.IsNullOrWhiteSpace(review.Comment))
+                {
+                    <MudText Class="mt-1">@review.Comment</MudText>
+                }
+                <MudText Typo="Typo.caption">@review.CreatedAt.ToLocalTime().ToString("d")</MudText>
+            </MudPaper>
+        }
+    }
+}
+
+@code {
+    [Parameter] public Guid DoctorId { get; set; }
+    [Inject] private ISearchApiClient Search { get; set; } = default!;
+    [Inject] private IReviewApiClient Reviews { get; set; } = default!;
+    [Inject] private IAvailabilityApiClient Availability { get; set; } = default!;
+    [Inject] private ILanguageService Lang { get; set; } = default!;
+
+    private bool _loading = true;
+    private DoctorSearchResultDto? _doctor;
+    private List<ReviewDto> _reviews = [];
+
+    private DateTime? _date;
+    private bool _loadingSlots;
+    private List<string> _slots = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _doctor = await Search.GetDoctorAsync(DoctorId);
+        _reviews = (await Reviews.GetForDoctorAsync(DoctorId)).ToList();
+        _loading = false;
+
+        _date = DateTime.Today;
+        await LoadSlots();
+    }
+
+    private async Task LoadSlots()
+    {
+        if (_date is null) return;
+
+        _loadingSlots = true;
+        _slots = await Availability.GetSlotsAsync(DoctorId, DateOnly.FromDateTime(_date.Value));
+        _loadingSlots = false;
+    }
+}

@@ -1,0 +1,42 @@
+@inherits LayoutComponentBase
+
+<MudThemeProvider />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="1">
+        <MudText Typo="Typo.h5" Class="ml-2">@Lang["LandaDoc Admin"]</MudText>
+        <MudSpacer />
+        <AuthorizeView>
+            <Authorized>
+                <MudButton Href="/" Color="Color.Inherit">@Lang["Overview"]</MudButton>
+                <MudButton Href="/doctors" Color="Color.Inherit">@Lang["Doctors"]</MudButton>
+                <MudButton Href="/clinics" Color="Color.Inherit">@Lang["Clinics"]</MudButton>
+                <MudButton OnClick="Logout" Color="Color.Inherit">@Lang["Log out"]</MudButton>
+            </Authorized>
+            <NotAuthorized>
+                <MudButton Href="/login" Color="Color.Inherit">@Lang["Log in"]</MudButton>
+            </NotAuthorized>
+        </AuthorizeView>
+        <LanguageSwitcher />
+    </MudAppBar>
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.Large" Class="my-6">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    [Inject] private JwtAuthenticationStateProvider AuthState { get; set; } = default!;
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+    [Inject] private ILanguageService Lang { get; set; } = default!;
+
+    private async Task Logout()
+    {
+        await AuthState.MarkUserAsLoggedOut();
+        Navigation.NavigateTo("/login");
+    }
+}

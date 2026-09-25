@@ -1,0 +1,77 @@
+@page "/register"
+
+<PageTitle>Register</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">@Lang["Create your doctor account"]</MudText>
+
+<div class="d-flex justify-center mt-8">
+    <MudPaper Class="pa-6" MaxWidth="500px" Style="width:100%;">
+        <MudForm @ref="_form">
+            <MudTextField T="string" Label="@Lang["First name"]" @bind-Value="_firstName" Required="true" Class="mb-3" />
+            <MudTextField T="string" Label="@Lang["Last name"]" @bind-Value="_lastName" Required="true" Class="mb-3" />
+            <MudTextField T="string" Label="@Lang["Email"]" @bind-Value="_email" InputType="InputType.Email" Required="true" Class="mb-3" />
+            <MudTextField T="string" Label="@Lang["Password"]" @bind-Value="_password" InputType="InputType.Password" Required="true"
+                           Validation="@(new Func<string, string?>(ValidatePassword))" HelperText="@Lang["At least 8 characters"]" Class="mb-3" />
+            <MudTextField T="string" Label="@Lang["Phone"]" @bind-Value="_phone" Class="mb-3" />
+
+            @if (_error is not null)
+            {
+                <MudAlert Severity="Severity.Error" Class="mb-3">@_error</MudAlert>
+            }
+
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="Submit" Disabled="_submitting">
+                @Lang["Register"]
+            </MudButton>
+        </MudForm>
+        <MudText Class="mt-4">@Lang["Already have an account?"] <MudLink Href="/login">@Lang["Log in"]</MudLink></MudText>
+    </MudPaper>
+</div>
+
+@code {
+    [Inject] private IIdentityApiClient Identity { get; set; } = default!;
+    [Inject] private JwtAuthenticationStateProvider AuthState { get; set; } = default!;
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+    [Inject] private ILanguageService Lang { get; set; } = default!;
+
+    private MudForm _form = default!;
+    private string _email = "";
+    private string _password = "";
+    private string _firstName = "";
+    private string _lastName = "";
+    private string? _phone;
+    private bool _submitting;
+    private string? _error;
+
+    private string? ValidatePassword(string password) =>
+        string.IsNullOrEmpty(password) || password.Length >= 8 ? null : Lang["At least 8 characters"];
+
+    private async Task Submit()
+    {
+        _error = null;
+        await _form.ValidateAsync();
+        if (!_form.IsValid) return;
+
+        _submitting = true;
+        var req = new RegisterDoctorRequest(
+            _email, _password, _firstName, _lastName,
+            string.IsNullOrWhiteSpace(_phone) ? null : _phone);
+
+        var resp = await Identity.RegisterDoctorAsync(req);
+        _submitting = false;
+
+        if (resp.IsSuccessStatusCode)
+        {
+            var auth = await resp.Content.ReadFromJsonAsync<AuthResponse>();
+            await AuthState.MarkUserAsAuthenticated(auth!);
+            Navigation.NavigateTo("/profile");
+        }
+        else if (resp.StatusCode == System.Net.HttpStatusCode.Conflict)
+        {
+            _error = Lang["An account with this email already exists."];
+        }
+        else
+        {
+            _error = Lang["Registration failed. Please check your details and try again."];
+        }
+    }
+}

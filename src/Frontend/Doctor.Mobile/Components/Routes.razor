@@ -1,0 +1,50 @@
+@if (_ready)
+{
+    <CascadingAuthenticationState>
+        <Router AppAssembly="@typeof(MauiProgram).Assembly">
+            <Found Context="routeData">
+                <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(Layout.MainLayout)">
+                    <NotAuthorized>
+                        @{ Navigation.NavigateTo($"/login?returnUrl={Uri.EscapeDataString(Navigation.ToBaseRelativePath(Navigation.Uri))}"); }
+                    </NotAuthorized>
+                    <Authorizing>
+                        <p>@Lang["Checking session…"]</p>
+                    </Authorizing>
+                </AuthorizeRouteView>
+                <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+            </Found>
+            <NotFound>
+                <PageTitle>@Lang["Not found"]</PageTitle>
+                <LayoutView Layout="@typeof(Layout.MainLayout)">
+                    <p role="alert">@Lang["Sorry, there's nothing at this address."]</p>
+                </LayoutView>
+            </NotFound>
+        </Router>
+    </CascadingAuthenticationState>
+}
+
+@code {
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+    [Inject] private ILanguageService Lang { get; set; } = default!;
+    [Inject] private TokenStore TokenStore { get; set; } = default!;
+
+    private bool _ready;
+
+    // WASM's Program.cs awaits ILanguageService.InitializeAsync() before host.RunAsync() so the
+    // first render already has the right culture. MauiProgram.CreateMauiApp() is synchronous and
+    // has no equivalent "before first render" hook, so the same wait happens here instead, gated
+    // behind _ready to avoid a flash of the wrong language.
+    //
+    // TokenStore.EnsureLoadedAsync() is awaited here too, on purpose: this runs on the Blazor
+    // renderer's dispatcher thread, which is the only place MAUI Blazor Hybrid allows JS interop
+    // (Blazored.LocalStorage) to happen safely. It must complete before the Router below can
+    // mount any page, because any page's HttpClient calls would otherwise reach
+    // AuthorizationMessageHandler first and try the same JS interop from a thread-pool thread -
+    // which hangs forever there instead of throwing. See TokenStore's own comment for the detail.
+    protected override async Task OnInitializedAsync()
+    {
+        await Lang.InitializeAsync();
+        await TokenStore.EnsureLoadedAsync();
+        _ready = true;
+    }
+}

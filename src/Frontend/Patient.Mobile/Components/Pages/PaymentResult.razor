@@ -1,0 +1,84 @@
+@page "/payments/{PaymentId:guid}/result"
+@attribute [Authorize]
+@implements IDisposable
+
+<PageTitle>Payment</PageTitle>
+
+<MudPaper Class="pa-6" MaxWidth="500px">
+    @if (_status == PaymentStatus.Completed)
+    {
+        <MudAlert Severity="Severity.Success">@Lang["Payment received — thank you!"]</MudAlert>
+    }
+    else if (_cancelled)
+    {
+        <MudAlert Severity="Severity.Warning">@Lang["Payment was cancelled. You can try again from your appointment."]</MudAlert>
+    }
+    else if (_attemptsLeft > 0)
+    {
+        <MudProgressCircular Indeterminate="true" Class="mb-3" />
+        <MudText>@Lang["Confirming your payment…"]</MudText>
+    }
+    else
+    {
+        <MudAlert Severity="Severity.Info">
+            @Lang["We haven't received confirmation yet. This can take a moment — check back on your appointment shortly."]
+        </MudAlert>
+    }
+    <MudButton Href="@($"/appointments/{_appointmentId}")" Class="mt-4" Disabled="_appointmentId is null">
+        @Lang["Back to appointment"]
+    </MudButton>
+</MudPaper>
+
+@code {
+    [Parameter] public Guid PaymentId { get; set; }
+    [SupplyParameterFromQuery] public string? Status { get; set; }
+    [Inject] private IPaymentApiClient Payments { get; set; } = default!;
+    [Inject] private ILanguageService Lang { get; set; } = default!;
+
+    private PaymentStatus? _status;
+    private Guid? _appointmentId;
+    private bool _cancelled;
+    private int _attemptsLeft = 8;
+    private CancellationTokenSource _cts = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _cancelled = Status == "cancelled";
+        if (_cancelled)
+        {
+            var payment = await Payments.GetByIdAsync(PaymentId);
+            _appointmentId = payment?.AppointmentId;
+            return;
+        }
+
+        await PollAsync();
+    }
+
+    // Webhook delivery is async — poll briefly rather than assume success on redirect.
+    // The ledger is insert-only: a completed/failed payment lands in a *new* row (fresh Id),
+    // never an update to this Pending row — so once we know the AppointmentId, poll by that
+    // instead of by PaymentId, or a terminal status would never be observed here.
+    private async Task PollAsync()
+    {
+        var initial = await Payments.GetByIdAsync(PaymentId);
+        _appointmentId = initial?.AppointmentId;
+        if (_appointmentId is null) return;
+
+        while (_attemptsLeft > 0 && !_cts.IsCancellationRequested)
+        {
+            var payment = await Payments.GetByAppointmentAsync(_appointmentId.Value);
+            if (payment?.Status == PaymentStatus.Completed)
+            {
+                _status = payment.Status;
+                StateHasChanged();
+                return;
+            }
+
+            _attemptsLeft--;
+            StateHasChanged();
+            if (_attemptsLeft > 0) await Task.Delay(2000, _cts.Token);
+        }
+    }
+
+    public void Dispose() => _cts.Cancel();
+}

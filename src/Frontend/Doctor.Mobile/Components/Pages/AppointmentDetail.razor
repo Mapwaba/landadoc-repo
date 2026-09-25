@@ -1,0 +1,155 @@
+@page "/appointments/{AppointmentId:guid}"
+@attribute [Authorize]
+
+<PageTitle>Appointment</PageTitle>
+
+@if (_loading)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else if (_appointment is null)
+{
+    <MudAlert Severity="Severity.Error">@Lang["Appointment not found."]</MudAlert>
+}
+else
+{
+    <MudPaper Class="pa-6 mb-4">
+        <MudText Typo="Typo.h4">@string.Format(Lang["appointmentOn"], _appointment.SlotStart.ToString("f"))</MudText>
+        <MudText Typo="Typo.subtitle1" Class="mt-1">@string.Format(Lang["refNumber"], _appointment.RefNumber)</MudText>
+        <MudChip T="string" Class="mt-2">@Lang[$"status.{_appointment.Status}"]</MudChip>
+        @if (!string.IsNullOrWhiteSpace(_appointment.Motif))
+        {
+            <MudText Class="mt-3">@string.Format(Lang["reasonLabel"], _appointment.Motif)</MudText>
+        }
+
+        @if (_appointment.Status is AppointmentStatus.Pending or AppointmentStatus.Confirmed)
+        {
+            @if (_completeError is not null)
+            {
+                <MudAlert Severity="Severity.Error" Class="mt-3">@_completeError</MudAlert>
+            }
+            <MudButton Variant="Variant.Filled" Color="Color.Success" Class="mt-3" Disabled="_completing" OnClick="Complete">
+                @Lang["Mark as completed"]
+            </MudButton>
+        }
+    </MudPaper>
+
+    <MudPaper Class="pa-6">
+        <MudText Typo="Typo.h6" Class="mb-3">@Lang["Patient documents"]</MudText>
+
+        <MudGrid Class="mb-4">
+            <MudItem xs="12" sm="6">
+                <MudSelect T="string" Label="@Lang["Category"]" @bind-Value="_category">
+                    <MudSelectItem Value="@("LabResult")">@Lang["docCategory.LabResult"]</MudSelectItem>
+                    <MudSelectItem Value="@("Prescription")">@Lang["docCategory.Prescription"]</MudSelectItem>
+                    <MudSelectItem Value="@("Report")">@Lang["docCategory.Report"]</MudSelectItem>
+                    <MudSelectItem Value="@("Other")">@Lang["docCategory.Other"]</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudFileUpload T="IBrowserFile" FilesChanged="OnFileSelected">
+                    <CustomContent Context="fileUpload">
+                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.AttachFile"
+                                   OnClick="@(() => fileUpload.OpenFilePickerAsync())">
+                            @(_selectedFile?.Name ?? Lang["Choose file"])
+                        </MudButton>
+                    </CustomContent>
+                </MudFileUpload>
+            </MudItem>
+        </MudGrid>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mb-4" Disabled="@(_selectedFile is null || _uploading)" OnClick="Upload">
+            @Lang["Upload"]
+        </MudButton>
+
+        @if (_documents.Count == 0)
+        {
+            <MudText>@Lang["No documents linked to this appointment."]</MudText>
+        }
+        else
+        {
+            <MudList T="string">
+                @foreach (var doc in _documents)
+                {
+                    <MudListItem T="string">
+                        @doc.FileName (@Lang[$"docCategory.{doc.Category}"]) — <MudLink OnClick="@(() => Download(doc.Id))">@Lang["Download"]</MudLink>
+                    </MudListItem>
+                }
+            </MudList>
+        }
+    </MudPaper>
+}
+
+@code {
+    [Parameter] public Guid AppointmentId { get; set; }
+    [Inject] private IAppointmentApiClient Appointments { get; set; } = default!;
+    [Inject] private IDocumentApiClient Documents { get; set; } = default!;
+    [Inject] private JwtAuthenticationStateProvider AuthState { get; set; } = default!;
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+    [Inject] private ILanguageService Lang { get; set; } = default!;
+
+    private bool _loading = true;
+    private AppointmentDto? _appointment;
+    private List<DocumentDto> _documents = [];
+    private bool _completing;
+    private string? _completeError;
+    private string _category = "Other";
+    private IBrowserFile? _selectedFile;
+    private bool _uploading;
+    private Guid _doctorId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthState.GetAuthenticationStateAsync();
+        _doctorId = Guid.Parse(authState.User.FindFirst(
+            "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier")!.Value);
+
+        _appointment = await Appointments.GetByIdAsync(AppointmentId);
+        if (_appointment is not null)
+            _documents = await Documents.GetForAppointmentAsync(AppointmentId);
+
+        _loading = false;
+    }
+
+    private async Task Complete()
+    {
+        _completeError = null;
+        _completing = true;
+
+        var resp = await Appointments.CompleteAsync(AppointmentId);
+        _completing = false;
+
+        if (resp.IsSuccessStatusCode)
+        {
+            _appointment = await resp.Content.ReadFromJsonAsync<AppointmentDto>(JsonDefaults.Options);
+        }
+        else
+        {
+            _completeError = Lang["Could not mark this appointment as completed."];
+        }
+    }
+
+    private void OnFileSelected(IBrowserFile file) => _selectedFile = file;
+
+    private async Task Upload()
+    {
+        if (_selectedFile is null || _appointment is null) return;
+        _uploading = true;
+
+        await using var stream = _selectedFile.OpenReadStream(25_000_000);
+        var resp = await Documents.UploadAsync(
+            _appointment.PatientId, _doctorId, AppointmentId, _category, stream, _selectedFile.Name, _selectedFile.ContentType);
+
+        if (resp.IsSuccessStatusCode)
+        {
+            _documents = await Documents.GetForAppointmentAsync(AppointmentId);
+            _selectedFile = null;
+        }
+        _uploading = false;
+    }
+
+    private async Task Download(Guid documentId)
+    {
+        var url = await Documents.GetDownloadUrlAsync(documentId);
+        if (url is not null) Navigation.NavigateTo(url, forceLoad: true);
+    }
+}

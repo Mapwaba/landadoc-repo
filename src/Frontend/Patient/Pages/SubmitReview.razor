@@ -1,0 +1,56 @@
+@page "/reviews/new/{AppointmentId:guid}"
+@attribute [Authorize]
+
+<PageTitle>Leave a review</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">@Lang["Leave a review"]</MudText>
+
+<MudPaper Class="pa-6" MaxWidth="500px">
+    <MudText Class="mb-2">@Lang["Rating"]</MudText>
+    <MudRating SelectedValue="_rating" SelectedValueChanged="@(v => _rating = v)" Class="mb-4" />
+
+    <MudTextField T="string" Label="@Lang["Comment (optional)"]" @bind-Value="_comment" Lines="4" Class="mb-4" />
+
+    @if (_error is not null)
+    {
+        <MudAlert Severity="Severity.Error" Class="mb-3">@_error</MudAlert>
+    }
+
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(_rating == 0 || _submitting)" OnClick="Submit">
+        @Lang["Submit review"]
+    </MudButton>
+</MudPaper>
+
+@code {
+    [Parameter] public Guid AppointmentId { get; set; }
+    [Inject] private IReviewApiClient Reviews { get; set; } = default!;
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+    [Inject] private ILanguageService Lang { get; set; } = default!;
+
+    private int _rating;
+    private string? _comment;
+    private bool _submitting;
+    private string? _error;
+
+    private async Task Submit()
+    {
+        _error = null;
+        _submitting = true;
+
+        var resp = await Reviews.SubmitAsync(new CreateReviewRequest(AppointmentId, _rating, _comment));
+        _submitting = false;
+
+        if (resp.IsSuccessStatusCode)
+        {
+            Navigation.NavigateTo($"/appointments/{AppointmentId}");
+        }
+        else if (resp.StatusCode == System.Net.HttpStatusCode.Conflict)
+        {
+            _error = Lang["This appointment has already been reviewed."];
+        }
+        else
+        {
+            _error = Lang["Could not submit your review. Please try again."];
+        }
+    }
+}

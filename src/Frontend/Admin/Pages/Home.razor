@@ -1,0 +1,99 @@
+@page "/"
+@attribute [Authorize(Roles = "Admin")]
+
+<PageTitle>Admin overview</PageTitle>
+
+<div class="hero">
+    <h1 class="hero-title">@Lang["Admin dashboard"]</h1>
+    <p class="hero-subtitle">@Lang["Manage doctors, clinics, and keep an eye on platform activity."]</p>
+</div>
+
+<MudGrid Class="mb-6">
+    <MudItem xs="12" md="6">
+        <div class="landadoc-card landadoc-card-blue d-flex flex-column align-center pa-4">
+            <MudText Typo="Typo.h6" Class="mb-2">@Lang["Patients & Doctors"]</MudText>
+            @if (_loading)
+            {
+                <MudProgressCircular Indeterminate="true" />
+            }
+            else
+            {
+                <MudChart T="double" ChartType="ChartType.Donut" ChartSeries="@_userSeries" ChartLabels="@_userLabels"
+                          Width="260px" Height="260px" />
+                <MudText Typo="Typo.body2" Class="mt-2">@string.Format(Lang["patientsAndDoctorsSummary"], _patientCount, _doctorCount)</MudText>
+            }
+        </div>
+    </MudItem>
+    <MudItem xs="12" md="6">
+        <div class="landadoc-card landadoc-card-green d-flex flex-column align-center pa-4">
+            <MudText Typo="Typo.h6" Class="mb-2">@Lang["Appointments by doctor"]</MudText>
+            @if (_loading)
+            {
+                <MudProgressCircular Indeterminate="true" />
+            }
+            else if (_apptSeries.Count == 0 || _apptSeries[0].Data.Count == 0)
+            {
+                <MudText Typo="Typo.body2">@Lang["No appointments yet."]</MudText>
+            }
+            else
+            {
+                <MudChart T="double" ChartType="ChartType.Donut" ChartSeries="@_apptSeries" ChartLabels="@_apptLabels"
+                          Width="260px" Height="260px" />
+                <MudText Typo="Typo.body2" Class="mt-2">@string.Format(Lang["totalAppointmentsCount"], _totalAppointments)</MudText>
+            }
+        </div>
+    </MudItem>
+</MudGrid>
+
+<div class="quick-links">
+    <div class="landadoc-card quick-link-card">
+        <div class="quick-link-title">@Lang["Manage doctors"]</div>
+        <div class="quick-link-desc">@Lang["Review pending approvals and manage doctor profiles."]</div>
+        <a class="quick-link-button" href="/doctors">@Lang["Go"]</a>
+    </div>
+    <div class="landadoc-card quick-link-card">
+        <div class="quick-link-title">@Lang["Manage clinics"]</div>
+        <div class="quick-link-desc">@Lang["Add, edit, or remove clinic locations."]</div>
+        <a class="quick-link-button" href="/clinics">@Lang["Go"]</a>
+    </div>
+</div>
+
+@code {
+    [Inject] private IIdentityApiClient IdentityApi { get; set; } = default!;
+    [Inject] private IAppointmentApiClient AppointmentApi { get; set; } = default!;
+    [Inject] private ISearchApiClient SearchApi { get; set; } = default!;
+    [Inject] private ILanguageService Lang { get; set; } = default!;
+
+    private bool _loading = true;
+    private int _patientCount;
+    private int _doctorCount;
+    private int _totalAppointments;
+    private List<ChartSeries<double>> _userSeries = [];
+    private string[] _userLabels = [];
+    private List<ChartSeries<double>> _apptSeries = [];
+    private string[] _apptLabels = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var counts = await IdentityApi.GetStatsAsync();
+        _patientCount = counts?.PatientCount ?? 0;
+        _doctorCount = counts?.DoctorCount ?? 0;
+        _userLabels = [Lang["Patients"], Lang["Doctors"]];
+        _userSeries = [new ChartSeries<double> { Name = "Users", Data = new ChartData<double>([_patientCount, _doctorCount]) }];
+
+        var apptStats = await AppointmentApi.GetStatsByDoctorAsync();
+        _totalAppointments = apptStats?.TotalCount ?? 0;
+        var topDoctors = (apptStats?.ByDoctor ?? []).Take(8).ToList();
+
+        var names = await Task.WhenAll(topDoctors.Select(async d =>
+        {
+            var doctor = await SearchApi.GetDoctorAsync(d.DoctorId);
+            return doctor is null ? "Unknown" : $"{Lang["Dr."]} {doctor.FirstName} {doctor.LastName}";
+        }));
+
+        _apptLabels = names;
+        _apptSeries = [new ChartSeries<double> { Name = "Appointments", Data = new ChartData<double>(topDoctors.Select(d => (double)d.Count).ToList()) }];
+
+        _loading = false;
+    }
+}

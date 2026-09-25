@@ -1,0 +1,14 @@
+@inject ILanguageService Lang
+
+<div class="d-flex align-center" style="gap:2px;">
+    <MudButton Size="Size.Small" Color="Color.Inherit"
+               Variant="@(Lang.CurrentLanguage == "en" ? Variant.Filled : Variant.Text)"
+               OnClick="@(() => Lang.SetLanguageAsync("en"))">
+        EN
+    </MudButton>
+    <MudButton Size="Size.Small" Color="Color.Inherit"
+               Variant="@(Lang.CurrentLanguage == "fr" ? Variant.Filled : Variant.Text)"
+               OnClick="@(() => Lang.SetLanguageAsync("fr"))">
+        FR
+    </MudButton>
+</div>

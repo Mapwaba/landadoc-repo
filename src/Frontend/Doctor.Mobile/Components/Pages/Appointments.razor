@@ -1,0 +1,54 @@
+@page "/appointments"
+@attribute [Authorize]
+
+<PageTitle>Appointments</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">@Lang["Appointments"]</MudText>
+
+@if (_loading)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else if (_appointments.Count == 0)
+{
+    <MudAlert Severity="Severity.Info">@Lang["You have no appointments yet."]</MudAlert>
+}
+else
+{
+    <MudTable Items="_appointments" Hover="true">
+        <HeaderContent>
+            <MudTh>@Lang["Date"]</MudTh>
+            <MudTh>@Lang["Motif"]</MudTh>
+            <MudTh>@Lang["Status"]</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.SlotStart.ToString("g")</MudTd>
+            <MudTd>@(context.Motif ?? "—")</MudTd>
+            <MudTd><MudChip T="string" Color="@StatusColor(context.Status)">@Lang[$"status.{context.Status}"]</MudChip></MudTd>
+            <MudTd><MudButton Href="@($"/appointments/{context.Id}")" Size="Size.Small">@Lang["View"]</MudButton></MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    [Inject] private IAppointmentApiClient AppointmentsApi { get; set; } = default!;
+    [Inject] private ILanguageService Lang { get; set; } = default!;
+
+    private bool _loading = true;
+    private List<AppointmentDto> _appointments = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _appointments = await AppointmentsApi.GetMineAsync();
+        _loading = false;
+    }
+
+    private static Color StatusColor(AppointmentStatus status) => status switch
+    {
+        AppointmentStatus.Completed => Color.Success,
+        AppointmentStatus.Cancelled => Color.Error,
+        AppointmentStatus.Confirmed => Color.Info,
+        _ => Color.Default
+    };
+}

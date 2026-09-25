@@ -1,0 +1,238 @@
+@page "/family"
+@attribute [Authorize(Roles = "Patient")]
+
+<PageTitle>Family</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">@Lang["My family"]</MudText>
+
+<MudPaper Class="pa-6 mb-6">
+    <MudText Typo="Typo.h6" Class="mb-3">@Lang["Invite a family member"]</MudText>
+    <MudGrid>
+        <MudItem xs="12" sm="4">
+            <MudTextField T="string" Label="@Lang["Their email"]" @bind-Value="_inviteEmail" />
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudSelect T="string" Label="@Lang["Relation"]" @bind-Value="_inviteRelationType">
+                <MudSelectItem Value="@("Parent")">@Lang["Parent / Child"]</MudSelectItem>
+                <MudSelectItem Value="@("Sibling")">@Lang["Sibling"]</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+        @if (_inviteRelationType == "Parent")
+        {
+            <MudItem xs="12" sm="4">
+                <MudSwitch T="bool" @bind-Value="_iAmTheParent" Label="@Lang["I am the parent"]" Color="Color.Primary" />
+            </MudItem>
+        }
+    </MudGrid>
+
+    @if (_inviteError is not null)
+    {
+        <MudAlert Severity="Severity.Error" Class="mt-3">@_inviteError</MudAlert>
+    }
+
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-3"
+               Disabled="@(string.IsNullOrWhiteSpace(_inviteEmail) || _inviting)" OnClick="SendInvite">
+        @Lang["Send invite"]
+    </MudButton>
+</MudPaper>
+
+@if (_loading)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else
+{
+    @if (_overview!.PendingReceived.Count > 0)
+    {
+        <MudPaper Class="pa-6 mb-6">
+            <MudText Typo="Typo.h6" Class="mb-3">@Lang["Invites waiting for your response"]</MudText>
+            @foreach (var invite in _overview.PendingReceived)
+            {
+                <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-2">
+                    <MudText Class="flex-grow-1">@invite.RequesterName (@Lang[invite.RelationType])</MudText>
+                    <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => Respond(invite.Id, accept: true))">@Lang["Accept"]</MudButton>
+                    <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="@(() => Respond(invite.Id, accept: false))">@Lang["Decline"]</MudButton>
+                </MudStack>
+            }
+        </MudPaper>
+    }
+
+    @if (_overview.PendingSent.Count > 0)
+    {
+        <MudPaper Class="pa-6 mb-6">
+            <MudText Typo="Typo.h6" Class="mb-3">@Lang["Invites you sent"]</MudText>
+            @foreach (var invite in _overview.PendingSent)
+            {
+                <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-2">
+                    <MudText Class="flex-grow-1">@invite.RecipientName (@Lang[invite.RelationType]) — @Lang["Pending"]</MudText>
+                    <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="@(() => RevokeLink(invite.Id))">@Lang["Cancel"]</MudButton>
+                </MudStack>
+            }
+        </MudPaper>
+    }
+
+    <MudPaper Class="pa-6 mb-6">
+        <MudText Typo="Typo.h6" Class="mb-3">@Lang["Family"]</MudText>
+        @if (_overview.Family.Count == 0)
+        {
+            <MudText>@Lang["No family members linked yet."]</MudText>
+        }
+        else
+        {
+            @foreach (var member in _overview.Family)
+            {
+                <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-2">
+                    <MudText Class="flex-grow-1">@member.FirstName @member.LastName (@member.RelationLabel)</MudText>
+                    <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="@(() => RevokeLink(member.LinkId))">@Lang["Remove"]</MudButton>
+                </MudStack>
+            }
+        }
+    </MudPaper>
+
+    <MudPaper Class="pa-6 mb-6">
+        <MudText Typo="Typo.h6" Class="mb-3">@Lang["Dependents"]</MudText>
+        @if (_overview.Dependents.Count == 0)
+        {
+            <MudText Class="mb-3">@Lang["No dependents added yet."]</MudText>
+        }
+        else
+        {
+            @foreach (var dependent in _overview.Dependents)
+            {
+                <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-2">
+                    <MudText Class="flex-grow-1">@dependent.FirstName @dependent.LastName (@dependent.RelationLabel)</MudText>
+                    <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="@(() => RemoveDependent(dependent.Id))">@Lang["Remove"]</MudButton>
+                </MudStack>
+            }
+        }
+
+        <MudGrid Class="mt-3">
+            <MudItem xs="12" sm="3">
+                <MudTextField T="string" Label="@Lang["First name"]" @bind-Value="_dependentFirstName" />
+            </MudItem>
+            <MudItem xs="12" sm="3">
+                <MudTextField T="string" Label="@Lang["Last name"]" @bind-Value="_dependentLastName" />
+            </MudItem>
+            <MudItem xs="12" sm="3">
+                <MudDatePicker Label="@Lang["Date of birth"]" @bind-Date="_dependentDateOfBirth" MaxDate="DateTime.Today" />
+            </MudItem>
+            <MudItem xs="12" sm="3">
+                <MudSelect T="string" Label="@Lang["Gender"]" @bind-Value="_dependentGender">
+                    <MudSelectItem Value="@("Male")">@Lang["Male"]</MudSelectItem>
+                    <MudSelectItem Value="@("Female")">@Lang["Female"]</MudSelectItem>
+                    <MudSelectItem Value="@("Other")">@Lang["Other"]</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+        </MudGrid>
+
+        @if (_dependentError is not null)
+        {
+            <MudAlert Severity="Severity.Error" Class="mt-3">@_dependentError</MudAlert>
+        }
+
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-3"
+                   Disabled="@(string.IsNullOrWhiteSpace(_dependentFirstName) || string.IsNullOrWhiteSpace(_dependentLastName) || _dependentDateOfBirth is null || _addingDependent)"
+                   OnClick="AddDependent">
+            @Lang["Add dependent"]
+        </MudButton>
+    </MudPaper>
+}
+
+@code {
+    [Inject] private IIdentityApiClient Identity { get; set; } = default!;
+    [Inject] private ILanguageService Lang { get; set; } = default!;
+
+    private bool _loading = true;
+    private FamilyOverviewDto? _overview;
+
+    private string? _inviteEmail;
+    private string _inviteRelationType = "Sibling";
+    private bool _iAmTheParent;
+    private bool _inviting;
+    private string? _inviteError;
+
+    private string? _dependentFirstName;
+    private string? _dependentLastName;
+    private DateTime? _dependentDateOfBirth;
+    private string _dependentGender = "Other";
+    private bool _addingDependent;
+    private string? _dependentError;
+
+    protected override async Task OnInitializedAsync() => await Reload();
+
+    private async Task Reload()
+    {
+        _loading = true;
+        _overview = await Identity.GetMyFamilyAsync() ?? new FamilyOverviewDto([], [], [], []);
+        _loading = false;
+    }
+
+    private async Task SendInvite()
+    {
+        if (string.IsNullOrWhiteSpace(_inviteEmail)) return;
+        _inviteError = null;
+        _inviting = true;
+
+        var resp = await Identity.InviteFamilyAsync(new CreateFamilyInviteRequest(_inviteEmail, _inviteRelationType, _iAmTheParent));
+        _inviting = false;
+
+        if (resp.IsSuccessStatusCode)
+        {
+            _inviteEmail = null;
+            await Reload();
+        }
+        else if (resp.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            _inviteError = Lang["No account found for that email."];
+        }
+        else if (resp.StatusCode == System.Net.HttpStatusCode.Conflict)
+        {
+            _inviteError = Lang["You're already linked with this person."];
+        }
+        else
+        {
+            _inviteError = Lang["Couldn't send the invite. Please try again."];
+        }
+    }
+
+    private async Task Respond(Guid inviteId, bool accept)
+    {
+        var resp = accept ? await Identity.AcceptFamilyInviteAsync(inviteId) : await Identity.DeclineFamilyInviteAsync(inviteId);
+        if (resp.IsSuccessStatusCode) await Reload();
+    }
+
+    private async Task RevokeLink(Guid linkId)
+    {
+        var resp = await Identity.RevokeFamilyLinkAsync(linkId);
+        if (resp.IsSuccessStatusCode) await Reload();
+    }
+
+    private async Task AddDependent()
+    {
+        if (string.IsNullOrWhiteSpace(_dependentFirstName) || string.IsNullOrWhiteSpace(_dependentLastName) || _dependentDateOfBirth is null) return;
+        _dependentError = null;
+        _addingDependent = true;
+
+        var resp = await Identity.AddDependentAsync(new AddDependentRequest(
+            _dependentFirstName, _dependentLastName, DateOnly.FromDateTime(_dependentDateOfBirth.Value), _dependentGender));
+        _addingDependent = false;
+
+        if (resp.IsSuccessStatusCode)
+        {
+            _dependentFirstName = null;
+            _dependentLastName = null;
+            _dependentDateOfBirth = null;
+            await Reload();
+        }
+        else
+        {
+            _dependentError = Lang["Couldn't add the dependent. Please try again."];
+        }
+    }
+
+    private async Task RemoveDependent(Guid dependentId)
+    {
+        var resp = await Identity.RemoveDependentAsync(dependentId);
+        if (resp.IsSuccessStatusCode) await Reload();
+    }
+}
