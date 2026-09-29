@@ -17,12 +17,17 @@ else
             {
                 <MudTextField T="string" Label="@Lang["First name"]" @bind-Value="_firstName" Required="true" Class="mb-3" />
                 <MudTextField T="string" Label="@Lang["Last name"]" @bind-Value="_lastName" Required="true" Class="mb-3" />
-                <MudTextField T="string" Label="@Lang["Specialty"]" @bind-Value="_specialty" Required="true" Class="mb-3" />
+                <MudSelect T="string" Label="@Lang["Specialty"]" @bind-Value="_specialty" Required="true" Class="mb-3">
+                    @foreach (var specialty in Specialties.All)
+                    {
+                        <MudSelectItem T="string" Value="@specialty">@Lang[specialty]</MudSelectItem>
+                    }
+                </MudSelect>
                 <MudTextField T="string" Label="@Lang["License number"]" @bind-Value="_licenseNumber" Class="mb-3" />
             }
             else
             {
-                <MudText Typo="Typo.h6" Class="mb-3">@Lang["Dr."] @_firstName @_lastName — @_specialty</MudText>
+                <MudText Typo="Typo.h6" Class="mb-3">@Lang["Dr."] @_firstName @_lastName — @Lang[_specialty]</MudText>
             }
 
             <MudTextField T="string" Label="@Lang["Bio"]" @bind-Value="_bio" Lines="3" Class="mb-3" />

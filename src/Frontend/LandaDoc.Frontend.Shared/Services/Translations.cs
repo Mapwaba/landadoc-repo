@@ -393,5 +393,12 @@ public static class Translations
         ["clinicType.Clinic"] = new() { ["en"] = "Clinic", ["fr"] = "Clinique" },
         ["clinicType.Hospital"] = new() { ["en"] = "Hospital", ["fr"] = "Hôpital" },
         ["clinicType.Lab"] = new() { ["en"] = "Lab", ["fr"] = "Laboratoire" },
+
+        // ── Specialties (Specialties.cs) ────────────────────────────────
+        ["Cardiologist"] = new() { ["en"] = "Cardiologist", ["fr"] = "Cardiologue" },
+        ["Neurologist"] = new() { ["en"] = "Neurologist", ["fr"] = "Neurologue" },
+        ["Generalist"] = new() { ["en"] = "Generalist", ["fr"] = "Généraliste" },
+        ["Ophtamologist"] = new() { ["en"] = "Ophtamologist", ["fr"] = "Ophtalmologue" },
+        ["Pediatrician"] = new() { ["en"] = "Pediatrician", ["fr"] = "Pédiatre" },
     };
 }

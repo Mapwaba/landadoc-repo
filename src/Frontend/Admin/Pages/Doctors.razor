@@ -21,7 +21,12 @@
             </MudSelect>
             <MudTextField T="string" Label="@Lang["First name"]" @bind-Value="_newFirstName" Required="true" Class="mb-3" />
             <MudTextField T="string" Label="@Lang["Last name"]" @bind-Value="_newLastName" Required="true" Class="mb-3" />
-            <MudTextField T="string" Label="@Lang["Specialty"]" @bind-Value="_newSpecialty" Required="true" Class="mb-3" />
+            <MudSelect T="string" Label="@Lang["Specialty"]" @bind-Value="_newSpecialty" Required="true" Class="mb-3">
+                @foreach (var specialty in Specialties.All)
+                {
+                    <MudSelectItem T="string" Value="@specialty">@Lang[specialty]</MudSelectItem>
+                }
+            </MudSelect>
             <MudTextField T="string" Label="@Lang["License number"]" @bind-Value="_newLicenseNumber" Class="mb-3" />
             <MudSelect T="Guid" Label="@Lang["Clinics"]" MultiSelection="true" @bind-SelectedValues="_newClinicIds" Class="mb-3">
                 @foreach (var clinic in _clinics)

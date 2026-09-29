@@ -9,8 +9,13 @@
 
     <div class="search-bar">
         <div class="search-field">
-            <MudTextField T="string" Label="@Lang["Specialty"]" @bind-Value="_specialty" @bind-Value:after="Search"
-                           Immediate="true" DebounceInterval="300" Variant="Variant.Text" Margin="Margin.Dense" />
+            <MudSelect T="string" Label="@Lang["Specialty"]" @bind-Value="_specialty" @bind-Value:after="Search"
+                       Clearable="true" Variant="Variant.Text" Margin="Margin.Dense">
+                @foreach (var specialty in Specialties.All)
+                {
+                    <MudSelectItem T="string" Value="@specialty">@Lang[specialty]</MudSelectItem>
+                }
+            </MudSelect>
         </div>
         <div class="search-divider"></div>
         <div class="search-field">
@@ -135,7 +140,7 @@
                             <div class="doctor-avatar">@Initials(doctor.FirstName, doctor.LastName)</div>
                             <div>
                                 <div class="doctor-name">@Lang["Dr."] @doctor.FirstName @doctor.LastName</div>
-                                <div class="doctor-specialty">@doctor.Specialty</div>
+                                <div class="doctor-specialty">@Lang[doctor.Specialty]</div>
                             </div>
                         </div>
                         @if (doctor.Clinics.Count > 0)
