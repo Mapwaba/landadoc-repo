@@ -14,6 +14,21 @@ public class AdminApiClient(HttpClient http) : IAdminApiClient
             : null;
     }
 
+    public async Task<MyProfileLookup> LookUpMyProfileAsync()
+    {
+        try
+        {
+            var resp = await http.GetAsync("api/doctors/me");
+            if (resp.StatusCode == System.Net.HttpStatusCode.NotFound) return new MyProfileLookup(true, null);
+            if (!resp.IsSuccessStatusCode) return new MyProfileLookup(false, null);
+            return new MyProfileLookup(true, await resp.Content.ReadFromJsonAsync<DoctorProfileDto>(JsonDefaults.Options));
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            return new MyProfileLookup(false, null);
+        }
+    }
+
     public Task<HttpResponseMessage> CreateMyProfileAsync(CreateOwnDoctorProfileRequest req) =>
         http.PostAsJsonAsync("api/doctors/me", req);
 

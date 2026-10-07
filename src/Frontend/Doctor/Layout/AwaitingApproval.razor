@@ -1,0 +1,51 @@
+@using LandaDoc.Doctor.Services
+
+@* Shown by MainLayout instead of any page except Profile while the doctor can't use the app yet *@
+<div class="ld-page ld-page-narrow">
+    <div class="ld-card">
+        <div class="aw-body">
+            <div class="aw-icon @(State == DoctorApproval.State.Suspended ? "aw-icon-danger" : "")">
+                <MudIcon Icon="@Icon" Style="font-size:30px;" />
+            </div>
+            <div class="aw-title">@Title</div>
+            <div class="aw-text">@Text</div>
+            <div class="aw-actions">
+                <a class="ld-btn ld-btn-primary" href="/profile">
+                    <MudIcon Icon="@Icons.Material.Outlined.Edit" Style="font-size:16px;" />
+                    @(State == DoctorApproval.State.NoProfile ? Lang["Complete my profile"] : Lang["Edit my profile"])
+                </a>
+                <button type="button" class="ld-btn aw-logout" @onclick="OnLogout">
+                    <MudIcon Icon="@Icons.Material.Outlined.Logout" Style="font-size:16px;" /> @Lang["Log out"]
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public DoctorApproval.State State { get; set; }
+    [Parameter, EditorRequired] public EventCallback OnLogout { get; set; }
+
+    [Inject] private ILanguageService Lang { get; set; } = default!;
+
+    private string Icon => State switch
+    {
+        DoctorApproval.State.Suspended => Icons.Material.Outlined.Block,
+        DoctorApproval.State.NoProfile => Icons.Material.Outlined.AssignmentInd,
+        _ => Icons.Material.Outlined.HourglassTop,
+    };
+
+    private string Title => State switch
+    {
+        DoctorApproval.State.Suspended => Lang["Your account is suspended"],
+        DoctorApproval.State.NoProfile => Lang["Complete your profile"],
+        _ => Lang["Your account is awaiting approval"],
+    };
+
+    private string Text => State switch
+    {
+        DoctorApproval.State.Suspended => Lang["An administrator has suspended your account. Please contact LandaDoc to have it reactivated. You can still edit your profile or log out."],
+        DoctorApproval.State.NoProfile => Lang["Fill in your professional details so an administrator can review and approve your account."],
+        _ => Lang["An administrator must approve your account before you can use LandaDoc. You can still edit your profile or log out in the meantime."],
+    };
+}

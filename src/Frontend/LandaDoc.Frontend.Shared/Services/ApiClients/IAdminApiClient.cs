@@ -3,9 +3,14 @@ using LandaDoc.Shared.Models;
 
 namespace LandaDoc.Frontend.Shared.Services.ApiClients;
 
+public record MyProfileLookup(bool Reachable, DoctorProfileDto? Profile);
+
 public interface IAdminApiClient
 {
     Task<DoctorProfileDto?> GetMyProfileAsync();
+    // Like GetMyProfileAsync, but tells "no profile yet" (Reachable, Profile null) apart from
+    // "couldn't ask" (not Reachable) — used to gate the Doctor app while approval is pending
+    Task<MyProfileLookup> LookUpMyProfileAsync();
     Task<HttpResponseMessage> CreateMyProfileAsync(CreateOwnDoctorProfileRequest req);
     Task<HttpResponseMessage> UpdateMyProfileAsync(UpdateOwnDoctorProfileRequest req);
     Task<List<ClinicDto>> GetClinicsAsync();

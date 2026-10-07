@@ -1,5 +1,6 @@
 @inherits LayoutComponentBase
 @implements IDisposable
+@using LandaDoc.Doctor.Services
 
 <MudThemeProvider Theme="LandaDocTheme.Theme" />
 <MudPopoverProvider />
@@ -25,7 +26,19 @@
         <ShellNavLink Href="/register" Icon="@Icons.Material.Outlined.PersonAdd" Text="@Lang["Register"]" />
     </PublicNavItems>
     <ChildContent>
-        @Body
+        @if (_checkingApproval && !OpenWhileWaiting)
+        {
+            <MudProgressCircular Indeterminate="true" />
+        }
+        else if (Approval.MustWait && !OpenWhileWaiting)
+        {
+            @* Pending, suspended or no profile yet: every page but Profile shows the same message *@
+            <AwaitingApproval State="Approval.Current" OnLogout="Logout" />
+        }
+        else
+        {
+            @Body
+        }
     </ChildContent>
 </AppShell>
 
@@ -33,6 +46,22 @@
     [Inject] private ILanguageService Lang { get; set; } = default!;
     [Inject] private NotificationHubService Hub { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
+    [Inject] private DoctorApproval Approval { get; set; } = default!;
+    [Inject] private JwtAuthenticationStateProvider AuthState { get; set; } = default!;
+
+    // Pages a doctor can still use while waiting for approval
+    private static readonly string[] OpenPages = ["profile", "login", "register"];
+
+    private bool _checkingApproval = true;
+
+    private bool OpenWhileWaiting
+    {
+        get
+        {
+            var path = Navigation.ToBaseRelativePath(Navigation.Uri).Split('?', '#')[0].Trim('/');
+            return OpenPages.Contains(path, StringComparer.OrdinalIgnoreCase);
+        }
+    }
 
     // Red dot on the bell: a live notification arrived and the notifications page hasn't been opened since
     private bool _newNotification;
@@ -42,7 +71,40 @@
         Hub.PendingCountChanged += OnPendingCountChanged;
         Hub.NotificationReceived += OnNotificationReceived;
         Navigation.LocationChanged += OnLocationChanged;
+        AuthState.AuthenticationStateChanged += OnAuthStateChanged;
+
+        // Know the approval state before the first page shows, so a pending doctor never sees it
+        _userId = (await AuthState.GetAuthenticationStateAsync()).User
+            .FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        await Approval.RefreshAsync();
+        _checkingApproval = false;
+
         await Hub.InitializeAsync();
+    }
+
+    private string? _userId;
+
+    // Login or logout: start over for the new account. Same account (a saved profile, a changed
+    // password): just re-check quietly, so the page being used isn't replaced by a spinner.
+    private void OnAuthStateChanged(Task<AuthenticationState> stateTask) => InvokeAsync(async () =>
+    {
+        var userId = (await stateTask).User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (userId != _userId)
+        {
+            _userId = userId;
+            Approval.Reset();
+            _checkingApproval = true;
+            StateHasChanged();
+        }
+        await Approval.RefreshAsync();
+        _checkingApproval = false;
+        StateHasChanged();
+    });
+
+    private async Task Logout()
+    {
+        await AuthState.MarkUserAsLoggedOut();
+        Navigation.NavigateTo("/login");
     }
 
     private void OnPendingCountChanged(int count) => InvokeAsync(StateHasChanged);
@@ -55,9 +117,16 @@
 
     private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
     {
-        if (!e.Location.Contains("/notifications")) return;
-        _newNotification = false;
-        InvokeAsync(StateHasChanged);
+        if (e.Location.Contains("/notifications")) _newNotification = false;
+
+        // While not approved, ask again on every click so an approval opens the app straight away
+        _ = InvokeAsync(async () =>
+        {
+            StateHasChanged();
+            if (Approval.Current == DoctorApproval.State.Approved) return;
+            await Approval.RefreshAsync();
+            StateHasChanged();
+        });
     }
 
     public void Dispose()
@@ -65,5 +134,6 @@
         Hub.PendingCountChanged -= OnPendingCountChanged;
         Hub.NotificationReceived -= OnNotificationReceived;
         Navigation.LocationChanged -= OnLocationChanged;
+        AuthState.AuthenticationStateChanged -= OnAuthStateChanged;
     }
 }

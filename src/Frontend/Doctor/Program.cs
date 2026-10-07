@@ -10,6 +10,7 @@ builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
 builder.Services.AddLandaDocFrontendShared(builder.Configuration);
+builder.Services.AddScoped<LandaDoc.Doctor.Services.DoctorApproval>();
 
 var host = builder.Build();
 await host.Services.GetRequiredService<ILanguageService>().InitializeAsync();
