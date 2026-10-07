@@ -53,8 +53,10 @@ html, body {
     letter-spacing: -0.01em;
 }
 
-.ld-brand span {
-    color: var(--ld-primary);
+.ld-brand img {
+    display: block;
+    height: 46px;
+    width: auto;
 }
 
 .ld-brand small {
