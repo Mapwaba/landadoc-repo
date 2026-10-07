@@ -3,99 +3,177 @@
 
 <PageTitle>My schedule</PageTitle>
 
-<MudText Typo="Typo.h4" Class="mb-4">@Lang["Weekly schedule"]</MudText>
+<div class="week">
+    <div class="week-head">
+        <h1 class="week-title">@Lang["My weekly template"]</h1>
+        <button type="button" class="week-save" @onclick="Save" disabled="@(_saving || _loading || _loadFailed)">
+            <MudIcon Icon="@Icons.Material.Outlined.Save" Size="Size.Small" /> @Lang["Save"]
+        </button>
+    </div>
 
-@if (_loading)
-{
-    <MudProgressCircular Indeterminate="true" />
-}
-else
-{
-    <MudTable Items="_rows" Hover="true">
-        <HeaderContent>
-            <MudTh>@Lang["Day"]</MudTh>
-            <MudTh>@Lang["Open"]</MudTh>
-            <MudTh>@Lang["Open time"]</MudTh>
-            <MudTh>@Lang["Close time"]</MudTh>
-            <MudTh>@Lang["Slot length (min)"]</MudTh>
-        </HeaderContent>
-        <RowTemplate>
-            <MudTd>@Lang[$"day.{context.Day}"]</MudTd>
-            <MudTd><MudCheckBox T="bool" Value="context.Enabled" ValueChanged="@(v => context.Enabled = v)" /></MudTd>
-            <MudTd><MudTimePicker @bind-Time="context.OpenTime" Disabled="!context.Enabled" /></MudTd>
-            <MudTd><MudTimePicker @bind-Time="context.CloseTime" Disabled="!context.Enabled" /></MudTd>
-            <MudTd><MudNumericField T="int" @bind-Value="context.SlotMinutes" Min="5" Max="240" Disabled="!context.Enabled" /></MudTd>
-        </RowTemplate>
-    </MudTable>
-
-    @if (_error is not null)
+    @if (_loading)
     {
-        <MudAlert Severity="Severity.Error" Class="mt-4">@_error</MudAlert>
+        <MudProgressCircular Indeterminate="true" />
     }
-    @if (_saved)
+    else if (_loadFailed)
     {
-        <MudAlert Severity="Severity.Success" Class="mt-4">@Lang["Schedule saved."]</MudAlert>
+        <MudAlert Severity="Severity.Warning">@Lang["Your schedule couldn't be loaded. Please try again in a minute."]</MudAlert>
     }
+    else
+    {
+        @* One setting for every open day; per-day lengths saved earlier are kept unless this is changed *@
+        <div class="week-length">
+            <MudIcon Icon="@Icons.Material.Outlined.Timer" Style="font-size:16px;" />
+            @Lang["Appointment length"]
+            <select value="@_slotMinutes" @onchange="OnSlotMinutesChanged">
+                @foreach (var minutes in SlotOptions)
+                {
+                    <option value="@minutes">@minutes min</option>
+                }
+            </select>
+        </div>
 
-    <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" OnClick="Save" Disabled="_saving">
-        @Lang["Save schedule"]
-    </MudButton>
-}
+        <div class="week-card">
+            @foreach (var row in _rows)
+            {
+                var r = row;
+                <div class="week-row">
+                    <div class="week-day">@Lang[$"day.{r.Day}"]</div>
+
+                    <div class="week-hours">
+                        @if (r.Enabled)
+                        {
+                            <input type="time" class="week-time @(r.Invalid ? "invalid" : "")" step="300"
+                                   value="@r.Open.ToString("HH:mm")" @onchange="@(e => SetTime(r, e, isOpen: true))" />
+                            <span class="week-to">@Lang["to"]</span>
+                            <input type="time" class="week-time @(r.Invalid ? "invalid" : "")" step="300"
+                                   value="@r.Close.ToString("HH:mm")" @onchange="@(e => SetTime(r, e, isOpen: false))" />
+                            <button type="button" class="week-remove" @onclick="@(() => r.Enabled = false)"
+                                    title="@Lang["Close this day"]" aria-label="@Lang["Close this day"]">
+                                <MudIcon Icon="@Icons.Material.Outlined.DeleteOutline" Style="font-size:18px;" />
+                            </button>
+                            @if (r.Invalid)
+                            {
+                                <span class="week-error">@Lang["Must end after it starts"]</span>
+                            }
+                        }
+                        else
+                        {
+                            <span class="week-closed">@Lang["Closed"]</span>
+                        }
+                    </div>
+
+                    @if (!r.Enabled)
+                    {
+                        <button type="button" class="week-add" @onclick="@(() => OpenDay(r))">
+                            <MudIcon Icon="@Icons.Material.Outlined.Add" Style="font-size:16px;" /> @Lang["Set your working hours"]
+                        </button>
+                    }
+                </div>
+            }
+        </div>
+
+        @if (_error is not null)
+        {
+            <MudAlert Severity="Severity.Error" Class="mt-4">@_error</MudAlert>
+        }
+    }
+</div>
 
 @code {
     [Inject] private IAvailabilityApiClient Availability { get; set; } = default!;
     [Inject] private ILanguageService Lang { get; set; } = default!;
+    [Inject] private ISnackbar Snackbar { get; set; } = default!;
+
+    private static readonly TimeOnly DefaultOpen = new(9, 0);
+    private static readonly TimeOnly DefaultClose = new(17, 0);
 
     private bool _loading = true;
+    private bool _loadFailed;
     private bool _saving;
-    private bool _saved;
     private string? _error;
+    private int _slotMinutes = 30;
     private List<DayRow> _rows = [];
+
+    // Usual lengths, plus whatever is already saved if it's something else (e.g. 25 min)
+    private IEnumerable<int> SlotOptions =>
+        new[] { 10, 15, 20, 30, 45, 60, 90 }.Append(_slotMinutes).Distinct().Order();
 
     protected override async Task OnInitializedAsync()
     {
-        var existing = await Availability.GetMyScheduleAsync();
-        var byDay = existing.ToDictionary(d => d.Day);
-
-        _rows = Enum.GetValues<DayOfWeekEnum>().Select(day =>
+        try
         {
-            if (byDay.TryGetValue(day, out var d))
-            {
-                return new DayRow
-                {
-                    Day = day, Enabled = true,
-                    OpenTime = d.OpenTime.ToTimeSpan(), CloseTime = d.CloseTime.ToTimeSpan(),
-                    SlotMinutes = d.SlotMinutes
-                };
-            }
-            return new DayRow { Day = day, Enabled = false, OpenTime = new TimeSpan(9, 0, 0), CloseTime = new TimeSpan(17, 0, 0), SlotMinutes = 30 };
-        }).ToList();
+            var byDay = (await Availability.GetMyScheduleAsync()).ToDictionary(d => d.Day);
 
+            _rows = Enum.GetValues<DayOfWeekEnum>().Select(day => byDay.TryGetValue(day, out var d)
+                ? new DayRow { Day = day, Enabled = true, Open = d.OpenTime, Close = d.CloseTime, SlotMinutes = d.SlotMinutes }
+                : new DayRow { Day = day, Enabled = false, Open = DefaultOpen, Close = DefaultClose }).ToList();
+
+            // Show the most common length among the open days
+            _slotMinutes = byDay.Values.GroupBy(d => d.SlotMinutes).OrderByDescending(g => g.Count())
+                .Select(g => g.Key).FirstOrDefault(30);
+            foreach (var row in _rows.Where(r => !r.Enabled)) row.SlotMinutes = _slotMinutes;
+        }
+        catch (Exception)
+        {
+            _loadFailed = true;
+        }
         _loading = false;
+    }
+
+    private void OnSlotMinutesChanged(ChangeEventArgs e)
+    {
+        if (!int.TryParse(e.Value?.ToString(), out var minutes)) return;
+        _slotMinutes = minutes;
+        foreach (var row in _rows) row.SlotMinutes = minutes;
+    }
+
+    private void OpenDay(DayRow row)
+    {
+        row.Enabled = true;
+        row.SlotMinutes = _slotMinutes;
+    }
+
+    private static void SetTime(DayRow row, ChangeEventArgs e, bool isOpen)
+    {
+        if (!TimeOnly.TryParse(e.Value?.ToString(), out var time)) return;
+        if (isOpen) row.Open = time; else row.Close = time;
     }
 
     private async Task Save()
     {
         _error = null;
-        _saved = false;
+        if (_rows.Any(r => r.Invalid))
+        {
+            _error = Lang["Please fix the highlighted hours before saving."];
+            return;
+        }
+
         _saving = true;
+        try
+        {
+            var days = _rows.Where(r => r.Enabled)
+                .Select(r => new ScheduleDayDto(r.Day, r.Open, r.Close, r.SlotMinutes))
+                .ToList();
+            var resp = await Availability.SetMyScheduleAsync(new UpdateScheduleRequest(days));
 
-        var days = _rows.Where(r => r.Enabled).Select(r => new ScheduleDayDto(
-            r.Day, TimeOnly.FromTimeSpan(r.OpenTime ?? TimeSpan.Zero), TimeOnly.FromTimeSpan(r.CloseTime ?? TimeSpan.Zero), r.SlotMinutes)).ToList();
-
-        var resp = await Availability.SetMyScheduleAsync(new UpdateScheduleRequest(days));
+            if (resp.IsSuccessStatusCode) Snackbar.Add(Lang["Schedule saved."], Severity.Success);
+            else _error = Lang["Could not save your schedule. Please try again."];
+        }
+        catch (Exception)
+        {
+            _error = Lang["Could not save your schedule. Please try again."];
+        }
         _saving = false;
-
-        if (resp.IsSuccessStatusCode) _saved = true;
-        else _error = Lang["Could not save your schedule. Please try again."];
     }
 
     private class DayRow
     {
-        public DayOfWeekEnum Day { get; set; }
+        public DayOfWeekEnum Day { get; init; }
         public bool Enabled { get; set; }
-        public TimeSpan? OpenTime { get; set; }
-        public TimeSpan? CloseTime { get; set; }
-        public int SlotMinutes { get; set; }
+        public TimeOnly Open { get; set; }
+        public TimeOnly Close { get; set; }
+        public int SlotMinutes { get; set; } = 30;
+        public bool Invalid => Enabled && Close <= Open;
     }
 }
