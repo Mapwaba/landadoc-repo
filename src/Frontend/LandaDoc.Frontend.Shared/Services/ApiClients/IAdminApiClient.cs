@@ -10,6 +10,9 @@ public interface IAdminApiClient
     Task<HttpResponseMessage> UpdateMyProfileAsync(UpdateOwnDoctorProfileRequest req);
     Task<List<ClinicDto>> GetClinicsAsync();
 
+    // Public: id/name/city of every clinic, for the doctor registration form
+    Task<List<ClinicOptionDto>> GetClinicOptionsAsync();
+
     // Public: number of approved doctors, read where approvals are saved so it's never stale
     Task<int> GetApprovedDoctorCountAsync();
 

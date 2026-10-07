@@ -23,6 +23,9 @@ public class AdminApiClient(HttpClient http) : IAdminApiClient
     public async Task<List<ClinicDto>> GetClinicsAsync() =>
         await http.GetFromJsonAsync<List<ClinicDto>>("api/clinics", JsonDefaults.Options) ?? [];
 
+    public async Task<List<ClinicOptionDto>> GetClinicOptionsAsync() =>
+        await http.GetFromJsonAsync<List<ClinicOptionDto>>("api/clinics/options", JsonDefaults.Options) ?? [];
+
     public async Task<int> GetApprovedDoctorCountAsync() =>
         await http.GetFromJsonAsync<int>("api/doctors/count");
 

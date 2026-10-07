@@ -56,12 +56,13 @@ public static class Translations
         ["Statistics are unavailable right now."] = new() { ["en"] = "Statistics are unavailable right now.", ["fr"] = "Les statistiques sont indisponibles pour le moment." },
         ["Search is unavailable right now. Please try again in a minute."] = new() { ["en"] = "Search is unavailable right now. Please try again in a minute.", ["fr"] = "La recherche est indisponible pour le moment. Veuillez réessayer dans une minute." },
         ["Try again"] = new() { ["en"] = "Try again", ["fr"] = "Réessayer" },
-        ["Next"] = new() { ["en"] = "Next", ["fr"] = "Suivant" },
         ["Dashboard"] = new() { ["en"] = "Dashboard", ["fr"] = "Tableau de bord" },
+        ["Your account"] = new() { ["en"] = "Your account", ["fr"] = "Votre compte" },
+        ["Your practice"] = new() { ["en"] = "Your practice", ["fr"] = "Votre activité" },
+        ["You can add your clinics later on your profile."] = new() { ["en"] = "You can add your clinics later on your profile.", ["fr"] = "Vous pourrez ajouter vos cliniques plus tard dans votre profil." },
+        ["Your account was created, but your profile couldn't be saved. Please try again."] = new() { ["en"] = "Your account was created, but your profile couldn't be saved. Please try again.", ["fr"] = "Votre compte a été créé, mais votre profil n'a pas pu être enregistré. Veuillez réessayer." },
         ["Family"] = new() { ["en"] = "Family", ["fr"] = "Famille" },
         ["Doctor space"] = new() { ["en"] = "Doctor", ["fr"] = "Médecin" },
-        ["Step 1 of 2: your account"] = new() { ["en"] = "Step 1 of 2: your account", ["fr"] = "Étape 1 sur 2 : votre compte" },
-        ["Step 2 of 2: your professional details"] = new() { ["en"] = "Step 2 of 2: your professional details", ["fr"] = "Étape 2 sur 2 : vos informations professionnelles" },
         ["No doctors found matching your search."] = new()
         {
             ["en"] = "No doctors found matching your search.",
