@@ -6,7 +6,8 @@
 <MudSnackbarProvider />
 
 <MudLayout>
-    <MudAppBar Elevation="1">
+    @* Same gradient as the Patient Home page hero (.hero in Patient/Pages/Home.razor.css) *@
+    <MudAppBar Elevation="1" Style="background: linear-gradient(135deg, #1976D2, #1565C0); color: white;">
         <MudText Typo="Typo.h5" Class="ml-2">@Lang["LandaDoc Admin"]</MudText>
         <MudSpacer />
         <AuthorizeView>

@@ -7,7 +7,8 @@
 <MudSnackbarProvider />
 
 <MudLayout>
-    <MudAppBar Elevation="1">
+    @* Same gradient as the Home page hero (.hero in Home.razor.css) *@
+    <MudAppBar Elevation="1" Style="background: linear-gradient(135deg, #1976D2, #1565C0); color: white;">
         <MudText Typo="Typo.h5" Class="ml-2">LandaDoc</MudText>
         <MudButton Href="/" Color="Color.Inherit">@Lang["Find a Doctor"]</MudButton>
         <MudSpacer />
