@@ -300,19 +300,21 @@ else
     {
         try
         {
-            var apptStats = await AppointmentApi.GetStatsByDoctorAsync();
-            _totalAppointments = apptStats?.TotalCount ?? 0;
-            var topDoctors = (apptStats?.ByDoctor ?? []).Take(8).ToList();
+            var apptStatsTask = AppointmentApi.GetStatsByDoctorAsync();
+            var activeDoctorsTask = SearchApi.SearchDoctorsAsync(null, null, null);
+            var apptStats = await apptStatsTask;
+            var activeDoctors = (await activeDoctorsTask).ToDictionary(d => d.DoctorId);
+            _allDoctors ??= activeDoctors.Values.ToList(); // the search box can reuse this list
 
-            var names = await Task.WhenAll(topDoctors.Select(async d =>
-            {
-                // A Search outage shouldn't hide the appointment counts — fall back to "Unknown".
-                DoctorSearchResultDto? doctor = null;
-                try { doctor = await SearchApi.GetDoctorAsync(d.DoctorId); } catch (Exception) { }
-                return doctor is null ? "Unknown" : $"{Lang["Dr."]} {doctor.FirstName} {doctor.LastName}";
-            }));
+            // Search only holds approved doctors, so suspended ones drop out of the chart;
+            // when none are left it shows "No appointments yet."
+            var activeCounts = (apptStats?.ByDoctor ?? []).Where(d => activeDoctors.ContainsKey(d.DoctorId)).ToList();
+            _totalAppointments = activeCounts.Sum(d => d.Count);
+            var topDoctors = activeCounts.Take(8).ToList();
 
-            _apptLabels = names;
+            _apptLabels = topDoctors
+                .Select(d => $"{Lang["Dr."]} {activeDoctors[d.DoctorId].FirstName} {activeDoctors[d.DoctorId].LastName}")
+                .ToArray();
             _apptCounts = topDoctors.Select(d => d.Count).ToList();
             _apptDoctorIds = topDoctors.Select(d => d.DoctorId).ToList();
             _apptSeries = [new ChartSeries<double> { Name = "Appointments", Data = new ChartData<double>(_apptCounts.Select(c => (double)c).ToList()) }];

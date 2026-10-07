@@ -82,16 +82,16 @@
         _userSeries = [new ChartSeries<double> { Name = "Users", Data = new ChartData<double>([_patientCount, _doctorCount]) }];
 
         var apptStats = await AppointmentApi.GetStatsByDoctorAsync();
-        _totalAppointments = apptStats?.TotalCount ?? 0;
-        var topDoctors = (apptStats?.ByDoctor ?? []).Take(8).ToList();
+        // Search only holds approved doctors, so suspended ones drop out of the chart;
+        // when none are left it shows "No appointments yet."
+        var activeDoctors = (await SearchApi.SearchDoctorsAsync(null, null, null)).ToDictionary(d => d.DoctorId);
+        var activeCounts = (apptStats?.ByDoctor ?? []).Where(d => activeDoctors.ContainsKey(d.DoctorId)).ToList();
+        _totalAppointments = activeCounts.Sum(d => d.Count);
+        var topDoctors = activeCounts.Take(8).ToList();
 
-        var names = await Task.WhenAll(topDoctors.Select(async d =>
-        {
-            var doctor = await SearchApi.GetDoctorAsync(d.DoctorId);
-            return doctor is null ? "Unknown" : $"{Lang["Dr."]} {doctor.FirstName} {doctor.LastName}";
-        }));
-
-        _apptLabels = names;
+        _apptLabels = topDoctors
+            .Select(d => $"{Lang["Dr."]} {activeDoctors[d.DoctorId].FirstName} {activeDoctors[d.DoctorId].LastName}")
+            .ToArray();
         _apptSeries = [new ChartSeries<double> { Name = "Appointments", Data = new ChartData<double>(topDoctors.Select(d => (double)d.Count).ToList()) }];
 
         _loading = false;
