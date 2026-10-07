@@ -1,0 +1,431 @@
+/* Doctor agenda: month calendar + day panel. Colours come from landadoc-shell.css (--ld-*). */
+
+/* ── Toolbar ─────────────────────────────────────────────────────── */
+
+.agenda-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+    background: var(--ld-surface);
+    border: 1px solid var(--ld-border);
+    border-radius: 12px;
+}
+
+.agenda-toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.agenda-title {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--ld-text);
+    letter-spacing: -0.01em;
+    min-width: 170px;
+}
+
+.agenda-nav {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px;
+    background: var(--ld-bg);
+    border-radius: 8px;
+}
+
+.agenda-nav-btn,
+.agenda-nav-today {
+    border: none;
+    background: none;
+    height: 30px;
+    border-radius: 6px;
+    color: var(--ld-text);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.agenda-nav-btn {
+    width: 30px;
+}
+
+.agenda-nav-today {
+    padding: 0 12px;
+}
+
+.agenda-nav-btn:hover,
+.agenda-nav-today:hover {
+    background: var(--ld-surface);
+}
+
+.agenda-views {
+    display: flex;
+    gap: 8px;
+}
+
+.agenda-view-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 36px;
+    padding: 0 14px;
+    border: 1px solid var(--ld-border);
+    border-radius: 8px;
+    background: var(--ld-surface);
+    color: var(--ld-text);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.agenda-view-btn.active {
+    background: var(--ld-primary);
+    border-color: var(--ld-primary);
+    color: white;
+}
+
+/* ── Calendar + side panel ───────────────────────────────────────── */
+
+.agenda-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 20px;
+    align-items: start;
+}
+
+.agenda-calendar {
+    background: var(--ld-surface);
+    border: 1px solid var(--ld-border);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.agenda-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    border-bottom: 1px solid var(--ld-border);
+    background: #FAFBFC;
+}
+
+.agenda-weekdays div {
+    padding: 10px 0;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--ld-text-muted);
+}
+
+.agenda-grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.agenda-day {
+    min-height: 112px;
+    padding: 8px;
+    border-right: 1px solid #EEF0F4;
+    border-bottom: 1px solid #EEF0F4;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    transition: background 0.12s ease;
+}
+
+.agenda-day:nth-child(7n) {
+    border-right: none;
+}
+
+.agenda-day:hover {
+    background: #F8FAFF;
+}
+
+.agenda-day.other-month .agenda-day-number {
+    color: #B4BCC8;
+}
+
+.agenda-day.selected {
+    box-shadow: inset 0 0 0 2px var(--ld-primary);
+}
+
+.agenda-day-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2px;
+}
+
+.agenda-day-number {
+    width: 26px;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ld-text);
+}
+
+.agenda-day-number.today {
+    background: var(--ld-primary);
+    color: white;
+}
+
+.agenda-day-count {
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 4px;
+    background: #EEF0F4;
+    color: var(--ld-text-muted);
+    font-size: 10px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.agenda-chip {
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-size: 10.5px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.agenda-more {
+    font-size: 10.5px;
+    font-weight: 600;
+    color: var(--ld-text-muted);
+    padding-left: 4px;
+}
+
+/* ── Status colours (calendar chips, pills, day cards) ───────────── */
+
+.agenda-chip.status-confirmed { background: #DCFCE7; color: #166534; }
+.agenda-chip.status-pending { background: #FEF3C7; color: #92400E; }
+.agenda-chip.status-completed { background: #DBEAFE; color: #1E40AF; }
+.agenda-chip.status-rescheduled { background: #EDE9FE; color: #5B21B6; }
+.agenda-chip.status-cancelled { background: #F3F4F6; color: #9CA3AF; text-decoration: line-through; }
+
+.status-pill {
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+}
+
+.status-pill.status-confirmed { background: #DCFCE7; color: #15803D; }
+.status-pill.status-pending { background: #FEF3C7; color: #B45309; }
+.status-pill.status-completed { background: #DBEAFE; color: #1D4ED8; }
+.status-pill.status-rescheduled { background: #EDE9FE; color: #6D28D9; }
+.status-pill.status-cancelled { background: #F3F4F6; color: #6B7280; }
+
+/* ── Side panel ──────────────────────────────────────────────────── */
+
+.agenda-side {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.side-card {
+    background: var(--ld-surface);
+    border: 1px solid var(--ld-border);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.side-card-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--ld-border);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ld-text);
+}
+
+.side-card-title > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+}
+
+.side-card-title ::deep .mud-icon-root {
+    color: var(--ld-primary);
+}
+
+.side-card-title-tinted {
+    background: #F8FAFF;
+}
+
+.side-card-action {
+    padding: 4px 10px;
+    border: 1px solid var(--ld-border);
+    border-radius: 6px;
+    background: var(--ld-surface);
+    color: var(--ld-text);
+    font-size: 11px;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.side-card-action:hover {
+    border-color: var(--ld-primary);
+    color: var(--ld-primary);
+}
+
+.side-card-body {
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.side-empty {
+    font-size: 12.5px;
+    color: var(--ld-text-muted);
+}
+
+.day-appt {
+    display: block;
+    padding: 10px 12px;
+    border: 1px solid var(--ld-border);
+    border-left: 3px solid var(--ld-primary);
+    border-radius: 8px;
+    background: var(--ld-surface);
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+    text-decoration: none;
+    color: inherit;
+    transition: box-shadow 0.12s ease;
+}
+
+.day-appt:hover {
+    box-shadow: 0 4px 12px rgba(16, 24, 40, 0.08);
+}
+
+.day-appt.status-confirmed { border-left-color: #16A34A; }
+.day-appt.status-pending { border-left-color: #F59E0B; }
+.day-appt.status-completed { border-left-color: #2563EB; }
+.day-appt.status-rescheduled { border-left-color: #7C3AED; }
+.day-appt.status-cancelled { border-left-color: #D1D5DB; opacity: 0.7; }
+
+.day-appt-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+
+.day-appt-time {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ld-text);
+}
+
+.day-appt-name {
+    font-size: 13px;
+    color: var(--ld-text);
+}
+
+.day-appt-meta {
+    margin-top: 3px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11.5px;
+    color: var(--ld-text-muted);
+}
+
+.slot-label {
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ld-text-muted);
+}
+
+.slot-label-blocked {
+    color: #E11D48;
+}
+
+.slot-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.slot {
+    padding: 9px 0;
+    border-radius: 6px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.slot-open {
+    border: 1px solid var(--ld-border);
+    background: var(--ld-surface);
+    color: var(--ld-primary);
+}
+
+.slot-blocked {
+    border: 1px solid #FECDD3;
+    background: #FFF1F2;
+    color: #E11D48;
+}
+
+.slot-divider {
+    height: 1px;
+    background: var(--ld-border);
+    margin: 6px 0;
+}
+
+/* ── Narrower screens: panel below the calendar ──────────────────── */
+
+@media (max-width: 1200px) {
+    .agenda-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 640px) {
+    .agenda-day {
+        min-height: 72px;
+        padding: 4px;
+    }
+
+    .agenda-chip {
+        font-size: 0;
+        padding: 0;
+        height: 6px;
+    }
+
+    .agenda-day-count {
+        display: none;
+    }
+}
