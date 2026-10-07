@@ -1,60 +1,64 @@
 @inherits LayoutComponentBase
 @implements IDisposable
 
-<MudThemeProvider />
+<MudThemeProvider Theme="LandaDocTheme.Theme" />
 <MudPopoverProvider />
 <MudDialogProvider />
 <MudSnackbarProvider />
 
-<MudLayout>
-    @* Same gradient as the Home page hero (.hero in Home.razor.css) *@
-    <MudAppBar Elevation="1" Style="background: linear-gradient(135deg, #1976D2, #1565C0); color: white;">
-        <MudText Typo="Typo.h5" Class="ml-2">LandaDoc</MudText>
-        <MudButton Href="/" Color="Color.Inherit">@Lang["Find a Doctor"]</MudButton>
-        <MudSpacer />
-        <AuthorizeView>
-            <Authorized>
-                <MudBadge Content="@Hub.PendingCount" Color="Color.Error" Overlap="true" Visible="@(Hub.PendingCount > 0)" Class="mx-2">
-                    <MudButton Href="/appointments" Color="Color.Inherit">@Lang["My Appointments"]</MudButton>
-                </MudBadge>
-                <MudButton Href="/documents" Color="Color.Inherit">@Lang["Documents"]</MudButton>
-                <MudButton Href="/family" Color="Color.Inherit">@Lang["Family"]</MudButton>
-                <MudButton Href="/notifications" Color="Color.Inherit">@Lang["Notifications"]</MudButton>
-                <MudButton OnClick="Logout" Color="Color.Inherit">@Lang["Log out"]</MudButton>
-            </Authorized>
-            <NotAuthorized>
-                <MudButton Href="/login" Color="Color.Inherit">@Lang["Log in"]</MudButton>
-                <MudButton Href="/register" Color="Color.Inherit">@Lang["Register"]</MudButton>
-            </NotAuthorized>
-        </AuthorizeView>
-        <LanguageSwitcher />
-    </MudAppBar>
-    <MudMainContent>
-        <MudContainer MaxWidth="MaxWidth.Large" Class="my-6">
-            @Body
-        </MudContainer>
-    </MudMainContent>
-</MudLayout>
+<AppShell NotificationsHref="/notifications" NotificationDot="@_newNotification">
+    <NavItems>
+        <ShellNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Outlined.Search" Text="@Lang["Find a Doctor"]" />
+        <ShellNavLink Href="/appointments" Icon="@Icons.Material.Outlined.CalendarMonth" Text="@Lang["My Appointments"]" Badge="@Hub.PendingCount" />
+        <ShellNavLink Href="/documents" Icon="@Icons.Material.Outlined.Description" Text="@Lang["Documents"]" />
+        <ShellNavLink Href="/family" Icon="@Icons.Material.Outlined.Groups" Text="@Lang["Family"]" />
+        <ShellNavLink Href="/notifications" Icon="@Icons.Material.Outlined.Notifications" Text="@Lang["Notifications"]" />
+    </NavItems>
+    <PublicNavItems>
+        <ShellNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Outlined.Search" Text="@Lang["Find a Doctor"]" />
+        <ShellNavLink Href="/login" Icon="@Icons.Material.Outlined.Login" Text="@Lang["Log in"]" />
+        <ShellNavLink Href="/register" Icon="@Icons.Material.Outlined.PersonAdd" Text="@Lang["Register"]" />
+    </PublicNavItems>
+    <ChildContent>
+        @Body
+    </ChildContent>
+</AppShell>
 
 @code {
-    [Inject] private JwtAuthenticationStateProvider AuthState { get; set; } = default!;
-    [Inject] private NavigationManager Navigation { get; set; } = default!;
     [Inject] private ILanguageService Lang { get; set; } = default!;
     [Inject] private NotificationHubService Hub { get; set; } = default!;
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+
+    // Red dot on the bell: a live notification arrived and the notifications page hasn't been opened since
+    private bool _newNotification;
 
     protected override async Task OnInitializedAsync()
     {
         Hub.PendingCountChanged += OnPendingCountChanged;
+        Hub.NotificationReceived += OnNotificationReceived;
+        Navigation.LocationChanged += OnLocationChanged;
         await Hub.InitializeAsync();
     }
 
     private void OnPendingCountChanged(int count) => InvokeAsync(StateHasChanged);
 
-    private async Task Logout()
+    private void OnNotificationReceived(NotificationDto notification) => InvokeAsync(() =>
     {
-        await AuthState.MarkUserAsLoggedOut();
-        Navigation.NavigateTo("/login");
+        _newNotification = !Navigation.Uri.Contains("/notifications");
+        StateHasChanged();
+    });
+
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        if (!e.Location.Contains("/notifications")) return;
+        _newNotification = false;
+        InvokeAsync(StateHasChanged);
     }
 
-    public void Dispose() => Hub.PendingCountChanged -= OnPendingCountChanged;
+    public void Dispose()
+    {
+        Hub.PendingCountChanged -= OnPendingCountChanged;
+        Hub.NotificationReceived -= OnNotificationReceived;
+        Navigation.LocationChanged -= OnLocationChanged;
+    }
 }

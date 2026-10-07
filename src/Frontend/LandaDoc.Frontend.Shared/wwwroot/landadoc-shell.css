@@ -1,0 +1,350 @@
+/* Layout shell shared by the Patient, Doctor and Admin web apps (AppShell.razor).
+   Linked from each app's index.html as _content/LandaDoc.Frontend.Shared/landadoc-shell.css. */
+
+:root {
+    --ld-primary: #2563EB;
+    --ld-primary-soft: #EEF4FF;
+    --ld-bg: #F5F7FB;
+    --ld-surface: #FFFFFF;
+    --ld-border: #E5E7EB;
+    --ld-text: #1E293B;
+    --ld-text-muted: #64748B;
+    --ld-danger: #DC2626;
+    --ld-sidebar-width: 240px;
+    --ld-topbar-height: 60px;
+}
+
+html, body {
+    font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    background: var(--ld-bg);
+    color: var(--ld-text);
+}
+
+.ld-shell {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* ── Sidebar ─────────────────────────────────────────────────────── */
+
+.ld-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: var(--ld-sidebar-width);
+    background: var(--ld-surface);
+    border-right: 1px solid var(--ld-border);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    z-index: 1200;
+    transition: transform 0.2s ease;
+}
+
+.ld-brand {
+    display: flex;
+    align-items: center;
+    height: var(--ld-topbar-height);
+    padding: 0 20px;
+    border-bottom: 1px solid var(--ld-border);
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--ld-text);
+    text-decoration: none;
+    letter-spacing: -0.01em;
+}
+
+.ld-brand span {
+    color: var(--ld-primary);
+}
+
+.ld-brand small {
+    margin-left: 8px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--ld-primary-soft);
+    color: var(--ld-primary);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0;
+}
+
+.ld-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 16px 12px;
+}
+
+.ld-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    color: #344054;
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.ld-nav-item:hover {
+    background: #F3F5F9;
+    color: var(--ld-text);
+}
+
+.ld-nav-item.active {
+    background: var(--ld-primary-soft);
+    color: var(--ld-primary);
+    font-weight: 600;
+}
+
+.ld-nav-item .ld-nav-icon {
+    color: inherit;
+}
+
+.ld-nav-text {
+    flex: 1;
+}
+
+.ld-nav-badge {
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: var(--ld-danger);
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ld-sidebar-user {
+    margin: 0 12px;
+    padding: 16px 0;
+    border-top: 1px solid var(--ld-border);
+}
+
+.ld-user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 8px 12px;
+}
+
+.ld-avatar {
+    flex: none;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--ld-primary-soft);
+    color: var(--ld-primary);
+    font-weight: 700;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ld-user-text {
+    min-width: 0;
+}
+
+.ld-user-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ld-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ld-user-email {
+    font-size: 11px;
+    color: var(--ld-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ld-logout {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 9px 12px;
+    border: none;
+    border-radius: 8px;
+    background: none;
+    color: var(--ld-danger);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.ld-logout:hover {
+    background: #FEF2F2;
+}
+
+/* ── Main column ─────────────────────────────────────────────────── */
+
+.ld-main {
+    flex: 1;
+    min-width: 0;
+    margin-left: var(--ld-sidebar-width);
+    display: flex;
+    flex-direction: column;
+}
+
+.ld-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 1100;
+    height: var(--ld-topbar-height);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 24px;
+    background: var(--ld-surface);
+    border-bottom: 1px solid var(--ld-border);
+}
+
+.ld-topbar-spacer {
+    flex: 1;
+}
+
+.ld-icon-button {
+    position: relative;
+    width: 38px;
+    height: 38px;
+    border: none;
+    border-radius: 10px;
+    background: none;
+    color: var(--ld-text-muted);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.ld-icon-button:hover {
+    background: #F3F5F9;
+    color: var(--ld-text);
+}
+
+.ld-bell-dot {
+    position: absolute;
+    top: 8px;
+    right: 9px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--ld-danger);
+    border: 2px solid var(--ld-surface);
+}
+
+.ld-menu-button {
+    display: none;
+}
+
+.ld-lang {
+    display: inline-flex;
+    padding: 3px;
+    border: 1px solid var(--ld-border);
+    border-radius: 8px;
+    background: var(--ld-bg);
+}
+
+.ld-lang button {
+    border: none;
+    background: none;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ld-text-muted);
+    cursor: pointer;
+}
+
+.ld-lang button.active {
+    background: var(--ld-surface);
+    color: var(--ld-primary);
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.08);
+}
+
+.ld-content {
+    flex: 1;
+    width: 100%;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 24px;
+}
+
+.ld-backdrop {
+    display: none;
+}
+
+/* ── Cards and tables inside pages ───────────────────────────────── */
+
+.ld-content .mud-paper:not(.mud-popover):not(.mud-appbar),
+.ld-content .landadoc-card {
+    border: 1px solid var(--ld-border);
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04) !important;
+}
+
+.ld-content .mud-table-head .mud-table-cell {
+    color: var(--ld-text-muted);
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.ld-content h4.mud-typography-h4 {
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+/* ── Phones and small tablets: the sidebar slides in from the left ─ */
+
+@media (max-width: 960px) {
+    .ld-sidebar {
+        transform: translateX(-100%);
+        box-shadow: none;
+    }
+
+    .ld-nav-open .ld-sidebar {
+        transform: none;
+        box-shadow: 0 10px 40px rgba(16, 24, 40, 0.2);
+    }
+
+    .ld-nav-open .ld-backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.35);
+        z-index: 1150;
+    }
+
+    .ld-main {
+        margin-left: 0;
+    }
+
+    .ld-menu-button {
+        display: inline-flex;
+    }
+
+    .ld-topbar {
+        padding: 0 12px;
+    }
+
+    .ld-content {
+        padding: 16px;
+    }
+}

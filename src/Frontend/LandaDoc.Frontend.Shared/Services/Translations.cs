@@ -57,6 +57,9 @@ public static class Translations
         ["Search is unavailable right now. Please try again in a minute."] = new() { ["en"] = "Search is unavailable right now. Please try again in a minute.", ["fr"] = "La recherche est indisponible pour le moment. Veuillez réessayer dans une minute." },
         ["Try again"] = new() { ["en"] = "Try again", ["fr"] = "Réessayer" },
         ["Next"] = new() { ["en"] = "Next", ["fr"] = "Suivant" },
+        ["Dashboard"] = new() { ["en"] = "Dashboard", ["fr"] = "Tableau de bord" },
+        ["Family"] = new() { ["en"] = "Family", ["fr"] = "Famille" },
+        ["Doctor space"] = new() { ["en"] = "Doctor", ["fr"] = "Médecin" },
         ["Step 1 of 2: your account"] = new() { ["en"] = "Step 1 of 2: your account", ["fr"] = "Étape 1 sur 2 : votre compte" },
         ["Step 2 of 2: your professional details"] = new() { ["en"] = "Step 2 of 2: your professional details", ["fr"] = "Étape 2 sur 2 : vos informations professionnelles" },
         ["No doctors found matching your search."] = new()

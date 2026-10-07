@@ -1,0 +1,147 @@
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@using LandaDoc.Frontend.Shared.Services.ApiClients
+@implements IDisposable
+
+@* Sidebar layout shared by the Patient, Doctor and Admin web apps. Styles live in
+   wwwroot/landadoc-shell.css, linked from each app's index.html. *@
+<div class="ld-shell @(_navOpen ? "ld-nav-open" : "")">
+    <aside class="ld-sidebar">
+        <a class="ld-brand" href="/">
+            Landa<span>Doc</span>
+            @if (!string.IsNullOrEmpty(Subtitle))
+            {
+                <small>@Subtitle</small>
+            }
+        </a>
+
+        <nav class="ld-nav" @onclick="CloseNav">
+            <AuthorizeView>
+                <Authorized>@NavItems</Authorized>
+                <NotAuthorized>@PublicNavItems</NotAuthorized>
+            </AuthorizeView>
+        </nav>
+
+        <AuthorizeView>
+            <Authorized>
+                <div class="ld-sidebar-user">
+                    <div class="ld-user">
+                        <div class="ld-avatar">@Initial</div>
+                        <div class="ld-user-text">
+                            <div class="ld-user-name">@(_displayName ?? _email)</div>
+                            <div class="ld-user-email">@_email</div>
+                        </div>
+                    </div>
+                    <button type="button" class="ld-logout" @onclick="Logout">
+                        <MudIcon Icon="@Icons.Material.Outlined.Logout" Size="Size.Small" />
+                        @Lang["Log out"]
+                    </button>
+                </div>
+            </Authorized>
+        </AuthorizeView>
+    </aside>
+
+    <div class="ld-backdrop" @onclick="CloseNav"></div>
+
+    <div class="ld-main">
+        <header class="ld-topbar">
+            <button type="button" class="ld-icon-button ld-menu-button" @onclick="ToggleNav" aria-label="Menu">
+                <MudIcon Icon="@Icons.Material.Outlined.Menu" />
+            </button>
+            <div class="ld-topbar-spacer"></div>
+
+            <div class="ld-lang">
+                <button type="button" class="@(Lang.CurrentLanguage == "en" ? "active" : "")" @onclick="@(() => Lang.SetLanguageAsync("en"))">EN</button>
+                <button type="button" class="@(Lang.CurrentLanguage == "fr" ? "active" : "")" @onclick="@(() => Lang.SetLanguageAsync("fr"))">FR</button>
+            </div>
+
+            @if (NotificationsHref is not null)
+            {
+                <AuthorizeView>
+                    <Authorized>
+                        <a class="ld-icon-button ld-bell" href="@NotificationsHref" aria-label="@Lang["Notifications"]">
+                            <MudIcon Icon="@Icons.Material.Outlined.Notifications" />
+                            @if (NotificationDot)
+                            {
+                                <span class="ld-bell-dot"></span>
+                            }
+                        </a>
+                    </Authorized>
+                </AuthorizeView>
+            }
+        </header>
+
+        <main class="ld-content">
+            @ChildContent
+        </main>
+    </div>
+</div>
+
+@code {
+    [Inject] private ILanguageService Lang { get; set; } = default!;
+    [Inject] private IIdentityApiClient Identity { get; set; } = default!;
+    [Inject] private JwtAuthenticationStateProvider AuthState { get; set; } = default!;
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+
+    [Parameter] public string? Subtitle { get; set; }
+    [Parameter] public RenderFragment? NavItems { get; set; }
+    [Parameter] public RenderFragment? PublicNavItems { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public string? NotificationsHref { get; set; }
+    [Parameter] public bool NotificationDot { get; set; }
+
+    private bool _navOpen;
+    private string? _email;
+    private string? _displayName;
+
+    private string Initial => (_displayName ?? _email ?? "?")[..1].ToUpperInvariant();
+
+    protected override async Task OnInitializedAsync()
+    {
+        AuthState.AuthenticationStateChanged += OnAuthStateChanged;
+        await LoadUserAsync(AuthState.GetAuthenticationStateAsync());
+    }
+
+    private void OnAuthStateChanged(Task<AuthenticationState> state) =>
+        _ = InvokeAsync(async () =>
+        {
+            await LoadUserAsync(state);
+            StateHasChanged();
+        });
+
+    // The token only carries the email, so the name for the sidebar card comes from Identity.
+    private async Task LoadUserAsync(Task<AuthenticationState> stateTask)
+    {
+        var user = (await stateTask).User;
+        if (user.Identity?.IsAuthenticated != true)
+        {
+            _email = _displayName = null;
+            return;
+        }
+
+        _email = user.FindFirst(ClaimTypes.Email)?.Value;
+        try
+        {
+            var me = await Identity.GetMeAsync();
+            if (me is not null)
+                _displayName = me.Role == "Doctor"
+                    ? $"{Lang["Dr."]} {me.FirstName} {me.LastName}"
+                    : $"{me.FirstName} {me.LastName}";
+        }
+        catch (Exception)
+        {
+            // Identity may be asleep; the card falls back to the email
+        }
+    }
+
+    private void ToggleNav() => _navOpen = !_navOpen;
+    private void CloseNav() => _navOpen = false;
+
+    private async Task Logout()
+    {
+        await AuthState.MarkUserAsLoggedOut();
+        Navigation.NavigateTo("/login");
+    }
+
+    public void Dispose() => AuthState.AuthenticationStateChanged -= OnAuthStateChanged;
+}

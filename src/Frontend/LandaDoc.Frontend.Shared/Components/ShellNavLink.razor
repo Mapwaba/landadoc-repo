@@ -1,0 +1,18 @@
+@* One sidebar entry in AppShell: outline icon + label, highlighted when its page is open. *@
+<NavLink class="ld-nav-item" ActiveClass="active" href="@Href" Match="@Match">
+    <MudIcon Icon="@Icon" Size="Size.Small" Class="ld-nav-icon" />
+    <span class="ld-nav-text">@Text</span>
+    @if (Badge > 0)
+    {
+        <span class="ld-nav-badge">@Badge</span>
+    }
+</NavLink>
+
+@code {
+    [Parameter, EditorRequired] public string Href { get; set; } = "";
+    [Parameter, EditorRequired] public string Icon { get; set; } = "";
+    [Parameter, EditorRequired] public string Text { get; set; } = "";
+    [Parameter] public int Badge { get; set; }
+    // "/" would otherwise stay highlighted on every page
+    [Parameter] public NavLinkMatch Match { get; set; } = NavLinkMatch.Prefix;
+}

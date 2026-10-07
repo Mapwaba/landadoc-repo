@@ -1,43 +1,24 @@
 @inherits LayoutComponentBase
 
-<MudThemeProvider />
+<MudThemeProvider Theme="LandaDocTheme.Theme" />
 <MudPopoverProvider />
 <MudDialogProvider />
 <MudSnackbarProvider />
 
-<MudLayout>
-    @* Same gradient as the Patient Home page hero (.hero in Patient/Pages/Home.razor.css) *@
-    <MudAppBar Elevation="1" Style="background: linear-gradient(135deg, #1976D2, #1565C0); color: white;">
-        <MudText Typo="Typo.h5" Class="ml-2">@Lang["LandaDoc Admin"]</MudText>
-        <MudSpacer />
-        <AuthorizeView>
-            <Authorized>
-                <MudButton Href="/" Color="Color.Inherit">@Lang["Overview"]</MudButton>
-                <MudButton Href="/doctors" Color="Color.Inherit">@Lang["Doctors"]</MudButton>
-                <MudButton Href="/clinics" Color="Color.Inherit">@Lang["Clinics"]</MudButton>
-                <MudButton OnClick="Logout" Color="Color.Inherit">@Lang["Log out"]</MudButton>
-            </Authorized>
-            <NotAuthorized>
-                <MudButton Href="/login" Color="Color.Inherit">@Lang["Log in"]</MudButton>
-            </NotAuthorized>
-        </AuthorizeView>
-        <LanguageSwitcher />
-    </MudAppBar>
-    <MudMainContent>
-        <MudContainer MaxWidth="MaxWidth.Large" Class="my-6">
-            @Body
-        </MudContainer>
-    </MudMainContent>
-</MudLayout>
+<AppShell Subtitle="Admin">
+    <NavItems>
+        <ShellNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Outlined.Dashboard" Text="@Lang["Overview"]" />
+        <ShellNavLink Href="/doctors" Icon="@Icons.Material.Outlined.MedicalServices" Text="@Lang["Doctors"]" />
+        <ShellNavLink Href="/clinics" Icon="@Icons.Material.Outlined.LocalHospital" Text="@Lang["Clinics"]" />
+    </NavItems>
+    <PublicNavItems>
+        <ShellNavLink Href="/login" Icon="@Icons.Material.Outlined.Login" Text="@Lang["Log in"]" />
+    </PublicNavItems>
+    <ChildContent>
+        @Body
+    </ChildContent>
+</AppShell>
 
 @code {
-    [Inject] private JwtAuthenticationStateProvider AuthState { get; set; } = default!;
-    [Inject] private NavigationManager Navigation { get; set; } = default!;
     [Inject] private ILanguageService Lang { get; set; } = default!;
-
-    private async Task Logout()
-    {
-        await AuthState.MarkUserAsLoggedOut();
-        Navigation.NavigateTo("/login");
-    }
 }
