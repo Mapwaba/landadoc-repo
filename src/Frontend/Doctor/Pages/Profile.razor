@@ -6,10 +6,10 @@
 <div class="ld-page ld-page-narrow">
     <div class="ld-page-head">
         <h1 class="ld-page-title">@(_isNew ? Lang["My profile"] : Lang["My public profile"])</h1>
-        @if (!_isNew && !_loading && _userId != Guid.Empty)
+        @if (!_isNew && !_loading)
         {
-            <a class="ld-btn" href="@PatientPageUrl" target="_blank" rel="noopener">
-                <MudIcon Icon="@Icons.Material.Outlined.OpenInNew" Style="font-size:16px;" /> @Lang["View my patient page"]
+            <a class="ld-btn" href="/workplace">
+                <MudIcon Icon="@Icons.Material.Outlined.Apartment" Style="font-size:16px;" /> @Lang["View my workplace"]
             </a>
         }
     </div>
@@ -219,7 +219,6 @@
     [Inject] private IIdentityApiClient Identity { get; set; } = default!;
     [Inject] private JwtAuthenticationStateProvider AuthState { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
-    [Inject] private IConfiguration Configuration { get; set; } = default!;
     [Inject] private ILanguageService Lang { get; set; } = default!;
     [Inject] private ISnackbar Snackbar { get; set; } = default!;
 
@@ -231,7 +230,6 @@
     private bool _infoSubmitted;
     private string? _error;
 
-    private Guid _userId;
     private string? _email;
     private string? _phone;
     private string _firstName = "";
@@ -251,10 +249,6 @@
     private bool _pwSubmitted;
     private bool _changingPassword;
     private string? _pwError;
-
-    // The doctor's page in the Patient app (/doctors/{userId}); PatientAppUrl is set per environment
-    private string PatientPageUrl =>
-        $"{(Configuration["PatientAppUrl"] ?? "https://landadoc-patient.vercel.app").TrimEnd('/')}/doctors/{_userId}";
 
     private List<string> MyClinicNames =>
         _clinics.Where(c => _clinicIds.Contains(c.Id)).Select(c => c.Name.ToUpperInvariant()).ToList();
@@ -279,7 +273,6 @@
         try
         {
             var me = await meTask;
-            _userId = me?.Id ?? Guid.Empty;
             _email = me?.Email;
             _phone = _savedPhone = Blank(me?.Phone) ? null : me!.Phone;
         }
@@ -293,7 +286,6 @@
     private void Apply(DoctorProfileDto profile)
     {
         _saved = profile;
-        _userId = _userId == Guid.Empty ? profile.UserId : _userId;
         _firstName = profile.FirstName;
         _lastName = profile.LastName;
         _specialty = profile.Specialty;

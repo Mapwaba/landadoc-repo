@@ -112,7 +112,7 @@ public static class Translations
         ["Net (received)"] = new() { ["en"] = "Net (received)", ["fr"] = "Net (reçu)" },
         ["appt"] = new() { ["en"] = "appt", ["fr"] = "RDV" },
         ["My public profile"] = new() { ["en"] = "My public profile", ["fr"] = "Mon profil public" },
-        ["View my patient page"] = new() { ["en"] = "View my patient page", ["fr"] = "Voir ma fiche patient" },
+        ["View my workplace"] = new() { ["en"] = "View my workplace", ["fr"] = "Voir mon établissement" },
         ["About"] = new() { ["en"] = "About", ["fr"] = "À propos" },
         ["Add a short presentation so patients get to know you."] = new() { ["en"] = "Add a short presentation so patients get to know you.", ["fr"] = "Ajoutez une courte présentation pour que les patients vous connaissent." },
         ["Contact details"] = new() { ["en"] = "Contact details", ["fr"] = "Coordonnées" },
