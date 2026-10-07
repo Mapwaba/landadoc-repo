@@ -30,6 +30,9 @@ public class JwtAuthenticationStateProvider(TokenStore tokenStore) : Authenticat
         NotifyAuthenticationStateChanged(GetAuthenticationStateAsync());
     }
 
+    // Same login, changed details (e.g. a new name): lets listeners such as the sidebar reload them
+    public void NotifyUserChanged() => NotifyAuthenticationStateChanged(GetAuthenticationStateAsync());
+
     public async Task MarkUserAsLoggedOut()
     {
         await tokenStore.ClearAsync();

@@ -153,3 +153,19 @@
         grid-template-columns: minmax(0, 1fr);
     }
 }
+
+/* Edit mode: one card for the doctor's information, one for the password */
+.pp-card-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--ld-border);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ld-text);
+}
+
+.pp-card-head ::deep .mud-icon-root {
+    color: var(--ld-primary);
+}

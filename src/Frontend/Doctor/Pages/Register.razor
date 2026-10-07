@@ -41,7 +41,7 @@
                     <MudTextField T="string" Label="@Lang["License number"]" @bind-Value="_licenseNumber" Required="true" />
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudSelect T="Guid" Label="@Lang["Clinics"]" MultiSelection="true" @bind-SelectedValues="_clinicIds"
+                    <MudSelect T="Guid" Label="@Lang["Clinics"]" MultiSelection="true" @bind-SelectedValues="_clinicIds" ToStringFunc="ClinicName"
                                Disabled="@(_clinics.Count == 0)"
                                HelperText="@(_clinics.Count == 0 ? Lang["You can add your clinics later on your profile."] : null)">
                         @foreach (var clinic in _clinics)
@@ -98,6 +98,9 @@
         try { _clinics = await Admin.GetClinicOptionsAsync(); }
         catch (Exception) { _clinics = []; } // the doctor can still pick clinics later on their profile
     }
+
+    // MudSelect shows selected values with this; without it, a picked clinic appears as its id
+    private string ClinicName(Guid id) => _clinics.FirstOrDefault(c => c.Id == id)?.Name ?? "";
 
     private string? ValidatePassword(string password) =>
         string.IsNullOrEmpty(password) || password.Length >= 8 ? null : Lang["At least 8 characters"];

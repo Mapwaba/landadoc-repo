@@ -545,6 +545,12 @@ html, body {
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
+.ld-input:disabled {
+    background: #F8F9FB;
+    color: var(--ld-text-muted);
+    cursor: not-allowed;
+}
+
 .ld-input.invalid {
     border-color: var(--ld-danger);
 }

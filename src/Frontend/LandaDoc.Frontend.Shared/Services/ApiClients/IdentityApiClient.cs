@@ -20,6 +20,12 @@ public class IdentityApiClient(HttpClient http) : IIdentityApiClient
         return resp.IsSuccessStatusCode ? await resp.Content.ReadFromJsonAsync<UserDto>() : null;
     }
 
+    public Task<HttpResponseMessage> UpdateMeAsync(UpdateMeRequest req) =>
+        http.PutAsJsonAsync("api/auth/me", req, JsonDefaults.Options);
+
+    public Task<HttpResponseMessage> ChangePasswordAsync(ChangePasswordRequest req) =>
+        http.PostAsJsonAsync("api/auth/change-password", req, JsonDefaults.Options);
+
     public async Task<List<PatientContactDto>> GetMyPatientsAsync() =>
         await http.GetFromJsonAsync<List<PatientContactDto>>("api/patients/mine", JsonDefaults.Options) ?? [];
 
