@@ -276,17 +276,20 @@ else
     private async Task LoadStats()
     {
         _loadingStats = true;
-        await Task.WhenAll(LoadUserStats(), LoadAppointmentStats());
+        // Both charts count doctors from the Search list (approved doctors only), so the
+        // doctor count and the appointments chart always agree about who is active.
+        var activeDoctors = SearchApi.SearchDoctorsAsync(null, null, null);
+        await Task.WhenAll(LoadUserStats(activeDoctors), LoadAppointmentStats(activeDoctors));
         _loadingStats = false;
     }
 
-    private async Task LoadUserStats()
+    private async Task LoadUserStats(Task<List<DoctorSearchResultDto>> activeDoctors)
     {
         try
         {
             var counts = await IdentityApi.GetStatsAsync();
             _patientCount = counts?.PatientCount ?? 0;
-            _doctorCount = counts?.DoctorCount ?? 0;
+            _doctorCount = (await activeDoctors).Count;
             _userLabels = [Lang["Patients"], Lang["Doctors"]];
             _userSeries = [new ChartSeries<double> { Name = "Users", Data = new ChartData<double>([_patientCount, _doctorCount]) }];
         }
@@ -296,13 +299,11 @@ else
         }
     }
 
-    private async Task LoadAppointmentStats()
+    private async Task LoadAppointmentStats(Task<List<DoctorSearchResultDto>> activeDoctorsTask)
     {
         try
         {
-            var apptStatsTask = AppointmentApi.GetStatsByDoctorAsync();
-            var activeDoctorsTask = SearchApi.SearchDoctorsAsync(null, null, null);
-            var apptStats = await apptStatsTask;
+            var apptStats = await AppointmentApi.GetStatsByDoctorAsync();
             var activeDoctors = (await activeDoctorsTask).ToDictionary(d => d.DoctorId);
             _allDoctors ??= activeDoctors.Values.ToList(); // the search box can reuse this list
 

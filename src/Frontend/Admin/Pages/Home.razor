@@ -60,6 +60,7 @@
 
 @code {
     [Inject] private IIdentityApiClient IdentityApi { get; set; } = default!;
+    [Inject] private IAdminApiClient AdminApi { get; set; } = default!;
     [Inject] private IAppointmentApiClient AppointmentApi { get; set; } = default!;
     [Inject] private ISearchApiClient SearchApi { get; set; } = default!;
     [Inject] private ILanguageService Lang { get; set; } = default!;
@@ -77,7 +78,9 @@
     {
         var counts = await IdentityApi.GetStatsAsync();
         _patientCount = counts?.PatientCount ?? 0;
-        _doctorCount = counts?.DoctorCount ?? 0;
+        // Read from the Admin service, where Approve/Suspend are saved, so the count changes
+        // straight away — Identity only catches up once it has processed the approval message.
+        _doctorCount = (await AdminApi.GetAllDoctorsAsync(DoctorApprovalStatus.Approved)).Count;
         _userLabels = [Lang["Patients"], Lang["Doctors"]];
         _userSeries = [new ChartSeries<double> { Name = "Users", Data = new ChartData<double>([_patientCount, _doctorCount]) }];
 
