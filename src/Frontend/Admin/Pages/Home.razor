@@ -78,9 +78,9 @@
     {
         var counts = await IdentityApi.GetStatsAsync();
         _patientCount = counts?.PatientCount ?? 0;
-        // Read from the Admin service, where Approve/Suspend are saved, so the count changes
+        // Counted by the Admin service, where Approve/Suspend are saved, so the count changes
         // straight away — Identity only catches up once it has processed the approval message.
-        _doctorCount = (await AdminApi.GetAllDoctorsAsync(DoctorApprovalStatus.Approved)).Count;
+        _doctorCount = await AdminApi.GetApprovedDoctorCountAsync();
         _userLabels = [Lang["Patients"], Lang["Doctors"]];
         _userSeries = [new ChartSeries<double> { Name = "Users", Data = new ChartData<double>([_patientCount, _doctorCount]) }];
 

@@ -182,6 +182,7 @@ else
 @code {
     [Inject] private ISearchApiClient SearchApi { get; set; } = default!;
     [Inject] private IIdentityApiClient IdentityApi { get; set; } = default!;
+    [Inject] private IAdminApiClient AdminApi { get; set; } = default!;
     [Inject] private IAppointmentApiClient AppointmentApi { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
     [Inject] private ILanguageService Lang { get; set; } = default!;
@@ -276,20 +277,20 @@ else
     private async Task LoadStats()
     {
         _loadingStats = true;
-        // Both charts count doctors from the Search list (approved doctors only), so the
-        // doctor count and the appointments chart always agree about who is active.
-        var activeDoctors = SearchApi.SearchDoctorsAsync(null, null, null);
-        await Task.WhenAll(LoadUserStats(activeDoctors), LoadAppointmentStats(activeDoctors));
+        await Task.WhenAll(LoadUserStats(), LoadAppointmentStats());
         _loadingStats = false;
     }
 
-    private async Task LoadUserStats(Task<List<DoctorSearchResultDto>> activeDoctors)
+    private async Task LoadUserStats()
     {
         try
         {
-            var counts = await IdentityApi.GetStatsAsync();
-            _patientCount = counts?.PatientCount ?? 0;
-            _doctorCount = (await activeDoctors).Count;
+            var countsTask = IdentityApi.GetStatsAsync();
+            // Counted by the Admin service, where Approve/Suspend are saved, so it changes straight
+            // away instead of waiting for Search or Identity to process the approval message.
+            var doctorCountTask = AdminApi.GetApprovedDoctorCountAsync();
+            _patientCount = (await countsTask)?.PatientCount ?? 0;
+            _doctorCount = await doctorCountTask;
             _userLabels = [Lang["Patients"], Lang["Doctors"]];
             _userSeries = [new ChartSeries<double> { Name = "Users", Data = new ChartData<double>([_patientCount, _doctorCount]) }];
         }
@@ -299,11 +300,13 @@ else
         }
     }
 
-    private async Task LoadAppointmentStats(Task<List<DoctorSearchResultDto>> activeDoctorsTask)
+    private async Task LoadAppointmentStats()
     {
         try
         {
-            var apptStats = await AppointmentApi.GetStatsByDoctorAsync();
+            var apptStatsTask = AppointmentApi.GetStatsByDoctorAsync();
+            var activeDoctorsTask = SearchApi.SearchDoctorsAsync(null, null, null);
+            var apptStats = await apptStatsTask;
             var activeDoctors = (await activeDoctorsTask).ToDictionary(d => d.DoctorId);
             _allDoctors ??= activeDoctors.Values.ToList(); // the search box can reuse this list
 
