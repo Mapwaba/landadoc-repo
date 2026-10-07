@@ -1,168 +1,32 @@
 @page "/documents"
 @attribute [Authorize]
-@using System.Globalization
 
-<PageTitle>Documents</PageTitle>
+<PageTitle>Medical documents</PageTitle>
 
+@* Documents live in each patient's file (/patients/{id}); this page points there. *@
 <div class="ld-page">
     <div class="ld-page-head">
-        <h1 class="ld-page-title">@Lang["Documents"]</h1>
-        <div style="display:flex; gap:10px; flex-wrap:wrap;">
-            <select class="ld-select" style="width:auto;" @bind="_category">
-                <option value="">@Lang["All categories"]</option>
-                @foreach (var c in Categories)
-                {
-                    <option value="@c">@Lang[$"docCategory.{c}"]</option>
-                }
-            </select>
-            <div class="ld-input-wrap" style="width:240px;">
-                <input class="ld-input" placeholder="@Lang["Search a patient or file"]" @bind="_query" @bind:event="oninput" />
-                <span class="ld-input-icon"><MudIcon Icon="@Icons.Material.Outlined.Search" Style="font-size:17px;" /></span>
-            </div>
-        </div>
+        <h1 class="ld-page-title">@Lang["Medical documents"]</h1>
     </div>
 
-    @if (_loading)
-    {
-        <MudProgressCircular Indeterminate="true" />
-    }
-    else if (_loadFailed)
-    {
-        <MudAlert Severity="Severity.Warning">@Lang["Documents couldn't be loaded. Please try again in a minute."]</MudAlert>
-    }
-    else
-    {
-        @if (_partialFailure)
-        {
-            <MudAlert Severity="Severity.Warning" Class="mb-4">@Lang["Some documents couldn't be loaded. Please try again in a minute."]</MudAlert>
-        }
-        <div class="ld-card">
-            @if (Filtered.Count == 0)
-            {
-                <div class="ld-empty">@(_documents.Count == 0 ? Lang["Your patients haven't shared any documents yet."] : Lang["No document matches your search."])</div>
-            }
-            else
-            {
-                <div class="ld-table-wrap">
-                    <table class="ld-table">
-                        <thead>
-                            <tr>
-                                <th>@Lang["File"]</th>
-                                <th>@Lang["Patient"]</th>
-                                <th>@Lang["Category"]</th>
-                                <th class="ld-num">@Lang["Size"]</th>
-                                <th>@Lang["Date"]</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var d in Filtered)
-                            {
-                                <tr>
-                                    <td>
-                                        <div class="ld-person" style="font-weight:500;">
-                                            <MudIcon Icon="@FileIcon(d.ContentType)" Style="font-size:20px; color:#64748B;" /> @d.FileName
-                                        </div>
-                                    </td>
-                                    <td>@PatientName(d.PatientId)</td>
-                                    <td>@Lang[$"docCategory.{d.Category}"]</td>
-                                    <td class="ld-num ld-muted">@Size(d.SizeBytes)</td>
-                                    <td class="ld-muted">@d.CreatedAt.ToLocalTime().ToString("d MMM yyyy", Culture)</td>
-                                    <td class="ld-num">
-                                        <button type="button" class="ld-btn ld-btn-sm" @onclick="@(() => Download(d.Id))" disabled="@(_downloading == d.Id)">
-                                            <MudIcon Icon="@Icons.Material.Outlined.Download" Style="font-size:16px;" /> @Lang["Download"]
-                                        </button>
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            }
+    <div class="doc-info">
+        <MudIcon Icon="@Icons.Material.Outlined.Description" Style="font-size:18px;" />
+        <span>
+            @Lang["To view documents (prescriptions, tests, x-rays), open the relevant"]
+            <a href="/patients">@Lang["Patient file"]</a>.
+        </span>
+    </div>
+
+    <div class="ld-card">
+        <div class="doc-empty">
+            <MudIcon Icon="@Icons.Material.Outlined.Search" Style="font-size:36px; color:#CBD2DC;" />
+            <div class="doc-empty-title">@Lang["Find a patient"]</div>
+            <div class="ld-muted">@Lang["Open the patient list to see their documents."]</div>
+            <a class="ld-btn ld-btn-primary" href="/patients" style="margin-top:16px;">@Lang["Go to patients"]</a>
         </div>
-    }
+    </div>
 </div>
 
 @code {
-    [Inject] private IDocumentApiClient DocumentsApi { get; set; } = default!;
-    [Inject] private IAppointmentApiClient AppointmentsApi { get; set; } = default!;
-    [Inject] private NavigationManager Navigation { get; set; } = default!;
     [Inject] private ILanguageService Lang { get; set; } = default!;
-
-    private static readonly string[] Categories = ["LabResult", "Prescription", "Report", "Other"];
-
-    private bool _loading = true;
-    private bool _loadFailed;
-    private bool _partialFailure;
-    private string _query = "";
-    private string _category = "";
-    private Guid? _downloading;
-    private List<DocumentDto> _documents = [];
-    private Dictionary<Guid, string> _patientNames = [];
-
-    private CultureInfo Culture => CultureInfo.GetCultureInfo(Lang.CurrentLanguage == "fr" ? "fr-FR" : "en-US");
-
-    private List<DocumentDto> Filtered => _documents
-        .Where(d => _category == "" || d.Category == _category)
-        .Where(d => string.IsNullOrWhiteSpace(_query)
-            || d.FileName.Contains(_query.Trim(), StringComparison.OrdinalIgnoreCase)
-            || PatientName(d.PatientId).Contains(_query.Trim(), StringComparison.OrdinalIgnoreCase))
-        .ToList();
-
-    // Documents of every patient the doctor has a (non-cancelled) appointment with, newest first.
-    // That's exactly who the Document service lets a doctor read.
-    protected override async Task OnInitializedAsync()
-    {
-        try
-        {
-            var appointments = await AppointmentsApi.GetMineAsync();
-            _patientNames = appointments
-                .Where(a => a.Status != AppointmentStatus.Cancelled)
-                .GroupBy(a => a.PatientId)
-                .ToDictionary(g => g.Key, g => g.Select(a => a.PatientName).FirstOrDefault(n => !string.IsNullOrWhiteSpace(n)) ?? Lang["Patient"]);
-
-            // One request per patient; a failure for one patient shouldn't hide everyone else's files
-            var perPatient = await Task.WhenAll(_patientNames.Keys.Select(async patientId =>
-            {
-                try { return await DocumentsApi.GetForPatientAsync(patientId); }
-                catch (Exception) { _partialFailure = true; return []; }
-            }));
-            _documents = perPatient.SelectMany(d => d).OrderByDescending(d => d.CreatedAt).ToList();
-        }
-        catch (Exception)
-        {
-            _loadFailed = true;
-        }
-        _loading = false;
-    }
-
-    private async Task Download(Guid id)
-    {
-        _downloading = id;
-        try
-        {
-            var url = await DocumentsApi.GetDownloadUrlAsync(id);
-            if (url is not null) Navigation.NavigateTo(url, forceLoad: true);
-        }
-        finally
-        {
-            _downloading = null;
-        }
-    }
-
-    private string PatientName(Guid patientId) => _patientNames.GetValueOrDefault(patientId, Lang["Patient"]);
-
-    private static string Size(long bytes) => bytes switch
-    {
-        >= 1024 * 1024 => $"{bytes / (1024d * 1024):0.0} MB",
-        >= 1024 => $"{bytes / 1024d:0} KB",
-        _ => $"{bytes} B",
-    };
-
-    private static string FileIcon(string contentType) => contentType switch
-    {
-        "application/pdf" => Icons.Material.Outlined.PictureAsPdf,
-        var t when t.StartsWith("image/") => Icons.Material.Outlined.Image,
-        _ => Icons.Material.Outlined.Description,
-    };
 }

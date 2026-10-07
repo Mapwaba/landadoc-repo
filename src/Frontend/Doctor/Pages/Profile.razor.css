@@ -1,0 +1,155 @@
+/* Doctor's public profile card. Colours from landadoc-shell.css (--ld-*). */
+
+.pp-banner {
+    position: relative;
+    height: 100px;
+    background: var(--ld-primary);
+}
+
+.pp-edit {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 34px;
+    height: 34px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.22);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.pp-edit:hover {
+    background: rgba(255, 255, 255, 0.35);
+}
+
+.pp-body {
+    padding: 0 20px 20px;
+}
+
+.pp-avatar {
+    position: relative; /* sits on top of the banner it overlaps */
+    z-index: 1;
+    width: 74px;
+    height: 74px;
+    margin-top: -37px;
+    margin-bottom: 12px;
+    border-radius: 50%;
+    border: 4px solid white;
+    background: #F3F5F9;
+    color: #94A3B8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(16, 24, 40, 0.12);
+}
+
+.pp-name {
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--ld-text);
+}
+
+.pp-specialty {
+    margin-top: 2px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ld-primary);
+}
+
+.pp-clinic {
+    margin-top: 4px;
+    font-size: 12.5px;
+    letter-spacing: 0.02em;
+    color: var(--ld-text-muted);
+}
+
+.pp-about {
+    margin-top: 18px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    background: #F8F9FB;
+}
+
+.pp-section-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ld-text-muted);
+}
+
+.pp-about .pp-section-title {
+    color: var(--ld-text);
+}
+
+.pp-about-text {
+    margin-top: 6px;
+    font-size: 13px;
+    line-height: 1.55;
+    color: #475569;
+    white-space: pre-line;
+}
+
+.pp-columns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+    margin: 20px 0;
+}
+
+.pp-rule {
+    padding-bottom: 8px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid var(--ld-border);
+}
+
+.pp-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 9px;
+    font-size: 13px;
+    color: var(--ld-text);
+    min-width: 0;
+    word-break: break-word;
+}
+
+.pp-line ::deep .mud-icon-root {
+    color: #94A3B8;
+    flex: none;
+}
+
+.pp-badge {
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: #F3F5F9;
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 11.5px;
+    color: var(--ld-text);
+}
+
+.pp-wide {
+    display: flex;
+    width: 100%;
+}
+
+.pp-logout {
+    border-color: var(--ld-danger);
+    background: var(--ld-danger);
+    color: white;
+}
+
+.pp-logout:hover:not(:disabled) {
+    border-color: #B91C1C;
+    background: #B91C1C;
+}
+
+@media (max-width: 600px) {
+    .pp-columns {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

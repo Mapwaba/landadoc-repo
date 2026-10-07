@@ -6,11 +6,7 @@
 
 <div class="ld-page">
     <div class="ld-page-head">
-        <h1 class="ld-page-title">@Lang["Patients"]</h1>
-        <div class="ld-input-wrap" style="width:280px;">
-            <input class="ld-input" placeholder="@Lang["Search a patient"]" @bind="_query" @bind:event="oninput" />
-            <span class="ld-input-icon"><MudIcon Icon="@Icons.Material.Outlined.Search" Style="font-size:17px;" /></span>
-        </div>
+        <h1 class="ld-page-title">@Lang["My patients"]</h1>
     </div>
 
     @if (_loading)
@@ -23,7 +19,18 @@
     }
     else
     {
+        @if (_contactsFailed)
+        {
+            <MudAlert Severity="Severity.Warning" Class="mb-4">@Lang["Patient details couldn't be loaded. Please try again in a minute."]</MudAlert>
+        }
         <div class="ld-card">
+            <div class="pt-search">
+                <div class="ld-input-wrap" style="max-width:360px;">
+                    <input class="ld-input pt-search-input" placeholder="@Lang["Search by last or first name..."]" @bind="_query" @bind:event="oninput" />
+                    <span class="pt-search-icon"><MudIcon Icon="@Icons.Material.Outlined.Search" Style="font-size:17px;" /></span>
+                </div>
+            </div>
+
             @if (Filtered.Count == 0)
             {
                 <div class="ld-empty">@(_patients.Count == 0 ? Lang["You don't have any patients yet."] : Lang["No patient matches your search."])</div>
@@ -35,10 +42,10 @@
                         <thead>
                             <tr>
                                 <th>@Lang["Patient"]</th>
-                                <th class="ld-num">@Lang["Appointments"]</th>
+                                <th>@Lang["Sex / age"]</th>
+                                <th>@Lang["Phone"]</th>
                                 <th>@Lang["Last visit"]</th>
-                                <th>@Lang["Next appointment"]</th>
-                                <th>@Lang["Last reason"]</th>
+                                <th></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -47,22 +54,36 @@
                                 <tr>
                                     <td>
                                         <div class="ld-person">
-                                            <span class="ld-person-avatar">@Initials(p.Name)</span> @p.Name
+                                            <span class="pt-avatar"><MudIcon Icon="@Icons.Material.Outlined.Person" Style="font-size:18px;" /></span>
+                                            <div>
+                                                <div>@p.Name</div>
+                                                <div class="pt-id">ID: #@ShortId(p.Id)</div>
+                                            </div>
                                         </div>
                                     </td>
-                                    <td class="ld-num">@p.AppointmentCount</td>
-                                    <td>@(p.LastVisit is { } last ? last.ToString("d MMM yyyy", Culture) : "—")</td>
                                     <td>
-                                        @if (p.Next is { } next)
+                                        <div>@(p.Contact?.Gender is { } g ? Lang[g] : "—")</div>
+                                        @if (p.Contact?.DateOfBirth is { } dob)
                                         {
-                                            <a href="@($"/appointments/{next.Id}")">@next.SlotStart.ToString("d MMM yyyy · HH:mm", Culture)</a>
+                                            <div class="pt-sub">@AgeLabel(dob)</div>
+                                        }
+                                    </td>
+                                    <td>@(string.IsNullOrWhiteSpace(p.Contact?.Phone) ? "—" : p.Contact!.Phone)</td>
+                                    <td>
+                                        @if (p.LastVisit is { } last)
+                                        {
+                                            <span class="pt-visit">@last.ToString("d MMM yyyy", Culture)</span>
                                         }
                                         else
                                         {
                                             <span class="ld-muted">—</span>
                                         }
                                     </td>
-                                    <td class="ld-muted">@(p.LastMotif ?? "—")</td>
+                                    <td class="ld-num">
+                                        <a class="pt-file" href="@($"/patients/{p.Id}")">
+                                            @Lang["File"] <MudIcon Icon="@Icons.Material.Outlined.ChevronRight" Style="font-size:17px;" />
+                                        </a>
+                                    </td>
                                 </tr>
                             }
                         </tbody>
@@ -75,10 +96,12 @@
 
 @code {
     [Inject] private IAppointmentApiClient AppointmentsApi { get; set; } = default!;
+    [Inject] private IIdentityApiClient Identity { get; set; } = default!;
     [Inject] private ILanguageService Lang { get; set; } = default!;
 
     private bool _loading = true;
     private bool _loadFailed;
+    private bool _contactsFailed;
     private string _query = "";
     private List<PatientRow> _patients = [];
 
@@ -88,27 +111,31 @@
         ? _patients
         : _patients.Where(p => p.Name.Contains(_query.Trim(), StringComparison.OrdinalIgnoreCase)).ToList();
 
-    // The patient list is built from the doctor's appointments: everyone they have seen or will see.
+    // Patients = everyone with a non-cancelled appointment with this doctor. Sex, age and phone
+    // come from Identity, which only returns those same patients.
     protected override async Task OnInitializedAsync()
     {
         try
         {
-            var now = DateTime.Now; // slot times are clinic clock times, like the agenda
-            var appointments = (await AppointmentsApi.GetMineAsync())
-                .Where(a => a.Status != AppointmentStatus.Cancelled)
-                .ToList();
+            var appointmentsTask = AppointmentsApi.GetMineAsync();
+            var contactsTask = Identity.GetMyPatientsAsync();
+            var appointments = (await appointmentsTask).Where(a => a.Status != AppointmentStatus.Cancelled).ToList();
 
+            Dictionary<Guid, PatientContactDto> contacts = [];
+            try { contacts = (await contactsTask).ToDictionary(c => c.Id); }
+            catch (Exception) { _contactsFailed = true; } // names still come from the appointments
+
+            var now = DateTime.Now; // slot times are clinic clock times, like the agenda
             _patients = appointments
                 .GroupBy(a => a.PatientId)
                 .Select(g =>
                 {
-                    var past = g.Where(a => a.SlotStart < now).OrderByDescending(a => a.SlotStart).ToList();
-                    return new PatientRow(
-                        g.Select(a => a.PatientName).FirstOrDefault(n => !string.IsNullOrWhiteSpace(n)) ?? Lang["Patient"],
-                        g.Count(),
-                        past.FirstOrDefault()?.SlotStart,
-                        g.Where(a => a.SlotStart >= now).OrderBy(a => a.SlotStart).FirstOrDefault(),
-                        g.OrderByDescending(a => a.SlotStart).Select(a => a.Motif).FirstOrDefault(m => !string.IsNullOrWhiteSpace(m)));
+                    contacts.TryGetValue(g.Key, out var contact);
+                    var name = contact is not null
+                        ? $"{contact.LastName} {contact.FirstName}"
+                        : g.Select(a => a.PatientName).FirstOrDefault(n => !string.IsNullOrWhiteSpace(n)) ?? Lang["Patient"];
+                    var lastVisit = g.Where(a => a.SlotStart < now).Select(a => (DateTime?)a.SlotStart).Max();
+                    return new PatientRow(g.Key, name, contact, lastVisit);
                 })
                 .OrderBy(p => p.Name)
                 .ToList();
@@ -120,8 +147,14 @@
         _loading = false;
     }
 
-    private static string Initials(string name) =>
-        string.Concat(name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(w => char.ToUpperInvariant(w[0])));
+    private string AgeLabel(DateOnly dob)
+    {
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var age = today.Year - dob.Year - (today < dob.AddYears(today.Year - dob.Year) ? 1 : 0);
+        return string.Format(Lang["ageYears"], age);
+    }
 
-    private record PatientRow(string Name, int AppointmentCount, DateTime? LastVisit, AppointmentDto? Next, string? LastMotif);
+    private static string ShortId(Guid id) => id.ToString("N")[..6].ToUpperInvariant();
+
+    private record PatientRow(Guid Id, string Name, PatientContactDto? Contact, DateTime? LastVisit);
 }

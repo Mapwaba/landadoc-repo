@@ -3,69 +3,140 @@
 
 <PageTitle>My profile</PageTitle>
 
-<MudText Typo="Typo.h4" Class="mb-4">@Lang["My profile"]</MudText>
+<div class="ld-page ld-page-narrow">
+    <div class="ld-page-head">
+        <h1 class="ld-page-title">@(_isNew ? Lang["My profile"] : Lang["My public profile"])</h1>
+        @if (!_isNew && !_loading && _userId != Guid.Empty)
+        {
+            <a class="ld-btn" href="@PatientPageUrl" target="_blank" rel="noopener">
+                <MudIcon Icon="@Icons.Material.Outlined.OpenInNew" Style="font-size:16px;" /> @Lang["View my patient page"]
+            </a>
+        }
+    </div>
 
-@if (_loading)
-{
-    <MudProgressCircular Indeterminate="true" />
-}
-else
-{
-    <MudPaper Class="pa-6" MaxWidth="600px">
-        <MudForm @ref="_form">
-            @if (_isNew)
-            {
-                <MudTextField T="string" Label="@Lang["First name"]" @bind-Value="_firstName" Required="true" Class="mb-3" />
-                <MudTextField T="string" Label="@Lang["Last name"]" @bind-Value="_lastName" Required="true" Class="mb-3" />
-                <MudSelect T="string" Label="@Lang["Specialty"]" @bind-Value="_specialty" Required="true" Class="mb-3">
-                    @foreach (var specialty in Specialties.All)
+    @if (_loading)
+    {
+        <MudProgressCircular Indeterminate="true" />
+    }
+    else if (_isNew || _editing)
+    {
+        @* Create the profile, or edit what a doctor can change after approval *@
+        <MudPaper Class="pa-6">
+            <MudForm @ref="_form">
+                @if (_isNew)
+                {
+                    <MudTextField T="string" Label="@Lang["First name"]" @bind-Value="_firstName" Required="true" Class="mb-3" />
+                    <MudTextField T="string" Label="@Lang["Last name"]" @bind-Value="_lastName" Required="true" Class="mb-3" />
+                    <MudSelect T="string" Label="@Lang["Specialty"]" @bind-Value="_specialty" Required="true" Class="mb-3">
+                        @foreach (var specialty in Specialties.All)
+                        {
+                            <MudSelectItem T="string" Value="@specialty">@Lang[specialty]</MudSelectItem>
+                        }
+                    </MudSelect>
+                    <MudTextField T="string" Label="@Lang["License number"]" @bind-Value="_licenseNumber" Class="mb-3" />
+                }
+                else
+                {
+                    <MudText Typo="Typo.h6" Class="mb-3">@Lang["Dr."] @_firstName @_lastName — @Lang[_specialty]</MudText>
+                }
+
+                <MudTextField T="string" Label="@Lang["Bio"]" @bind-Value="_bio" Lines="3" Class="mb-3" />
+                <MudSelect T="Guid" Label="@Lang["Clinics"]" MultiSelection="true" @bind-SelectedValues="_clinicIds" Class="mb-3">
+                    @foreach (var clinic in _clinics)
                     {
-                        <MudSelectItem T="string" Value="@specialty">@Lang[specialty]</MudSelectItem>
+                        <MudSelectItem T="Guid" Value="@clinic.Id">@clinic.Name (@clinic.City)</MudSelectItem>
                     }
                 </MudSelect>
-                <MudTextField T="string" Label="@Lang["License number"]" @bind-Value="_licenseNumber" Class="mb-3" />
-            }
-            else
-            {
-                <MudText Typo="Typo.h6" Class="mb-3">@Lang["Dr."] @_firstName @_lastName — @Lang[_specialty]</MudText>
-            }
+                <MudNumericField T="decimal" Label="@Lang["Consultation fee ($)"]" @bind-Value="_consultationFee" Min="0" Class="mb-3" />
 
-            <MudTextField T="string" Label="@Lang["Bio"]" @bind-Value="_bio" Lines="3" Class="mb-3" />
-            <MudSelect T="Guid" Label="@Lang["Clinics"]" MultiSelection="true" @bind-SelectedValues="_clinicIds" Class="mb-3">
-                @foreach (var clinic in _clinics)
+                @if (_error is not null)
                 {
-                    <MudSelectItem T="Guid" Value="@clinic.Id">@clinic.Name (@clinic.City)</MudSelectItem>
+                    <MudAlert Severity="Severity.Error" Class="mb-3">@_error</MudAlert>
                 }
-            </MudSelect>
-            <MudNumericField T="decimal" Label="@Lang["Consultation fee ($)"]" @bind-Value="_consultationFee" Min="0" Class="mb-3" />
 
-            @if (_error is not null)
-            {
-                <MudAlert Severity="Severity.Error" Class="mb-3">@_error</MudAlert>
-            }
-            @if (_saved)
-            {
-                <MudAlert Severity="Severity.Success" Class="mb-3">@Lang["Profile saved."]</MudAlert>
-            }
+                <div class="ld-form-actions" style="margin-top:8px;">
+                    @if (_editing)
+                    {
+                        <button type="button" class="ld-btn" @onclick="CancelEdit">@Lang["Cancel"]</button>
+                    }
+                    <button type="button" class="ld-btn ld-btn-primary" @onclick="Save" disabled="@_saving">
+                        @(_isNew ? Lang["Create profile"] : Lang["Save changes"])
+                    </button>
+                </div>
+            </MudForm>
+        </MudPaper>
+    }
+    else
+    {
+        @* Public profile, as patients see it *@
+        <div class="ld-card">
+            <div class="pp-banner">
+                <button type="button" class="pp-edit" title="@Lang["Edit"]" aria-label="@Lang["Edit"]" @onclick="StartEdit">
+                    <MudIcon Icon="@Icons.Material.Outlined.Edit" Style="font-size:18px;" />
+                </button>
+            </div>
+            <div class="pp-body">
+                <div class="pp-avatar"><MudIcon Icon="@Icons.Material.Outlined.Person" Style="font-size:38px;" /></div>
+                <div class="pp-name">@Lang["Dr."] @_firstName @_lastName</div>
+                <div class="pp-specialty">@Lang[_specialty]</div>
+                @if (MyClinicNames.Count > 0)
+                {
+                    <div class="pp-clinic">@string.Join(" · ", MyClinicNames)</div>
+                }
 
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Save" Disabled="_saving">
-                @(_isNew ? Lang["Create profile"] : Lang["Save changes"])
-            </MudButton>
-        </MudForm>
-    </MudPaper>
-}
+                <div class="pp-about">
+                    <div class="pp-section-title">@Lang["About"]</div>
+                    <div class="pp-about-text">@(string.IsNullOrWhiteSpace(_bio) ? Lang["Add a short presentation so patients get to know you."] : _bio)</div>
+                </div>
+
+                <div class="pp-columns">
+                    <div>
+                        <div class="pp-section-title pp-rule">@Lang["Contact details"]</div>
+                        <div class="pp-line"><MudIcon Icon="@Icons.Material.Outlined.MailOutline" Style="font-size:17px;" /> @(_email ?? "—")</div>
+                        <div class="pp-line"><MudIcon Icon="@Icons.Material.Outlined.Phone" Style="font-size:17px;" /> @(_phone ?? Lang["Not provided"])</div>
+                    </div>
+                    <div>
+                        <div class="pp-section-title pp-rule">@Lang["Professional information"]</div>
+                        <div class="pp-line">
+                            <MudIcon Icon="@Icons.Material.Outlined.WorkspacePremium" Style="font-size:17px;" /> @Lang["Licence"]:
+                            <span class="pp-badge">@(_licenseNumber ?? "—")</span>
+                        </div>
+                        <div class="pp-line">
+                            <MudIcon Icon="@Icons.Material.Outlined.Payments" Style="font-size:17px;" /> @Lang["Consultation"]:
+                            <b>$@_consultationFee.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)</b>
+                        </div>
+                    </div>
+                </div>
+
+                <a class="ld-btn pp-wide" href="/services">@Lang["Manage my rates and acts"]</a>
+            </div>
+        </div>
+
+        <div class="ld-form-actions">
+            <button type="button" class="ld-btn pp-logout" @onclick="Logout">@Lang["Log out"]</button>
+        </div>
+    }
+</div>
 
 @code {
     [Inject] private IAdminApiClient Admin { get; set; } = default!;
+    [Inject] private IIdentityApiClient Identity { get; set; } = default!;
+    [Inject] private JwtAuthenticationStateProvider AuthState { get; set; } = default!;
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+    [Inject] private IConfiguration Configuration { get; set; } = default!;
     [Inject] private ILanguageService Lang { get; set; } = default!;
+    [Inject] private ISnackbar Snackbar { get; set; } = default!;
 
     private MudForm _form = default!;
     private bool _loading = true;
     private bool _isNew;
+    private bool _editing;
     private bool _saving;
-    private bool _saved;
     private string? _error;
 
+    private Guid _userId;
+    private string? _email;
+    private string? _phone;
     private string _firstName = "";
     private string _lastName = "";
     private string _specialty = "";
@@ -74,33 +145,65 @@ else
     private IReadOnlyCollection<Guid> _clinicIds = [];
     private decimal _consultationFee;
     private List<ClinicDto> _clinics = [];
+    private DoctorProfileDto? _saved; // last saved values, restored when an edit is cancelled
+
+    // The doctor's page in the Patient app (/doctors/{userId}); PatientAppUrl is set per environment
+    private string PatientPageUrl =>
+        $"{(Configuration["PatientAppUrl"] ?? "https://landadoc-patient.vercel.app").TrimEnd('/')}/doctors/{_userId}";
+
+    private List<string> MyClinicNames =>
+        _clinics.Where(c => _clinicIds.Contains(c.Id)).Select(c => c.Name.ToUpperInvariant()).ToList();
 
     protected override async Task OnInitializedAsync()
     {
-        _clinics = await Admin.GetClinicsAsync();
+        var clinicsTask = Admin.GetClinicsAsync();
+        var profileTask = Admin.GetMyProfileAsync();
+        var meTask = Identity.GetMeAsync();
 
-        var profile = await Admin.GetMyProfileAsync();
-        if (profile is null)
+        _clinics = await clinicsTask;
+        var profile = await profileTask;
+        try
         {
-            _isNew = true;
+            var me = await meTask;
+            _userId = me?.Id ?? Guid.Empty;
+            _email = me?.Email;
+            _phone = string.IsNullOrWhiteSpace(me?.Phone) ? null : me.Phone;
         }
-        else
-        {
-            _firstName = profile.FirstName;
-            _lastName = profile.LastName;
-            _specialty = profile.Specialty;
-            _licenseNumber = profile.LicenseNumber;
-            _bio = profile.Bio;
-            _clinicIds = profile.Clinics.Select(c => c.Id).ToList();
-            _consultationFee = profile.ConsultationFee;
-        }
+        catch (Exception) { } // contact details are optional on this page
+
+        if (profile is null) _isNew = true;
+        else Apply(profile);
         _loading = false;
+    }
+
+    private void Apply(DoctorProfileDto profile)
+    {
+        _saved = profile;
+        _userId = _userId == Guid.Empty ? profile.UserId : _userId;
+        _firstName = profile.FirstName;
+        _lastName = profile.LastName;
+        _specialty = profile.Specialty;
+        _licenseNumber = profile.LicenseNumber;
+        _bio = profile.Bio;
+        _clinicIds = profile.Clinics.Select(c => c.Id).ToList();
+        _consultationFee = profile.ConsultationFee;
+    }
+
+    private void StartEdit()
+    {
+        _error = null;
+        _editing = true;
+    }
+
+    private void CancelEdit()
+    {
+        if (_saved is not null) Apply(_saved);
+        _editing = false;
     }
 
     private async Task Save()
     {
         _error = null;
-        _saved = false;
         await _form.ValidateAsync();
         if (!_form.IsValid) return;
 
@@ -114,12 +217,21 @@ else
 
         if (resp.IsSuccessStatusCode)
         {
-            _saved = true;
+            var profile = await Admin.GetMyProfileAsync();
+            if (profile is not null) Apply(profile);
             _isNew = false;
+            _editing = false;
+            Snackbar.Add(Lang["Profile saved."], Severity.Success);
         }
         else
         {
             _error = Lang["Could not save your profile. Please try again."];
         }
+    }
+
+    private async Task Logout()
+    {
+        await AuthState.MarkUserAsLoggedOut();
+        Navigation.NavigateTo("/login");
     }
 }

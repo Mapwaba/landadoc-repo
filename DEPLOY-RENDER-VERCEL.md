@@ -51,7 +51,7 @@ This setup is for demos. For production, use the VPS setup in [DEPLOY.md](DEPLOY
 
 **If Render added a suffix to a name** (for example `landadoc-identity-x7k2.onrender.com`, because the plain name was taken):
 - Update that URL in [deploy/vercel/appsettings.Production.json](deploy/vercel/appsettings.Production.json).
-- If the service is Appointment, update `Services__AppointmentBaseUrl` on the Review and Document services.
+- If the service is Appointment, update `Services__AppointmentBaseUrl` on the Review, Document and Identity services.
 - If the service is Payment, update `MokoAfrika__CallbackBaseUrl` on the Payment service.
 
 ## 3. Frontends on Vercel

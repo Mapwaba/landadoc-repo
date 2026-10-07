@@ -2,15 +2,15 @@
 @attribute [Authorize]
 @using System.Globalization
 
-<PageTitle>Services &amp; acts</PageTitle>
+<PageTitle>Services &amp; rates</PageTitle>
 
 <div class="ld-page">
     <div class="ld-page-head">
-        <h1 class="ld-page-title">@Lang["Services & acts"]</h1>
+        <h1 class="ld-page-title">@Lang["Services & rates"]</h1>
         @if (!_editing)
         {
             <button type="button" class="ld-btn ld-btn-primary" @onclick="StartAdd">
-                <MudIcon Icon="@Icons.Material.Outlined.Add" Style="font-size:17px;" /> @Lang["Add a service"]
+                <MudIcon Icon="@Icons.Material.Outlined.Add" Style="font-size:17px;" /> @Lang["New service"]
             </button>
         }
     </div>
@@ -21,7 +21,7 @@
         <div class="ld-card" style="margin-bottom:20px;">
             <div class="ld-card-body">
                 <div class="ld-form-grid">
-                    <div class="ld-field ld-field-full">
+                    <div class="ld-field">
                         <label>@Lang["Service name"]</label>
                         <input class="ld-input @(_submitted && string.IsNullOrWhiteSpace(_form.Name) ? "invalid" : "")"
                                placeholder="@Lang["e.g. Ultrasound"]" @bind="_form.Name" @bind:event="oninput" />
@@ -29,10 +29,6 @@
                     <div class="ld-field">
                         <label>@Lang["Price ($)"]</label>
                         <input class="ld-input @(_submitted && _form.Price < 0 ? "invalid" : "")" type="number" min="0" step="0.01" @bind="_form.Price" />
-                    </div>
-                    <div class="ld-field">
-                        <label>@Lang["Duration (min)"]</label>
-                        <input class="ld-input @(_submitted && _form.Duration is < 5 or > 600 ? "invalid" : "")" type="number" min="5" max="600" step="5" @bind="_form.Duration" />
                     </div>
                     <div class="ld-field ld-field-full">
                         <label>@Lang["Description"]</label>
@@ -76,10 +72,9 @@
                     <table class="ld-table">
                         <thead>
                             <tr>
-                                <th>@Lang["Service"]</th>
-                                <th class="ld-num">@Lang["Duration"]</th>
-                                <th class="ld-num">@Lang["Price"]</th>
-                                <th></th>
+                                <th>@Lang["Medical act"]</th>
+                                <th>@Lang["Rate (USD)"]</th>
+                                <th class="ld-num">@Lang["Actions"]</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -87,19 +82,23 @@
                             {
                                 <tr>
                                     <td>
-                                        <div style="font-weight:600;">@s.Name</div>
-                                        @if (!string.IsNullOrWhiteSpace(s.Description))
-                                        {
-                                            <div class="ld-muted" style="font-size:12.5px; margin-top:2px;">@s.Description</div>
-                                        }
+                                        <div class="ld-person">
+                                            <MudIcon Icon="@Icons.Material.Outlined.MedicalServices" Style="font-size:18px; color:#94A3B8;" />
+                                            <div>
+                                                <div>@s.Name</div>
+                                                @if (!string.IsNullOrWhiteSpace(s.Description))
+                                                {
+                                                    <div class="ld-muted" style="font-size:12px; font-weight:400; margin-top:2px;">@s.Description</div>
+                                                }
+                                            </div>
+                                        </div>
                                     </td>
-                                    <td class="ld-num">@s.DurationMinutes min</td>
-                                    <td class="ld-num" style="font-weight:600;">$@s.Price.ToString("0.00", CultureInfo.InvariantCulture)</td>
+                                    <td style="font-weight:600;">$ @s.Price.ToString("0.##", CultureInfo.InvariantCulture)</td>
                                     <td class="ld-num">
-                                        <button type="button" class="ld-icon-action" title="@Lang["Edit"]" @onclick="@(() => StartEdit(s))">
+                                        <button type="button" class="ld-icon-action" style="color:var(--ld-primary);" title="@Lang["Edit"]" @onclick="@(() => StartEdit(s))">
                                             <MudIcon Icon="@Icons.Material.Outlined.Edit" Style="font-size:18px;" />
                                         </button>
-                                        <button type="button" class="ld-icon-action danger" title="@Lang["Delete"]" @onclick="@(() => Delete(s))">
+                                        <button type="button" class="ld-icon-action danger" style="color:var(--ld-danger);" title="@Lang["Delete"]" @onclick="@(() => Delete(s))">
                                             <MudIcon Icon="@Icons.Material.Outlined.DeleteOutline" Style="font-size:18px;" />
                                         </button>
                                     </td>
@@ -166,7 +165,7 @@
     {
         _submitted = true;
         _error = null;
-        if (string.IsNullOrWhiteSpace(_form.Name) || _form.Price < 0 || _form.Duration is < 5 or > 600)
+        if (string.IsNullOrWhiteSpace(_form.Name) || _form.Price < 0)
         {
             _error = Lang["Please fill in the highlighted fields."];
             return;
@@ -222,6 +221,6 @@
         public string Name { get; set; } = "";
         public string? Description { get; set; }
         public decimal Price { get; set; }
-        public int Duration { get; set; } = 30;
+        public int Duration { get; set; } = 30; // not shown; kept as saved, 30 min for new services
     }
 }

@@ -9,6 +9,8 @@ public interface IIdentityApiClient
     Task<HttpResponseMessage> RegisterDoctorAsync(RegisterDoctorRequest req);
     Task<UserDto?> GetMeAsync();
     Task<UserCountsDto?> GetStatsAsync();
+    // Doctor: contact details of the patients they've had an appointment with (throws if unavailable)
+    Task<List<PatientContactDto>> GetMyPatientsAsync();
     Task<List<UserDto>> GetAdminUsersAsync(string? role);
 
     Task<FamilyOverviewDto?> GetMyFamilyAsync();

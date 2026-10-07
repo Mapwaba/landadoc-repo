@@ -1,0 +1,310 @@
+@page "/patients/{PatientId:guid}"
+@attribute [Authorize]
+@using System.Globalization
+@using System.Security.Claims
+
+<PageTitle>Patient file</PageTitle>
+
+<div class="ld-page">
+    <a class="pf-back" href="/patients">
+        <MudIcon Icon="@Icons.Material.Outlined.ArrowBack" Style="font-size:16px;" /> @Lang["Back to the list"]
+    </a>
+
+    @if (_loading)
+    {
+        <MudProgressCircular Indeterminate="true" />
+    }
+    else if (_notMyPatient)
+    {
+        <MudAlert Severity="Severity.Info">@Lang["This patient isn't in your patient list."]</MudAlert>
+    }
+    else if (_loadFailed)
+    {
+        <MudAlert Severity="Severity.Warning">@Lang["This patient file couldn't be loaded. Please try again in a minute."]</MudAlert>
+    }
+    else
+    {
+        <div class="pf-layout">
+            @* Patient card *@
+            <div class="ld-card pf-card">
+                <div class="pf-card-top">
+                    <div class="pf-avatar"><MudIcon Icon="@Icons.Material.Outlined.Person" Style="font-size:34px;" /></div>
+                    <div class="pf-name">@_name</div>
+                    <div class="pf-born">
+                        @Lang["Born on"] @(_contact?.DateOfBirth is { } dob ? dob.ToString("d MMMM yyyy", Culture) : "—")
+                    </div>
+                </div>
+                <div class="pf-card-body">
+                    <div class="pf-line"><MudIcon Icon="@Icons.Material.Outlined.Phone" Style="font-size:17px;" /> @(Blank(_contact?.Phone) ?? Lang["Not provided"])</div>
+                    <div class="pf-line"><MudIcon Icon="@Icons.Material.Outlined.MailOutline" Style="font-size:17px;" /> @(Blank(_contact?.Email) ?? Lang["Not provided"])</div>
+
+                    <div class="pf-section">@Lang["Medical information"]</div>
+                    <div class="pf-tiles">
+                        <div class="pf-tile">
+                            <div class="pf-tile-label">@Lang["Sex"]</div>
+                            <div class="pf-tile-value">@(_contact?.Gender is { } g ? Lang[g] : "N/A")</div>
+                        </div>
+                        <div class="pf-tile">
+                            <div class="pf-tile-label">@Lang["Age"]</div>
+                            <div class="pf-tile-value">@(_contact?.DateOfBirth is { } birth ? string.Format(Lang["ageYears"], Age(birth)) : "N/A")</div>
+                        </div>
+                    </div>
+                    @if (_contactFailed)
+                    {
+                        <div class="ld-field-error" style="margin-top:10px;">@Lang["Patient details couldn't be loaded. Please try again in a minute."]</div>
+                    }
+                </div>
+            </div>
+
+            @* Medical history: appointments with this doctor + the patient's documents *@
+            <div>
+                <div class="pf-history-head">
+                    <h2><MudIcon Icon="@Icons.Material.Outlined.MonitorHeart" Style="color:var(--ld-primary);" /> @Lang["Medical history"]</h2>
+                    @if (!_showReportForm)
+                    {
+                        <button type="button" class="ld-btn ld-btn-primary" @onclick="OpenReportForm">@Lang["New report"]</button>
+                    }
+                </div>
+
+                @if (_showReportForm)
+                {
+                    <div class="ld-card" style="margin-bottom:16px;">
+                        <div class="ld-card-body">
+                            <div class="ld-form-grid">
+                                <div class="ld-field">
+                                    <label>@Lang["Category"]</label>
+                                    <select class="ld-select" @bind="_reportCategory">
+                                        @foreach (var c in Categories)
+                                        {
+                                            <option value="@c">@Lang[$"docCategory.{c}"]</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="ld-field">
+                                    <label>@Lang["Related appointment"]</label>
+                                    <select class="ld-select" @bind="_reportAppointmentId">
+                                        <option value="">@Lang["None"]</option>
+                                        @foreach (var a in _appointments)
+                                        {
+                                            <option value="@a.Id">@a.SlotStart.ToString("d MMM yyyy · HH:mm", Culture)@(string.IsNullOrWhiteSpace(a.Motif) ? "" : $" — {a.Motif}")</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="ld-field ld-field-full">
+                                    <label>@Lang["File"]</label>
+                                    <InputFile OnChange="OnReportFileSelected" class="pf-file-input" />
+                                    @if (_reportError is not null)
+                                    {
+                                        <span class="ld-field-error">@_reportError</span>
+                                    }
+                                </div>
+                            </div>
+                            <div class="ld-form-actions">
+                                <button type="button" class="ld-btn" @onclick="@(() => _showReportForm = false)">@Lang["Cancel"]</button>
+                                <button type="button" class="ld-btn ld-btn-primary" @onclick="UploadReport" disabled="@(_uploading || _reportFile is null)">
+                                    <MudIcon Icon="@Icons.Material.Outlined.Upload" Style="font-size:16px;" /> @Lang["Upload"]
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                <div class="ld-card">
+                    @if (_documentsFailed)
+                    {
+                        <div class="ld-field-error" style="padding:12px 20px 0;">@Lang["Some documents couldn't be loaded. Please try again in a minute."]</div>
+                    }
+                    @if (History.Count == 0)
+                    {
+                        <div class="ld-empty">@Lang["No history available for this patient."]</div>
+                    }
+                    else
+                    {
+                        @foreach (var item in History)
+                        {
+                            @if (item.Appointment is { } a)
+                            {
+                                <a class="pf-item" href="@($"/appointments/{a.Id}")">
+                                    <span class="pf-item-icon ld-tint-blue"><MudIcon Icon="@Icons.Material.Outlined.Event" Style="font-size:18px;" /></span>
+                                    <div class="pf-item-text">
+                                        <div class="pf-item-title">@Lang["Consultation"]@(string.IsNullOrWhiteSpace(a.Motif) ? "" : $" — {a.Motif}")</div>
+                                        <div class="pf-item-meta">@a.SlotStart.ToString("d MMM yyyy · HH:mm", Culture)</div>
+                                    </div>
+                                    <span class="status-pill status-@a.Status.ToString().ToLowerInvariant()">@Lang[$"status.{a.Status}"]</span>
+                                </a>
+                            }
+                            else if (item.Document is { } d)
+                            {
+                                <div class="pf-item">
+                                    <span class="pf-item-icon ld-tint-purple"><MudIcon Icon="@Icons.Material.Outlined.Description" Style="font-size:18px;" /></span>
+                                    <div class="pf-item-text">
+                                        <div class="pf-item-title">@d.FileName</div>
+                                        <div class="pf-item-meta">@Lang[$"docCategory.{d.Category}"] · @d.CreatedAt.ToLocalTime().ToString("d MMM yyyy", Culture)</div>
+                                    </div>
+                                    <button type="button" class="ld-btn ld-btn-sm" @onclick="@(() => Download(d.Id))">
+                                        <MudIcon Icon="@Icons.Material.Outlined.Download" Style="font-size:16px;" /> @Lang["Download"]
+                                    </button>
+                                </div>
+                            }
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public Guid PatientId { get; set; }
+
+    [Inject] private IAppointmentApiClient AppointmentsApi { get; set; } = default!;
+    [Inject] private IIdentityApiClient Identity { get; set; } = default!;
+    [Inject] private IDocumentApiClient DocumentsApi { get; set; } = default!;
+    [Inject] private AuthenticationStateProvider AuthState { get; set; } = default!;
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+    [Inject] private ISnackbar Snackbar { get; set; } = default!;
+    [Inject] private ILanguageService Lang { get; set; } = default!;
+
+    private static readonly string[] Categories = ["Report", "Prescription", "LabResult", "Other"];
+    private const long MaxUploadBytes = 25_000_000; // Document service's request limit
+
+    private bool _loading = true;
+    private bool _loadFailed;
+    private bool _notMyPatient;
+    private bool _contactFailed;
+    private bool _documentsFailed;
+    private Guid _doctorId;
+    private string _name = "";
+    private PatientContactDto? _contact;
+    private List<AppointmentDto> _appointments = [];
+    private List<DocumentDto> _documents = [];
+
+    private bool _showReportForm;
+    private bool _uploading;
+    private string _reportCategory = "Report";
+    private string _reportAppointmentId = "";
+    private IBrowserFile? _reportFile;
+    private string? _reportError;
+
+    private CultureInfo Culture => CultureInfo.GetCultureInfo(Lang.CurrentLanguage == "fr" ? "fr-FR" : "en-US");
+
+    private List<HistoryItem> History =>
+        _appointments.Select(a => new HistoryItem(a.SlotStart, a, null))
+            .Concat(_documents.Select(d => new HistoryItem(d.CreatedAt.ToLocalTime(), null, d)))
+            .OrderByDescending(i => i.When)
+            .ToList();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+        try
+        {
+            var user = (await AuthState.GetAuthenticationStateAsync()).User;
+            Guid.TryParse(user.FindFirst(ClaimTypes.NameIdentifier)?.Value, out _doctorId);
+
+            var appointmentsTask = AppointmentsApi.GetMineAsync();
+            var contactsTask = Identity.GetMyPatientsAsync();
+
+            _appointments = (await appointmentsTask)
+                .Where(a => a.PatientId == PatientId && a.Status != AppointmentStatus.Cancelled)
+                .OrderByDescending(a => a.SlotStart)
+                .ToList();
+            // Same rule as the backend: a doctor only sees patients they've had an appointment with
+            _notMyPatient = _appointments.Count == 0;
+
+            try { _contact = (await contactsTask).FirstOrDefault(c => c.Id == PatientId); }
+            catch (Exception) { _contactFailed = true; }
+
+            _name = _contact is not null
+                ? $"{_contact.FirstName} {_contact.LastName}"
+                : _appointments.Select(a => a.PatientName).FirstOrDefault(n => !string.IsNullOrWhiteSpace(n)) ?? Lang["Patient"];
+
+            if (!_notMyPatient) await LoadDocumentsAsync();
+        }
+        catch (Exception)
+        {
+            _loadFailed = true;
+        }
+        _loading = false;
+    }
+
+    private async Task LoadDocumentsAsync()
+    {
+        try
+        {
+            _documents = await DocumentsApi.GetForPatientAsync(PatientId);
+            _documentsFailed = false;
+        }
+        catch (Exception)
+        {
+            _documentsFailed = true;
+        }
+    }
+
+    private void OpenReportForm()
+    {
+        _reportFile = null;
+        _reportError = null;
+        _reportCategory = "Report";
+        _reportAppointmentId = _appointments.FirstOrDefault()?.Id.ToString() ?? "";
+        _showReportForm = true;
+    }
+
+    private void OnReportFileSelected(InputFileChangeEventArgs e)
+    {
+        _reportError = null;
+        _reportFile = e.File;
+        if (_reportFile.Size > MaxUploadBytes)
+        {
+            _reportError = Lang["The file must be smaller than 25 MB."];
+            _reportFile = null;
+        }
+    }
+
+    private async Task UploadReport()
+    {
+        if (_reportFile is null) return;
+        _uploading = true;
+        _reportError = null;
+        try
+        {
+            Guid? appointmentId = Guid.TryParse(_reportAppointmentId, out var id) ? id : null;
+            await using var stream = _reportFile.OpenReadStream(MaxUploadBytes);
+            var resp = await DocumentsApi.UploadAsync(
+                PatientId, _doctorId, appointmentId, _reportCategory, stream, _reportFile.Name, _reportFile.ContentType);
+
+            if (resp.IsSuccessStatusCode)
+            {
+                _showReportForm = false;
+                Snackbar.Add(Lang["Report added to the patient file."], Severity.Success);
+                await LoadDocumentsAsync();
+            }
+            else
+            {
+                _reportError = Lang["Upload failed. Please try again."];
+            }
+        }
+        catch (Exception)
+        {
+            _reportError = Lang["Upload failed. Please try again."];
+        }
+        _uploading = false;
+    }
+
+    private async Task Download(Guid documentId)
+    {
+        var url = await DocumentsApi.GetDownloadUrlAsync(documentId);
+        if (url is not null) Navigation.NavigateTo(url, forceLoad: true);
+        else Snackbar.Add(Lang["This document couldn't be opened. Please try again."], Severity.Error);
+    }
+
+    private static int Age(DateOnly dob)
+    {
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        return today.Year - dob.Year - (today < dob.AddYears(today.Year - dob.Year) ? 1 : 0);
+    }
+
+    private static string? Blank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
+
+    private record HistoryItem(DateTime When, AppointmentDto? Appointment, DocumentDto? Document);
+}

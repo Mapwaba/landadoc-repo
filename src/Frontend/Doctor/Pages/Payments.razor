@@ -1,12 +1,13 @@
 @page "/payments"
 @attribute [Authorize]
 @using System.Globalization
+@using System.Text
 
 <PageTitle>Payments</PageTitle>
 
 <div class="ld-page">
     <div class="ld-page-head">
-        <h1 class="ld-page-title">@Lang["Payments"]</h1>
+        <h1 class="ld-page-title">@Lang["Payments & billing"]</h1>
     </div>
 
     @if (_loading)
@@ -21,29 +22,35 @@
     {
         <div class="ld-stats">
             <div class="ld-stat">
-                <div class="ld-stat-icon ld-tint-green"><MudIcon Icon="@Icons.Material.Outlined.AccountBalanceWallet" /></div>
+                <div class="ld-stat-icon ld-tint-green"><MudIcon Icon="@Icons.Material.Outlined.AttachMoney" /></div>
                 <div>
-                    <div class="ld-stat-label">@Lang["Received (net)"]</div>
-                    <div class="ld-stat-value">@Money(_payments.Where(p => p.Status == PaymentStatus.Completed).Sum(p => p.NetAmount))</div>
+                    <div class="ld-stat-label">@Lang["Total net revenue"]</div>
+                    <div class="ld-stat-value">@Money(Paid.Sum(p => p.NetAmount))</div>
                 </div>
             </div>
             <div class="ld-stat">
-                <div class="ld-stat-icon ld-tint-amber"><MudIcon Icon="@Icons.Material.Outlined.HourglassEmpty" /></div>
+                <div class="ld-stat-icon ld-tint-blue"><MudIcon Icon="@Icons.Material.Outlined.TrendingUp" /></div>
                 <div>
-                    <div class="ld-stat-label">@Lang["Awaiting payment"]</div>
-                    <div class="ld-stat-value">@Money(_payments.Where(p => p.Status == PaymentStatus.Pending).Sum(p => p.GrossAmount))</div>
+                    <div class="ld-stat-label">@Lang["Transactions"]</div>
+                    <div class="ld-stat-value">@Paid.Count</div>
                 </div>
             </div>
             <div class="ld-stat">
-                <div class="ld-stat-icon ld-tint-purple"><MudIcon Icon="@Icons.Material.Outlined.Percent" /></div>
+                <div class="ld-stat-icon ld-tint-purple"><MudIcon Icon="@Icons.Material.Outlined.CreditCard" /></div>
                 <div>
-                    <div class="ld-stat-label">@Lang["Platform fees"]</div>
-                    <div class="ld-stat-value">@Money(_payments.Where(p => p.Status == PaymentStatus.Completed).Sum(p => p.PlatformFee))</div>
+                    <div class="ld-stat-label">@Lang["Platform fees"]@FeeHint</div>
+                    <div class="ld-stat-value">@Money(Paid.Sum(p => p.PlatformFee))</div>
                 </div>
             </div>
         </div>
 
         <div class="ld-card">
+            <div class="pay-head">
+                <span>@Lang["Transaction history"]</span>
+                <button type="button" class="ld-btn ld-btn-sm" @onclick="Export" disabled="@(_payments.Count == 0)">
+                    <MudIcon Icon="@Icons.Material.Outlined.Download" Style="font-size:16px;" /> @Lang["Export"]
+                </button>
+            </div>
             @if (_payments.Count == 0)
             {
                 <div class="ld-empty">@Lang["No payments yet."]</div>
@@ -56,9 +63,8 @@
                             <tr>
                                 <th>@Lang["Date"]</th>
                                 <th>@Lang["Patient"]</th>
-                                <th>@Lang["Method"]</th>
-                                <th class="ld-num">@Lang["Amount"]</th>
-                                <th class="ld-num">@Lang["Net"]</th>
+                                <th>@Lang["Gross"]</th>
+                                <th>@Lang["Net (received)"]</th>
                                 <th>@Lang["Status"]</th>
                             </tr>
                         </thead>
@@ -66,21 +72,20 @@
                             @foreach (var p in _payments)
                             {
                                 <tr>
-                                    <td>@p.CreatedAt.ToLocalTime().ToString("d MMM yyyy · HH:mm", Culture)</td>
+                                    <td class="ld-muted">@p.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy")</td>
                                     <td>
                                         @if (_appointments.TryGetValue(p.AppointmentId, out var appt))
                                         {
-                                            <a href="@($"/appointments/{appt.Id}")">@(appt.PatientName ?? Lang["Patient"])</a>
+                                            <a href="@($"/patients/{appt.PatientId}")">@(appt.PatientName ?? Lang["Patient"])</a>
                                         }
                                         else
                                         {
                                             <span class="ld-muted">—</span>
                                         }
                                     </td>
-                                    <td>@(p.Provider is { } provider ? Lang[$"provider.{provider}"] : "—")</td>
-                                    <td class="ld-num">@Money(p.GrossAmount)</td>
-                                    <td class="ld-num">@Money(p.NetAmount)</td>
-                                    <td><span class="status-pill status-@p.Status.ToString().ToLowerInvariant()">@Lang[$"paymentStatus.{p.Status}"]</span></td>
+                                    <td class="ld-muted" style="font-size:12px;">@Money(p.GrossAmount) (-@Short(p.PlatformFee))</td>
+                                    <td style="font-weight:700;">@Money(p.NetAmount)</td>
+                                    <td><span class="status-pill @PillClass(p.Status)">@Lang[$"paymentStatus.{p.Status}"]</span></td>
                                 </tr>
                             }
                         </tbody>
@@ -94,6 +99,7 @@
 @code {
     [Inject] private IPaymentApiClient PaymentsApi { get; set; } = default!;
     [Inject] private IAppointmentApiClient AppointmentsApi { get; set; } = default!;
+    [Inject] private IJSRuntime JS { get; set; } = default!;
     [Inject] private ILanguageService Lang { get; set; } = default!;
 
     private bool _loading = true;
@@ -101,7 +107,17 @@
     private List<PaymentDto> _payments = [];
     private Dictionary<Guid, AppointmentDto> _appointments = [];
 
-    private CultureInfo Culture => CultureInfo.GetCultureInfo(Lang.CurrentLanguage == "fr" ? "fr-FR" : "en-US");
+    private List<PaymentDto> Paid => _payments.Where(p => p.Status == PaymentStatus.Completed).ToList();
+
+    // " ($8 / appt)" when every paid appointment carried the same fee, as it normally does
+    private string FeeHint
+    {
+        get
+        {
+            var fees = Paid.Select(p => p.PlatformFee).Distinct().ToList();
+            return fees.Count == 1 ? $" ({Short(fees[0])} / {Lang["appt"]})" : "";
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -119,5 +135,41 @@
         _loading = false;
     }
 
+    private async Task Export()
+    {
+        var csv = new StringBuilder();
+        csv.AppendLine("Date,Patient,Gross,Platform fee,Net,Status,Method,Reference");
+        foreach (var p in _payments)
+        {
+            var patient = _appointments.TryGetValue(p.AppointmentId, out var appt) ? appt.PatientName ?? "" : "";
+            csv.AppendLine(string.Join(",",
+                p.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm"),
+                Csv(patient),
+                p.GrossAmount.ToString("0.00", CultureInfo.InvariantCulture),
+                p.PlatformFee.ToString("0.00", CultureInfo.InvariantCulture),
+                p.NetAmount.ToString("0.00", CultureInfo.InvariantCulture),
+                p.Status,
+                p.Provider?.ToString() ?? "",
+                Csv(p.ProviderRef ?? "")));
+        }
+        await JS.InvokeVoidAsync("landadoc.downloadText", $"landadoc-payments-{DateTime.Now:yyyy-MM-dd}.csv", csv.ToString(), "text/csv;charset=utf-8");
+    }
+
+    // Quote values containing a comma, quote or line break (U+0022 is the double quote,
+    // spelled out because a literal quote character confuses the Razor parser here)
+    private static readonly char[] CsvSpecial = [',', '\u0022', '\n', '\r'];
+    private static string Csv(string value) =>
+        value.IndexOfAny(CsvSpecial) >= 0 ? "\u0022" + value.Replace("\u0022", "\u0022\u0022") + "\u0022" : value;
+
+    // Paid money is green, like a confirmed appointment
+    private static string PillClass(PaymentStatus status) => status switch
+    {
+        PaymentStatus.Completed => "status-confirmed",
+        PaymentStatus.Pending => "status-pending",
+        PaymentStatus.Refunded => "status-refunded",
+        _ => "status-failed",
+    };
+
     private static string Money(decimal amount) => "$" + amount.ToString("0.00", CultureInfo.InvariantCulture);
+    private static string Short(decimal amount) => amount.ToString("0.##", CultureInfo.InvariantCulture) + "$";
 }

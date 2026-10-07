@@ -20,6 +20,9 @@ public class IdentityApiClient(HttpClient http) : IIdentityApiClient
         return resp.IsSuccessStatusCode ? await resp.Content.ReadFromJsonAsync<UserDto>() : null;
     }
 
+    public async Task<List<PatientContactDto>> GetMyPatientsAsync() =>
+        await http.GetFromJsonAsync<List<PatientContactDto>>("api/patients/mine", JsonDefaults.Options) ?? [];
+
     public async Task<UserCountsDto?> GetStatsAsync()
     {
         var resp = await http.GetAsync("api/auth/stats");
