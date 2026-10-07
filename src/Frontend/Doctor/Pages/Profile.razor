@@ -327,9 +327,14 @@
         _saving = true;
         var resp = await Admin.CreateMyProfileAsync(new CreateOwnDoctorProfileRequest(
             _firstName, _lastName, _specialty, _bio, _licenseNumber, _clinicIds.ToList(), _consultationFee));
+        var duplicate = await DuplicateAccountMessages.ForAsync(resp, Lang, isDoctor: true);
         _saving = false;
 
-        if (resp.IsSuccessStatusCode)
+        if (duplicate is not null)
+        {
+            _error = duplicate;
+        }
+        else if (resp.IsSuccessStatusCode)
         {
             var profile = await Admin.GetMyProfileAsync();
             if (profile is not null) Apply(profile);
@@ -357,14 +362,26 @@
         _saving = true;
         try
         {
-            var profileTask = Admin.UpdateMyProfileAsync(new UpdateOwnDoctorProfileRequest(
+            // Account first: it rejects a name or phone already used, so nothing is half-saved
+            var accountResp = await Identity.UpdateMeAsync(new UpdateMeRequest(_firstName.Trim(), _lastName.Trim(), _phone));
+            var duplicate = await DuplicateAccountMessages.ForAsync(accountResp, Lang, isDoctor: true);
+            if (duplicate is not null || !accountResp.IsSuccessStatusCode)
+            {
+                _error = duplicate ?? Lang["Could not save your profile. Please try again."];
+                _saving = false;
+                return;
+            }
+
+            var profileResp = await Admin.UpdateMyProfileAsync(new UpdateOwnDoctorProfileRequest(
                 _bio ?? "", _clinicIds.ToList(), _consultationFee,
                 _firstName.Trim(), _lastName.Trim(), _specialty, _licenseNumber ?? ""));
-            var accountTask = Identity.UpdateMeAsync(new UpdateMeRequest(_firstName.Trim(), _lastName.Trim(), _phone));
-            var profileResp = await profileTask;
-            var accountResp = await accountTask;
+            duplicate = await DuplicateAccountMessages.ForAsync(profileResp, Lang, isDoctor: true);
 
-            if (profileResp.IsSuccessStatusCode && accountResp.IsSuccessStatusCode)
+            if (duplicate is not null)
+            {
+                _error = duplicate;
+            }
+            else if (profileResp.IsSuccessStatusCode)
             {
                 var profile = await Admin.GetMyProfileAsync();
                 if (profile is not null) Apply(profile);

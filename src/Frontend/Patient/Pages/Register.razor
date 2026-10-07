@@ -73,6 +73,7 @@
             string.IsNullOrWhiteSpace(_gender) ? null : _gender);
 
         var resp = await Identity.RegisterPatientAsync(req);
+        var duplicate = await DuplicateAccountMessages.ForAsync(resp, Lang, isDoctor: false);
         _submitting = false;
 
         if (resp.IsSuccessStatusCode)
@@ -81,9 +82,9 @@
             await AuthState.MarkUserAsAuthenticated(auth!);
             Navigation.NavigateTo(string.IsNullOrWhiteSpace(ReturnUrl) ? "/doctors" : ReturnUrl);
         }
-        else if (resp.StatusCode == System.Net.HttpStatusCode.Conflict)
+        else if (duplicate is not null)
         {
-            _error = Lang["An account with this email already exists."];
+            _error = duplicate; // email, phone or name already used
         }
         else
         {

@@ -121,8 +121,12 @@
             var resp = await Admin.CreateMyProfileAsync(new CreateOwnDoctorProfileRequest(
                 _firstName, _lastName, _specialty, null, _licenseNumber, _clinicIds.ToList(), _consultationFee));
 
-            // Conflict means the profile already exists (e.g. a double click), which is fine.
-            if (resp.IsSuccessStatusCode || resp.StatusCode == System.Net.HttpStatusCode.Conflict)
+            // A name clash says so; any other conflict means the profile already exists
+            // (e.g. a double click), which is fine.
+            var duplicate = await DuplicateAccountMessages.ForAsync(resp, Lang, isDoctor: true);
+            if (duplicate is not null)
+                _error = duplicate;
+            else if (resp.IsSuccessStatusCode || resp.StatusCode == System.Net.HttpStatusCode.Conflict)
                 Navigation.NavigateTo("/status");
             else
                 _error = Lang["Your account was created, but your profile couldn't be saved. Please try again."];
@@ -153,9 +157,8 @@
             return true;
         }
 
-        _error = resp.StatusCode == System.Net.HttpStatusCode.Conflict
-            ? Lang["An account with this email already exists."]
-            : Lang["Registration failed. Please check your details and try again."];
+        _error = await DuplicateAccountMessages.ForAsync(resp, Lang, isDoctor: true)
+            ?? Lang["Registration failed. Please check your details and try again."];
         return false;
     }
 }
