@@ -13,7 +13,7 @@
 {
     <MudPaper Class="pa-6 mb-6">
         <MudForm @ref="_createForm">
-            <MudSelect T="Guid?" Label="@Lang["Doctor-role user"]" @bind-Value="_selectedUserId" Class="mb-3" Required="true">
+            <MudSelect T="Guid?" Label="@Lang["Doctor-role user"]" @bind-Value="_selectedUserId" @bind-Value:after="OnUserSelected" Class="mb-3" Required="true">
                 @foreach (var user in _doctorUsers)
                 {
                     <MudSelectItem T="Guid?" Value="@((Guid?)user.Id)">@user.FirstName @user.LastName (@user.Email)</MudSelectItem>
@@ -140,6 +140,16 @@ else
     {
         await Admin.SuspendDoctorAsync(id, new SuspendDoctorRequest(null));
         await LoadDoctors();
+    }
+
+    // Pre-fill the names from the selected account; the admin can still edit them.
+    private async Task OnUserSelected()
+    {
+        var user = _doctorUsers.FirstOrDefault(u => u.Id == _selectedUserId);
+        if (user is null) return;
+        _newFirstName = user.FirstName;
+        _newLastName = user.LastName;
+        await _createForm.ResetValidationAsync(); // clear the "Required" errors the names had while empty
     }
 
     private async Task CreateDoctor()
