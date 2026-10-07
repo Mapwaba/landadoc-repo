@@ -313,6 +313,328 @@ html, body {
     letter-spacing: -0.01em;
 }
 
+/* ── Page building blocks (Doctor app's Patients, Payments, Workplace, Documents, Services) ── */
+
+.ld-page {
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+.ld-page-narrow {
+    max-width: 720px;
+}
+
+.ld-page-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 4px 0 20px;
+}
+
+.ld-page-title {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--ld-text);
+    letter-spacing: -0.01em;
+}
+
+.ld-card {
+    background: var(--ld-surface);
+    border: 1px solid var(--ld-border);
+    border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+    overflow: hidden;
+}
+
+.ld-card + .ld-card {
+    margin-top: 20px;
+}
+
+.ld-card-body {
+    padding: 20px;
+}
+
+.ld-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.ld-stat {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 20px;
+    background: var(--ld-surface);
+    border: 1px solid var(--ld-border);
+    border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+}
+
+.ld-stat-icon {
+    flex: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ld-tint-blue { background: #EEF4FF; color: #2563EB; }
+.ld-tint-green { background: #ECFDF3; color: #16A34A; }
+.ld-tint-amber { background: #FFFBEB; color: #D97706; }
+.ld-tint-purple { background: #F5F3FF; color: #7C3AED; }
+
+.ld-stat-label {
+    font-size: 12.5px;
+    color: var(--ld-text-muted);
+    margin-bottom: 4px;
+}
+
+.ld-stat-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--ld-text);
+    line-height: 1.2;
+}
+
+.ld-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+}
+
+.ld-table th {
+    text-align: left;
+    padding: 12px 16px;
+    background: #FAFBFC;
+    border-bottom: 1px solid var(--ld-border);
+    color: var(--ld-text-muted);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.ld-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #EEF0F4;
+    color: var(--ld-text);
+    vertical-align: middle;
+}
+
+.ld-table tr:last-child td {
+    border-bottom: none;
+}
+
+.ld-table .ld-num {
+    text-align: right;
+    white-space: nowrap;
+}
+
+.ld-table-wrap {
+    overflow-x: auto;
+}
+
+.ld-muted {
+    color: var(--ld-text-muted);
+}
+
+.ld-empty {
+    padding: 32px 20px;
+    text-align: center;
+    font-size: 13.5px;
+    color: var(--ld-text-muted);
+}
+
+.ld-person {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+}
+
+.ld-person-avatar {
+    flex: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--ld-primary-soft);
+    color: var(--ld-primary);
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Form fields: label above an input, with an optional icon at the right */
+.ld-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px 20px;
+}
+
+.ld-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.ld-field-full {
+    grid-column: 1 / -1;
+}
+
+.ld-field label {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--ld-text);
+}
+
+.ld-input-wrap {
+    position: relative;
+}
+
+.ld-input,
+.ld-textarea,
+.ld-select {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    border: 1px solid var(--ld-border);
+    border-radius: 8px;
+    background: var(--ld-surface);
+    color: var(--ld-text);
+    font: inherit;
+    font-size: 13.5px;
+}
+
+.ld-input-wrap .ld-input {
+    padding-right: 38px;
+}
+
+.ld-input-icon {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #9CA3AF;
+    pointer-events: none;
+    display: flex;
+}
+
+.ld-textarea {
+    min-height: 110px;
+    resize: vertical;
+    line-height: 1.55;
+}
+
+.ld-input:focus,
+.ld-textarea:focus,
+.ld-select:focus {
+    outline: none;
+    border-color: var(--ld-primary);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.ld-input.invalid {
+    border-color: var(--ld-danger);
+}
+
+.ld-field-error {
+    font-size: 12px;
+    color: var(--ld-danger);
+}
+
+.ld-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 38px;
+    padding: 0 16px;
+    border: 1px solid var(--ld-border);
+    border-radius: 8px;
+    background: var(--ld-surface);
+    color: var(--ld-text);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.ld-btn:hover:not(:disabled) {
+    border-color: #CBD2DC;
+    background: #F8F9FB;
+}
+
+.ld-btn-primary {
+    border-color: var(--ld-primary);
+    background: var(--ld-primary);
+    color: white;
+}
+
+.ld-btn-primary:hover:not(:disabled) {
+    border-color: #1D4ED8;
+    background: #1D4ED8;
+}
+
+.ld-btn:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.ld-btn-sm {
+    height: 30px;
+    padding: 0 10px;
+    font-size: 12px;
+}
+
+.ld-icon-action {
+    width: 30px;
+    height: 30px;
+    border: none;
+    border-radius: 6px;
+    background: none;
+    color: var(--ld-text-muted);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.ld-icon-action:hover {
+    background: #F3F5F9;
+    color: var(--ld-text);
+}
+
+.ld-icon-action.danger:hover {
+    background: #FEF2F2;
+    color: var(--ld-danger);
+}
+
+.ld-form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 24px;
+}
+
+@media (max-width: 700px) {
+    .ld-form-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
 /* ── Appointment status badge (agenda, dashboard) ─────────────── */
 
 .status-pill {
@@ -330,6 +652,8 @@ html, body {
 .status-pill.status-completed { background: #DBEAFE; color: #1D4ED8; }
 .status-pill.status-rescheduled { background: #EDE9FE; color: #6D28D9; }
 .status-pill.status-cancelled { background: #F3F4F6; color: #6B7280; }
+.status-pill.status-failed { background: #FEE2E2; color: #B91C1C; }
+.status-pill.status-refunded { background: #EDE9FE; color: #6D28D9; }
 
 /* ── Phones and small tablets: the sidebar slides in from the left ─ */
 

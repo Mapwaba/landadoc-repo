@@ -1,0 +1,227 @@
+@page "/services"
+@attribute [Authorize]
+@using System.Globalization
+
+<PageTitle>Services &amp; acts</PageTitle>
+
+<div class="ld-page">
+    <div class="ld-page-head">
+        <h1 class="ld-page-title">@Lang["Services & acts"]</h1>
+        @if (!_editing)
+        {
+            <button type="button" class="ld-btn ld-btn-primary" @onclick="StartAdd">
+                <MudIcon Icon="@Icons.Material.Outlined.Add" Style="font-size:17px;" /> @Lang["Add a service"]
+            </button>
+        }
+    </div>
+
+    @if (_editing)
+    {
+        @* Add / edit form *@
+        <div class="ld-card" style="margin-bottom:20px;">
+            <div class="ld-card-body">
+                <div class="ld-form-grid">
+                    <div class="ld-field ld-field-full">
+                        <label>@Lang["Service name"]</label>
+                        <input class="ld-input @(_submitted && string.IsNullOrWhiteSpace(_form.Name) ? "invalid" : "")"
+                               placeholder="@Lang["e.g. Ultrasound"]" @bind="_form.Name" @bind:event="oninput" />
+                    </div>
+                    <div class="ld-field">
+                        <label>@Lang["Price ($)"]</label>
+                        <input class="ld-input @(_submitted && _form.Price < 0 ? "invalid" : "")" type="number" min="0" step="0.01" @bind="_form.Price" />
+                    </div>
+                    <div class="ld-field">
+                        <label>@Lang["Duration (min)"]</label>
+                        <input class="ld-input @(_submitted && _form.Duration is < 5 or > 600 ? "invalid" : "")" type="number" min="5" max="600" step="5" @bind="_form.Duration" />
+                    </div>
+                    <div class="ld-field ld-field-full">
+                        <label>@Lang["Description"]</label>
+                        <textarea class="ld-textarea" rows="3" style="min-height:80px;" @bind="_form.Description"></textarea>
+                    </div>
+                </div>
+
+                @if (_error is not null)
+                {
+                    <MudAlert Severity="Severity.Error" Class="mt-4">@_error</MudAlert>
+                }
+
+                <div class="ld-form-actions">
+                    <button type="button" class="ld-btn" @onclick="CancelEdit">@Lang["Cancel"]</button>
+                    <button type="button" class="ld-btn ld-btn-primary" @onclick="Save" disabled="@_saving">
+                        <MudIcon Icon="@Icons.Material.Outlined.Save" Style="font-size:17px;" /> @Lang["Save"]
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (_loading)
+    {
+        <MudProgressCircular Indeterminate="true" />
+    }
+    else if (_loadFailed)
+    {
+        <MudAlert Severity="Severity.Warning">@Lang["Your services couldn't be loaded. Please try again in a minute."]</MudAlert>
+    }
+    else
+    {
+        <div class="ld-card">
+            @if (_services.Count == 0)
+            {
+                <div class="ld-empty">@Lang["You haven't added any services yet."]</div>
+            }
+            else
+            {
+                <div class="ld-table-wrap">
+                    <table class="ld-table">
+                        <thead>
+                            <tr>
+                                <th>@Lang["Service"]</th>
+                                <th class="ld-num">@Lang["Duration"]</th>
+                                <th class="ld-num">@Lang["Price"]</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var s in _services)
+                            {
+                                <tr>
+                                    <td>
+                                        <div style="font-weight:600;">@s.Name</div>
+                                        @if (!string.IsNullOrWhiteSpace(s.Description))
+                                        {
+                                            <div class="ld-muted" style="font-size:12.5px; margin-top:2px;">@s.Description</div>
+                                        }
+                                    </td>
+                                    <td class="ld-num">@s.DurationMinutes min</td>
+                                    <td class="ld-num" style="font-weight:600;">$@s.Price.ToString("0.00", CultureInfo.InvariantCulture)</td>
+                                    <td class="ld-num">
+                                        <button type="button" class="ld-icon-action" title="@Lang["Edit"]" @onclick="@(() => StartEdit(s))">
+                                            <MudIcon Icon="@Icons.Material.Outlined.Edit" Style="font-size:18px;" />
+                                        </button>
+                                        <button type="button" class="ld-icon-action danger" title="@Lang["Delete"]" @onclick="@(() => Delete(s))">
+                                            <MudIcon Icon="@Icons.Material.Outlined.DeleteOutline" Style="font-size:18px;" />
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Inject] private IAdminApiClient Admin { get; set; } = default!;
+    [Inject] private IDialogService Dialogs { get; set; } = default!;
+    [Inject] private ISnackbar Snackbar { get; set; } = default!;
+    [Inject] private ILanguageService Lang { get; set; } = default!;
+
+    private bool _loading = true;
+    private bool _loadFailed;
+    private bool _editing;
+    private bool _saving;
+    private bool _submitted;
+    private string? _error;
+    private Guid? _editingId; // null while adding
+    private FormModel _form = new();
+    private List<DoctorServiceDto> _services = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _services = await Admin.GetMyServicesAsync();
+        }
+        catch (Exception)
+        {
+            _loadFailed = true;
+        }
+        _loading = false;
+    }
+
+    private void StartAdd()
+    {
+        _editingId = null;
+        _form = new FormModel();
+        _editing = true;
+        _submitted = false;
+        _error = null;
+    }
+
+    private void StartEdit(DoctorServiceDto s)
+    {
+        _editingId = s.Id;
+        _form = new FormModel { Name = s.Name, Description = s.Description, Price = s.Price, Duration = s.DurationMinutes };
+        _editing = true;
+        _submitted = false;
+        _error = null;
+    }
+
+    private void CancelEdit() => _editing = false;
+
+    private async Task Save()
+    {
+        _submitted = true;
+        _error = null;
+        if (string.IsNullOrWhiteSpace(_form.Name) || _form.Price < 0 || _form.Duration is < 5 or > 600)
+        {
+            _error = Lang["Please fill in the highlighted fields."];
+            return;
+        }
+
+        _saving = true;
+        try
+        {
+            var req = new SaveDoctorServiceRequest(_form.Name.Trim(),
+                string.IsNullOrWhiteSpace(_form.Description) ? null : _form.Description.Trim(), _form.Price, _form.Duration);
+            var resp = _editingId is { } id
+                ? await Admin.UpdateMyServiceAsync(id, req)
+                : await Admin.CreateMyServiceAsync(req);
+
+            if (resp.IsSuccessStatusCode)
+            {
+                _services = await Admin.GetMyServicesAsync();
+                _editing = false;
+                Snackbar.Add(Lang["Service saved."], Severity.Success);
+            }
+            else
+            {
+                _error = Lang["Could not save this service. Please try again."];
+            }
+        }
+        catch (Exception)
+        {
+            _error = Lang["Could not save this service. Please try again."];
+        }
+        _saving = false;
+    }
+
+    private async Task Delete(DoctorServiceDto s)
+    {
+        var confirmed = await Dialogs.ShowMessageBoxAsync(
+            Lang["Delete this service?"], s.Name, yesText: Lang["Delete"], cancelText: Lang["Cancel"]);
+        if (confirmed != true) return;
+
+        try
+        {
+            var resp = await Admin.DeleteMyServiceAsync(s.Id);
+            if (resp.IsSuccessStatusCode) _services.Remove(s);
+            else Snackbar.Add(Lang["Could not delete this service. Please try again."], Severity.Error);
+        }
+        catch (Exception)
+        {
+            Snackbar.Add(Lang["Could not delete this service. Please try again."], Severity.Error);
+        }
+    }
+
+    private class FormModel
+    {
+        public string Name { get; set; } = "";
+        public string? Description { get; set; }
+        public decimal Price { get; set; }
+        public int Duration { get; set; } = 30;
+    }
+}

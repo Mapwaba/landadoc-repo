@@ -10,6 +10,14 @@ public interface IAdminApiClient
     Task<HttpResponseMessage> UpdateMyProfileAsync(UpdateOwnDoctorProfileRequest req);
     Task<List<ClinicDto>> GetClinicsAsync();
 
+    // Doctor: the establishments they work at, and the services they offer
+    Task<List<WorkplaceDto>> GetMyWorkplacesAsync();
+    Task<HttpResponseMessage> UpdateMyWorkplaceAsync(Guid clinicId, UpdateWorkplaceRequest req);
+    Task<List<DoctorServiceDto>> GetMyServicesAsync();
+    Task<HttpResponseMessage> CreateMyServiceAsync(SaveDoctorServiceRequest req);
+    Task<HttpResponseMessage> UpdateMyServiceAsync(Guid id, SaveDoctorServiceRequest req);
+    Task<HttpResponseMessage> DeleteMyServiceAsync(Guid id);
+
     // Public: id/name/city of every clinic, for the doctor registration form
     Task<List<ClinicOptionDto>> GetClinicOptionsAsync();
 

@@ -6,5 +6,6 @@ public interface IPaymentApiClient
 {
     Task<PaymentDto?> GetByIdAsync(Guid id);
     Task<PaymentDto?> GetByAppointmentAsync(Guid appointmentId);
+    Task<List<PaymentDto>> GetMineAsDoctorAsync();
     Task<HttpResponseMessage> InitiateAsync(Guid paymentId, InitiatePaymentRequest request);
 }

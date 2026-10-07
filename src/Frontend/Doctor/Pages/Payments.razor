@@ -1,0 +1,123 @@
+@page "/payments"
+@attribute [Authorize]
+@using System.Globalization
+
+<PageTitle>Payments</PageTitle>
+
+<div class="ld-page">
+    <div class="ld-page-head">
+        <h1 class="ld-page-title">@Lang["Payments"]</h1>
+    </div>
+
+    @if (_loading)
+    {
+        <MudProgressCircular Indeterminate="true" />
+    }
+    else if (_loadFailed)
+    {
+        <MudAlert Severity="Severity.Warning">@Lang["Your payments couldn't be loaded. Please try again in a minute."]</MudAlert>
+    }
+    else
+    {
+        <div class="ld-stats">
+            <div class="ld-stat">
+                <div class="ld-stat-icon ld-tint-green"><MudIcon Icon="@Icons.Material.Outlined.AccountBalanceWallet" /></div>
+                <div>
+                    <div class="ld-stat-label">@Lang["Received (net)"]</div>
+                    <div class="ld-stat-value">@Money(_payments.Where(p => p.Status == PaymentStatus.Completed).Sum(p => p.NetAmount))</div>
+                </div>
+            </div>
+            <div class="ld-stat">
+                <div class="ld-stat-icon ld-tint-amber"><MudIcon Icon="@Icons.Material.Outlined.HourglassEmpty" /></div>
+                <div>
+                    <div class="ld-stat-label">@Lang["Awaiting payment"]</div>
+                    <div class="ld-stat-value">@Money(_payments.Where(p => p.Status == PaymentStatus.Pending).Sum(p => p.GrossAmount))</div>
+                </div>
+            </div>
+            <div class="ld-stat">
+                <div class="ld-stat-icon ld-tint-purple"><MudIcon Icon="@Icons.Material.Outlined.Percent" /></div>
+                <div>
+                    <div class="ld-stat-label">@Lang["Platform fees"]</div>
+                    <div class="ld-stat-value">@Money(_payments.Where(p => p.Status == PaymentStatus.Completed).Sum(p => p.PlatformFee))</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="ld-card">
+            @if (_payments.Count == 0)
+            {
+                <div class="ld-empty">@Lang["No payments yet."]</div>
+            }
+            else
+            {
+                <div class="ld-table-wrap">
+                    <table class="ld-table">
+                        <thead>
+                            <tr>
+                                <th>@Lang["Date"]</th>
+                                <th>@Lang["Patient"]</th>
+                                <th>@Lang["Method"]</th>
+                                <th class="ld-num">@Lang["Amount"]</th>
+                                <th class="ld-num">@Lang["Net"]</th>
+                                <th>@Lang["Status"]</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var p in _payments)
+                            {
+                                <tr>
+                                    <td>@p.CreatedAt.ToLocalTime().ToString("d MMM yyyy · HH:mm", Culture)</td>
+                                    <td>
+                                        @if (_appointments.TryGetValue(p.AppointmentId, out var appt))
+                                        {
+                                            <a href="@($"/appointments/{appt.Id}")">@(appt.PatientName ?? Lang["Patient"])</a>
+                                        }
+                                        else
+                                        {
+                                            <span class="ld-muted">—</span>
+                                        }
+                                    </td>
+                                    <td>@(p.Provider is { } provider ? Lang[$"provider.{provider}"] : "—")</td>
+                                    <td class="ld-num">@Money(p.GrossAmount)</td>
+                                    <td class="ld-num">@Money(p.NetAmount)</td>
+                                    <td><span class="status-pill status-@p.Status.ToString().ToLowerInvariant()">@Lang[$"paymentStatus.{p.Status}"]</span></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Inject] private IPaymentApiClient PaymentsApi { get; set; } = default!;
+    [Inject] private IAppointmentApiClient AppointmentsApi { get; set; } = default!;
+    [Inject] private ILanguageService Lang { get; set; } = default!;
+
+    private bool _loading = true;
+    private bool _loadFailed;
+    private List<PaymentDto> _payments = [];
+    private Dictionary<Guid, AppointmentDto> _appointments = [];
+
+    private CultureInfo Culture => CultureInfo.GetCultureInfo(Lang.CurrentLanguage == "fr" ? "fr-FR" : "en-US");
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var paymentsTask = PaymentsApi.GetMineAsDoctorAsync();
+            var appointmentsTask = AppointmentsApi.GetMineAsync(); // for the patient names
+            _payments = await paymentsTask;
+            _appointments = (await appointmentsTask).ToDictionary(a => a.Id);
+        }
+        catch (Exception)
+        {
+            _loadFailed = true;
+        }
+        _loading = false;
+    }
+
+    private static string Money(decimal amount) => "$" + amount.ToString("0.00", CultureInfo.InvariantCulture);
+}

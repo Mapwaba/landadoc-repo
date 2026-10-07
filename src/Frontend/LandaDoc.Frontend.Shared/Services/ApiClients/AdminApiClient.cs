@@ -23,6 +23,34 @@ public class AdminApiClient(HttpClient http) : IAdminApiClient
     public async Task<List<ClinicDto>> GetClinicsAsync() =>
         await http.GetFromJsonAsync<List<ClinicDto>>("api/clinics", JsonDefaults.Options) ?? [];
 
+    public async Task<List<WorkplaceDto>> GetMyWorkplacesAsync()
+    {
+        var resp = await http.GetAsync("api/doctors/me/workplaces");
+        return resp.IsSuccessStatusCode
+            ? await resp.Content.ReadFromJsonAsync<List<WorkplaceDto>>(JsonDefaults.Options) ?? []
+            : []; // 404 = no doctor profile yet
+    }
+
+    public Task<HttpResponseMessage> UpdateMyWorkplaceAsync(Guid clinicId, UpdateWorkplaceRequest req) =>
+        http.PutAsJsonAsync($"api/doctors/me/workplaces/{clinicId}", req, JsonDefaults.Options);
+
+    public async Task<List<DoctorServiceDto>> GetMyServicesAsync()
+    {
+        var resp = await http.GetAsync("api/doctors/me/services");
+        return resp.IsSuccessStatusCode
+            ? await resp.Content.ReadFromJsonAsync<List<DoctorServiceDto>>(JsonDefaults.Options) ?? []
+            : [];
+    }
+
+    public Task<HttpResponseMessage> CreateMyServiceAsync(SaveDoctorServiceRequest req) =>
+        http.PostAsJsonAsync("api/doctors/me/services", req, JsonDefaults.Options);
+
+    public Task<HttpResponseMessage> UpdateMyServiceAsync(Guid id, SaveDoctorServiceRequest req) =>
+        http.PutAsJsonAsync($"api/doctors/me/services/{id}", req, JsonDefaults.Options);
+
+    public Task<HttpResponseMessage> DeleteMyServiceAsync(Guid id) =>
+        http.DeleteAsync($"api/doctors/me/services/{id}");
+
     public async Task<List<ClinicOptionDto>> GetClinicOptionsAsync() =>
         await http.GetFromJsonAsync<List<ClinicOptionDto>>("api/clinics/options", JsonDefaults.Options) ?? [];
 

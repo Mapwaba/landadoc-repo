@@ -21,6 +21,9 @@ public class PaymentApiClient(HttpClient http) : IPaymentApiClient
             : null;
     }
 
+    public async Task<List<PaymentDto>> GetMineAsDoctorAsync() =>
+        await http.GetFromJsonAsync<List<PaymentDto>>("api/payments/doctor/me", JsonDefaults.Options) ?? [];
+
     public Task<HttpResponseMessage> InitiateAsync(Guid paymentId, InitiatePaymentRequest request) =>
         http.PostAsJsonAsync($"api/payments/{paymentId}/initiate", request, JsonDefaults.Options);
 }

@@ -1,0 +1,294 @@
+@page "/workplace"
+@attribute [Authorize]
+
+<PageTitle>My workplace</PageTitle>
+
+<div class="ld-page ld-page-narrow">
+    <div class="ld-page-head">
+        <h1 class="ld-page-title">@Lang["My workplace"]</h1>
+        @if (_workplaces.Count > 1)
+        {
+            @* A doctor linked to several clinics picks which one to edit *@
+            <select class="ld-select" style="width:auto;" value="@_current?.Id" @onchange="OnWorkplaceChanged">
+                @foreach (var w in _workplaces)
+                {
+                    <option value="@w.Id">@w.Name</option>
+                }
+            </select>
+        }
+    </div>
+
+    @if (_loading)
+    {
+        <MudProgressCircular Indeterminate="true" />
+    }
+    else if (_loadFailed)
+    {
+        <MudAlert Severity="Severity.Warning">@Lang["Your workplace couldn't be loaded. Please try again in a minute."]</MudAlert>
+    }
+    else if (_current is null)
+    {
+        <div class="ld-card">
+            <div class="ld-empty">
+                @Lang["You aren't linked to an establishment yet."]
+                <a href="/profile">@Lang["Choose your clinics on your profile."]</a>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="ld-card">
+            <div class="wp-header">
+                <div class="wp-logo">
+                    @if (_form.LogoDataUrl is not null)
+                    {
+                        <img src="@_form.LogoDataUrl" alt="" />
+                    }
+                    else
+                    {
+                        <MudIcon Icon="@Icons.Material.Outlined.LocalHospital" />
+                    }
+                </div>
+                <div>
+                    <div class="wp-name">@(string.IsNullOrWhiteSpace(_form.Name) ? _current.Name : _form.Name)</div>
+                    <div class="wp-type">@Lang[$"clinicType.{_current.Type}"]</div>
+                </div>
+            </div>
+
+            <div class="ld-card-body">
+                <div class="ld-form-grid">
+                    <div class="ld-field ld-field-full">
+                        <label>@Lang["Establishment logo"]</label>
+                        <div class="wp-file">
+                            <label class="ld-btn ld-btn-sm wp-file-btn">
+                                <MudIcon Icon="@Icons.Material.Outlined.Upload" Style="font-size:16px;" /> @Lang["Choose a file"]
+                                <InputFile OnChange="OnLogoSelected" accept="image/png,image/jpeg,image/webp,image/svg+xml" />
+                            </label>
+                            <span class="ld-muted wp-file-name">@(_logoFileName ?? Lang["No file chosen"])</span>
+                            @if (_form.LogoDataUrl is not null)
+                            {
+                                <button type="button" class="wp-file-remove" @onclick="RemoveLogo">@Lang["Remove"]</button>
+                            }
+                        </div>
+                        @if (_logoError is not null)
+                        {
+                            <span class="ld-field-error">@_logoError</span>
+                        }
+                    </div>
+
+                    <div class="ld-field">
+                        <label>@Lang["Establishment name"]</label>
+                        <input class="ld-input @(_submitted && string.IsNullOrWhiteSpace(_form.Name) ? "invalid" : "")" @bind="_form.Name" @bind:event="oninput" />
+                    </div>
+                    <div class="ld-field">
+                        <label>@Lang["Full address"]</label>
+                        <div class="ld-input-wrap">
+                            <input class="ld-input" @bind="_form.Address" />
+                            <span class="ld-input-icon"><MudIcon Icon="@Icons.Material.Outlined.LocationOn" Style="font-size:17px;" /></span>
+                        </div>
+                    </div>
+
+                    <div class="ld-field">
+                        <label>@Lang["Phone (main line)"]</label>
+                        <div class="ld-input-wrap">
+                            <input class="ld-input" type="tel" @bind="_form.Phone" />
+                            <span class="ld-input-icon"><MudIcon Icon="@Icons.Material.Outlined.Phone" Style="font-size:17px;" /></span>
+                        </div>
+                    </div>
+                    <div class="ld-field">
+                        <label>@Lang["Email (contact)"]</label>
+                        <div class="ld-input-wrap">
+                            <input class="ld-input @(EmailInvalid ? "invalid" : "")" type="email" @bind="_form.Email" />
+                            <span class="ld-input-icon"><MudIcon Icon="@Icons.Material.Outlined.MailOutline" Style="font-size:17px;" /></span>
+                        </div>
+                        @if (EmailInvalid)
+                        {
+                            <span class="ld-field-error">@Lang["Enter a valid email address."]</span>
+                        }
+                    </div>
+
+                    <div class="ld-field">
+                        <label>@Lang["Website"]</label>
+                        <div class="ld-input-wrap">
+                            <input class="ld-input" type="url" placeholder="https://" @bind="_form.Website" />
+                            <span class="ld-input-icon"><MudIcon Icon="@Icons.Material.Outlined.Language" Style="font-size:17px;" /></span>
+                        </div>
+                    </div>
+                    <div class="ld-field">
+                        <label>@Lang["City"]</label>
+                        <input class="ld-input @(_submitted && string.IsNullOrWhiteSpace(_form.City) ? "invalid" : "")" @bind="_form.City" />
+                    </div>
+
+                    <div class="ld-field ld-field-full">
+                        <label>@Lang["Description / presentation"]</label>
+                        <textarea class="ld-textarea" rows="5" @bind="_form.Description"></textarea>
+                    </div>
+                </div>
+
+                @if (_error is not null)
+                {
+                    <MudAlert Severity="Severity.Error" Class="mt-4">@_error</MudAlert>
+                }
+
+                <div class="ld-form-actions">
+                    <button type="button" class="ld-btn ld-btn-primary" @onclick="Save" disabled="@_saving">
+                        <MudIcon Icon="@Icons.Material.Outlined.Save" Style="font-size:17px;" /> @Lang["Save changes"]
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Inject] private IAdminApiClient Admin { get; set; } = default!;
+    [Inject] private ILanguageService Lang { get; set; } = default!;
+    [Inject] private ISnackbar Snackbar { get; set; } = default!;
+
+    private const long MaxLogoBytes = 500 * 1024;
+
+    private bool _loading = true;
+    private bool _loadFailed;
+    private bool _saving;
+    private bool _submitted;
+    private string? _error;
+    private string? _logoError;
+    private string? _logoFileName;
+    private List<WorkplaceDto> _workplaces = [];
+    private WorkplaceDto? _current;
+    private FormModel _form = new();
+
+    private bool EmailInvalid => !string.IsNullOrWhiteSpace(_form.Email) &&
+        !System.Text.RegularExpressions.Regex.IsMatch(_form.Email.Trim(), @"^[^@\s]+@[^@\s]+\.[^@\s]+$");
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _workplaces = await Admin.GetMyWorkplacesAsync();
+            Select(_workplaces.FirstOrDefault());
+        }
+        catch (Exception)
+        {
+            _loadFailed = true;
+        }
+        _loading = false;
+    }
+
+    private void OnWorkplaceChanged(ChangeEventArgs e)
+    {
+        if (Guid.TryParse(e.Value?.ToString(), out var id))
+            Select(_workplaces.FirstOrDefault(w => w.Id == id));
+    }
+
+    private void Select(WorkplaceDto? workplace)
+    {
+        _current = workplace;
+        _submitted = false;
+        _error = _logoError = _logoFileName = null;
+        if (workplace is null) return;
+
+        _form = new FormModel
+        {
+            Name = workplace.Name, Address = workplace.Address, City = workplace.City, Phone = workplace.Phone,
+            Email = workplace.Email, Website = workplace.Website, Description = workplace.Description,
+            LogoDataUrl = workplace.LogoDataUrl,
+        };
+    }
+
+    // Logos are stored inline, so large photos are scaled down to 400px before upload
+    private async Task OnLogoSelected(InputFileChangeEventArgs e)
+    {
+        _logoError = null;
+        var file = e.File;
+        if (!file.ContentType.StartsWith("image/"))
+        {
+            _logoError = Lang["Please choose an image file."];
+            return;
+        }
+
+        try
+        {
+            var image = file.ContentType == "image/svg+xml" ? file : await file.RequestImageFileAsync(file.ContentType, 400, 400);
+            if (image.Size > MaxLogoBytes)
+            {
+                _logoError = Lang["The logo must be smaller than 500 KB."];
+                return;
+            }
+
+            await using var stream = image.OpenReadStream(MaxLogoBytes);
+            using var buffer = new MemoryStream();
+            await stream.CopyToAsync(buffer);
+            _form.LogoDataUrl = $"data:{image.ContentType};base64,{Convert.ToBase64String(buffer.ToArray())}";
+            _logoFileName = file.Name;
+        }
+        catch (Exception)
+        {
+            _logoError = Lang["This image couldn't be read. Please try another file."];
+        }
+    }
+
+    private void RemoveLogo()
+    {
+        _form.LogoDataUrl = null;
+        _logoFileName = null;
+    }
+
+    private async Task Save()
+    {
+        _submitted = true;
+        _error = null;
+        if (_current is null || string.IsNullOrWhiteSpace(_form.Name) || string.IsNullOrWhiteSpace(_form.City) || EmailInvalid)
+        {
+            _error = Lang["Please fill in the highlighted fields."];
+            return;
+        }
+
+        // "cliniqueodia.com" → "https://cliniqueodia.com"
+        var website = _form.Website?.Trim();
+        if (!string.IsNullOrEmpty(website) && !website.StartsWith("http://") && !website.StartsWith("https://"))
+            website = "https://" + website;
+
+        _saving = true;
+        try
+        {
+            var resp = await Admin.UpdateMyWorkplaceAsync(_current.Id, new UpdateWorkplaceRequest(
+                _form.Name.Trim(), NullIfBlank(_form.Address), _form.City.Trim(), NullIfBlank(_form.Phone),
+                NullIfBlank(_form.Email), NullIfBlank(website), NullIfBlank(_form.Description), _form.LogoDataUrl));
+
+            if (resp.IsSuccessStatusCode)
+            {
+                var saved = await resp.Content.ReadFromJsonAsync<WorkplaceDto>(JsonDefaults.Options);
+                if (saved is not null)
+                {
+                    _workplaces = _workplaces.Select(w => w.Id == saved.Id ? saved : w).ToList();
+                    Select(saved);
+                }
+                Snackbar.Add(Lang["Your workplace has been saved."], Severity.Success);
+            }
+            else
+            {
+                _error = Lang["Could not save your workplace. Please check the fields and try again."];
+            }
+        }
+        catch (Exception)
+        {
+            _error = Lang["Could not save your workplace. Please check the fields and try again."];
+        }
+        _saving = false;
+    }
+
+    private static string? NullIfBlank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private class FormModel
+    {
+        public string Name { get; set; } = "";
+        public string? Address { get; set; }
+        public string City { get; set; } = "";
+        public string? Phone { get; set; }
+        public string? Email { get; set; }
+        public string? Website { get; set; }
+        public string? Description { get; set; }
+        public string? LogoDataUrl { get; set; }
+    }
+}
