@@ -9,28 +9,18 @@
 
     <div class="search-bar">
         <div class="search-field">
-            <MudSelect T="string" Label="@Lang["Specialty"]" @bind-Value="_specialty" @bind-Value:after="Search"
-                       Clearable="true" Variant="Variant.Text" Margin="Margin.Dense">
-                @foreach (var specialty in Specialties.All)
-                {
-                    <MudSelectItem T="string" Value="@specialty">@Lang[specialty]</MudSelectItem>
-                }
-            </MudSelect>
-        </div>
-        <div class="search-divider"></div>
-        <div class="search-field">
-            <MudTextField T="string" Label="@Lang["City"]" @bind-Value="_city" @bind-Value:after="Search"
-                           Immediate="true" DebounceInterval="300" Variant="Variant.Text" Margin="Margin.Dense" />
-        </div>
-        <div class="search-divider"></div>
-        <div class="search-field">
-            <MudTextField T="string" Label="@Lang["Search by name"]" @bind-Value="_query" @bind-Value:after="Search"
-                           Immediate="true" DebounceInterval="300" Variant="Variant.Text" Margin="Margin.Dense" />
+            <MudTextField T="string" Label="@Lang["Search by doctor, specialty, hospital or city"]"
+                          @bind-Value="_query" @bind-Value:after="Search"
+                          Immediate="true" DebounceInterval="300" Clearable="true"
+                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                          Variant="Variant.Text" Margin="Margin.Dense" />
         </div>
         <button class="search-button" @onclick="Search">@Lang["Find a doctor"]</button>
     </div>
 </div>
 
+@if (!HasSearchCriteria)
+{
 <div class="feature-row">
     <div class="feature-card feature-card-blue">
         <div class="feature-icon">📋</div>
@@ -116,10 +106,12 @@
         </div>
     </MudItem>
 </MudGrid>
-
-@if (HasSearchCriteria)
+}
+else
 {
-    <MudText Typo="Typo.h4" Class="mb-4">@Lang["Find a doctor"]</MudText>
+    <MudText Typo="Typo.h5" Class="mb-4">
+        @(_loadingSearch ? Lang["Find a doctor"] : string.Format(Lang["searchResultCount"], _results.Count, _query?.Trim()))
+    </MudText>
 
     if (_loadingSearch)
     {
@@ -183,17 +175,15 @@
 
     private const int PageSize = 9;
 
-    private string? _specialty;
-    private string? _city;
     private string? _query;
     private bool _loadingSearch;
+    private List<DoctorSearchResultDto>? _allDoctors;
     private List<DoctorSearchResultDto> _results = [];
     private int _page = 1;
 
     private IEnumerable<DoctorSearchResultDto> PagedResults => _results.Skip((_page - 1) * PageSize).Take(PageSize);
     private int TotalPages => Math.Max(1, (int)Math.Ceiling(_results.Count / (double)PageSize));
-    private bool HasSearchCriteria =>
-        !string.IsNullOrWhiteSpace(_specialty) || !string.IsNullOrWhiteSpace(_city) || !string.IsNullOrWhiteSpace(_query);
+    private bool HasSearchCriteria => !string.IsNullOrWhiteSpace(_query);
 
     private bool _loadingStats = true;
     private int _patientCount;
@@ -221,10 +211,31 @@
             return;
         }
 
-        _loadingSearch = true;
-        _results = (await SearchApi.SearchDoctorsAsync(_specialty, _city, _query)).ToList();
+        // Load the whole directory once and filter locally, so the one search box can match
+        // the translated specialty label (e.g. "Cardiologue") and not just the stored English key.
+        if (_allDoctors is null)
+        {
+            _loadingSearch = true;
+            _allDoctors = await SearchApi.SearchDoctorsAsync(null, null, null);
+            _loadingSearch = false;
+        }
+
+        var terms = Normalize(_query!).Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        _results = _allDoctors.Where(d => terms.All(SearchText(d).Contains)).ToList();
         _page = 1;
-        _loadingSearch = false;
+    }
+
+    // Every word typed must appear somewhere in the doctor's name, specialty or one of their clinics.
+    private string SearchText(DoctorSearchResultDto d) => Normalize(string.Join(' ',
+        new[] { d.FirstName, d.LastName, d.Specialty, Lang[d.Specialty] }
+            .Concat(d.Clinics.SelectMany(c => new[] { c.Name, c.City, c.Address, c.Type.ToString(), Lang[$"clinicType.{c.Type}"] }))));
+
+    // Case- and accent-insensitive, so "generaliste" finds "Généraliste".
+    private static string Normalize(string text)
+    {
+        var decomposed = text.ToLowerInvariant().Normalize(System.Text.NormalizationForm.FormD);
+        return new string(decomposed.Where(ch =>
+            System.Globalization.CharUnicodeInfo.GetUnicodeCategory(ch) != System.Globalization.UnicodeCategory.NonSpacingMark).ToArray());
     }
 
     private void OnPageChanged(int page) => _page = page;

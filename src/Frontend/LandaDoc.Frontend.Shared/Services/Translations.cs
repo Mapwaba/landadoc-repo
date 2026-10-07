@@ -51,6 +51,8 @@ public static class Translations
         ["Specialty"] = new() { ["en"] = "Specialty", ["fr"] = "Spécialité" },
         ["City"] = new() { ["en"] = "City", ["fr"] = "Ville" },
         ["Search by name"] = new() { ["en"] = "Search by name", ["fr"] = "Rechercher par nom" },
+        ["Search by doctor, specialty, hospital or city"] = new() { ["en"] = "Search by doctor, specialty, hospital or city", ["fr"] = "Rechercher par médecin, spécialité, hôpital ou ville" },
+        ["searchResultCount"] = new() { ["en"] = "{0} result(s) for \"{1}\"", ["fr"] = "{0} résultat(s) pour « {1} »" },
         ["No doctors found matching your search."] = new()
         {
             ["en"] = "No doctors found matching your search.",
