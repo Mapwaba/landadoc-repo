@@ -53,6 +53,9 @@ public static class Translations
         ["Search by name"] = new() { ["en"] = "Search by name", ["fr"] = "Rechercher par nom" },
         ["Search by doctor, specialty, hospital or city"] = new() { ["en"] = "Search by doctor, specialty, hospital or city", ["fr"] = "Rechercher par médecin, spécialité, hôpital ou ville" },
         ["searchResultCount"] = new() { ["en"] = "{0} result(s) for \"{1}\"", ["fr"] = "{0} résultat(s) pour « {1} »" },
+        ["Statistics are unavailable right now."] = new() { ["en"] = "Statistics are unavailable right now.", ["fr"] = "Les statistiques sont indisponibles pour le moment." },
+        ["Search is unavailable right now. Please try again in a minute."] = new() { ["en"] = "Search is unavailable right now. Please try again in a minute.", ["fr"] = "La recherche est indisponible pour le moment. Veuillez réessayer dans une minute." },
+        ["Try again"] = new() { ["en"] = "Try again", ["fr"] = "Réessayer" },
         ["No doctors found matching your search."] = new()
         {
             ["en"] = "No doctors found matching your search.",

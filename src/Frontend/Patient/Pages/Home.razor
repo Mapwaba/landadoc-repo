@@ -50,6 +50,10 @@
             {
                 <MudProgressCircular Indeterminate="true" />
             }
+            else if (_userStatsFailed)
+            {
+                <MudText Typo="Typo.body2" Color="Color.Secondary">@Lang["Statistics are unavailable right now."]</MudText>
+            }
             else
             {
                 <MudChart T="double" ChartType="ChartType.Donut" ChartSeries="@_userSeries" ChartLabels="@_userLabels"
@@ -78,6 +82,10 @@
             @if (_loadingStats)
             {
                 <MudProgressCircular Indeterminate="true" />
+            }
+            else if (_apptStatsFailed)
+            {
+                <MudText Typo="Typo.body2" Color="Color.Secondary">@Lang["Statistics are unavailable right now."]</MudText>
             }
             else if (_apptDoctorIds.Count == 0)
             {
@@ -110,12 +118,19 @@
 else
 {
     <MudText Typo="Typo.h5" Class="mb-4">
-        @(_loadingSearch ? Lang["Find a doctor"] : string.Format(Lang["searchResultCount"], _results.Count, _query?.Trim()))
+        @(_loadingSearch || _searchFailed ? Lang["Find a doctor"] : string.Format(Lang["searchResultCount"], _results.Count, _query?.Trim()))
     </MudText>
 
     if (_loadingSearch)
     {
         <MudProgressCircular Indeterminate="true" />
+    }
+    else if (_searchFailed)
+    {
+        <MudAlert Severity="Severity.Warning">
+            @Lang["Search is unavailable right now. Please try again in a minute."]
+            <MudButton Variant="Variant.Text" Color="Color.Primary" Class="ml-2" OnClick="Search">@Lang["Try again"]</MudButton>
+        </MudAlert>
     }
     else if (_results.Count == 0)
     {
@@ -177,6 +192,7 @@ else
 
     private string? _query;
     private bool _loadingSearch;
+    private bool _searchFailed;
     private List<DoctorSearchResultDto>? _allDoctors;
     private List<DoctorSearchResultDto> _results = [];
     private int _page = 1;
@@ -186,6 +202,8 @@ else
     private bool HasSearchCriteria => !string.IsNullOrWhiteSpace(_query);
 
     private bool _loadingStats = true;
+    private bool _userStatsFailed;
+    private bool _apptStatsFailed;
     private int _patientCount;
     private int _doctorCount;
     private int _totalAppointments;
@@ -216,8 +234,20 @@ else
         if (_allDoctors is null)
         {
             _loadingSearch = true;
-            _allDoctors = await SearchApi.SearchDoctorsAsync(null, null, null);
-            _loadingSearch = false;
+            _searchFailed = false;
+            try
+            {
+                _allDoctors = await SearchApi.SearchDoctorsAsync(null, null, null);
+            }
+            catch (Exception)
+            {
+                _searchFailed = true;
+                return;
+            }
+            finally
+            {
+                _loadingSearch = false;
+            }
         }
 
         var terms = Normalize(_query!).Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -240,32 +270,57 @@ else
 
     private void OnPageChanged(int page) => _page = page;
 
+    // The backend runs on Render's free tier, whose services sleep when idle and can fail the
+    // first request after waking — so each chart loads independently and degrades to a message
+    // rather than letting the exception take down the whole page.
     private async Task LoadStats()
     {
         _loadingStats = true;
-
-        var counts = await IdentityApi.GetStatsAsync();
-        _patientCount = counts?.PatientCount ?? 0;
-        _doctorCount = counts?.DoctorCount ?? 0;
-        _userLabels = [Lang["Patients"], Lang["Doctors"]];
-        _userSeries = [new ChartSeries<double> { Name = "Users", Data = new ChartData<double>([_patientCount, _doctorCount]) }];
-
-        var apptStats = await AppointmentApi.GetStatsByDoctorAsync();
-        _totalAppointments = apptStats?.TotalCount ?? 0;
-        var topDoctors = (apptStats?.ByDoctor ?? []).Take(8).ToList();
-
-        var names = await Task.WhenAll(topDoctors.Select(async d =>
-        {
-            var doctor = await SearchApi.GetDoctorAsync(d.DoctorId);
-            return doctor is null ? "Unknown" : $"{Lang["Dr."]} {doctor.FirstName} {doctor.LastName}";
-        }));
-
-        _apptLabels = names;
-        _apptCounts = topDoctors.Select(d => d.Count).ToList();
-        _apptDoctorIds = topDoctors.Select(d => d.DoctorId).ToList();
-        _apptSeries = [new ChartSeries<double> { Name = "Appointments", Data = new ChartData<double>(_apptCounts.Select(c => (double)c).ToList()) }];
-
+        await Task.WhenAll(LoadUserStats(), LoadAppointmentStats());
         _loadingStats = false;
+    }
+
+    private async Task LoadUserStats()
+    {
+        try
+        {
+            var counts = await IdentityApi.GetStatsAsync();
+            _patientCount = counts?.PatientCount ?? 0;
+            _doctorCount = counts?.DoctorCount ?? 0;
+            _userLabels = [Lang["Patients"], Lang["Doctors"]];
+            _userSeries = [new ChartSeries<double> { Name = "Users", Data = new ChartData<double>([_patientCount, _doctorCount]) }];
+        }
+        catch (Exception)
+        {
+            _userStatsFailed = true;
+        }
+    }
+
+    private async Task LoadAppointmentStats()
+    {
+        try
+        {
+            var apptStats = await AppointmentApi.GetStatsByDoctorAsync();
+            _totalAppointments = apptStats?.TotalCount ?? 0;
+            var topDoctors = (apptStats?.ByDoctor ?? []).Take(8).ToList();
+
+            var names = await Task.WhenAll(topDoctors.Select(async d =>
+            {
+                // A Search outage shouldn't hide the appointment counts — fall back to "Unknown".
+                DoctorSearchResultDto? doctor = null;
+                try { doctor = await SearchApi.GetDoctorAsync(d.DoctorId); } catch (Exception) { }
+                return doctor is null ? "Unknown" : $"{Lang["Dr."]} {doctor.FirstName} {doctor.LastName}";
+            }));
+
+            _apptLabels = names;
+            _apptCounts = topDoctors.Select(d => d.Count).ToList();
+            _apptDoctorIds = topDoctors.Select(d => d.DoctorId).ToList();
+            _apptSeries = [new ChartSeries<double> { Name = "Appointments", Data = new ChartData<double>(_apptCounts.Select(c => (double)c).ToList()) }];
+        }
+        catch (Exception)
+        {
+            _apptStatsFailed = true;
+        }
     }
 
     private void OnApptSliceSelected(int index)
