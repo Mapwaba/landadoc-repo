@@ -224,21 +224,8 @@
 .agenda-chip.status-rescheduled { background: #EDE9FE; color: #5B21B6; }
 .agenda-chip.status-cancelled { background: #F3F4F6; color: #9CA3AF; text-decoration: line-through; }
 
-.status-pill {
-    padding: 2px 8px;
-    border-radius: 999px;
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    white-space: nowrap;
-}
+/* .status-pill lives in landadoc-shell.css (shared with the dashboard) */
 
-.status-pill.status-confirmed { background: #DCFCE7; color: #15803D; }
-.status-pill.status-pending { background: #FEF3C7; color: #B45309; }
-.status-pill.status-completed { background: #DBEAFE; color: #1D4ED8; }
-.status-pill.status-rescheduled { background: #EDE9FE; color: #6D28D9; }
-.status-pill.status-cancelled { background: #F3F4F6; color: #6B7280; }
 
 /* ── Side panel ──────────────────────────────────────────────────── */
 

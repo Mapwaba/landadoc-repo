@@ -1,0 +1,158 @@
+/* Doctor dashboard: three stat cards + upcoming appointments. Colours from landadoc-shell.css. */
+
+.dash-title {
+    margin: 4px 0 20px;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--ld-text);
+    letter-spacing: -0.01em;
+}
+
+.dash-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.dash-stat {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 22px 20px;
+    background: var(--ld-surface);
+    border: 1px solid var(--ld-border);
+    border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+}
+
+.dash-stat-icon {
+    flex: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.dash-blue { background: #EEF4FF; color: #2563EB; }
+.dash-green { background: #ECFDF3; color: #16A34A; }
+.dash-purple { background: #F5F3FF; color: #7C3AED; }
+
+.dash-stat-label {
+    font-size: 12.5px;
+    color: var(--ld-text-muted);
+    margin-bottom: 4px;
+}
+
+.dash-stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--ld-text);
+    line-height: 1.2;
+}
+
+.dash-card {
+    background: var(--ld-surface);
+    border: 1px solid var(--ld-border);
+    border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+    overflow: hidden;
+}
+
+.dash-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 20px;
+    border-bottom: 1px solid #EEF0F4;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ld-text);
+}
+
+.dash-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--ld-primary);
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.dash-link:hover {
+    text-decoration: underline;
+}
+
+.dash-card-body {
+    padding: 16px 20px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.dash-empty {
+    font-size: 13px;
+    color: var(--ld-text-muted);
+}
+
+.dash-appt {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: #F8F9FB;
+    text-decoration: none;
+    color: inherit;
+    transition: background 0.12s ease;
+}
+
+.dash-appt:hover {
+    background: #F1F4F9;
+}
+
+.dash-appt-day {
+    flex: none;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: #EEF4FF;
+    color: var(--ld-primary);
+    font-size: 14px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.dash-appt-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.dash-appt-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ld-text);
+}
+
+.dash-appt-meta {
+    margin-top: 2px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: var(--ld-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@media (max-width: 900px) {
+    .dash-stats {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
