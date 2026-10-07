@@ -6,34 +6,71 @@
 
 <div class="d-flex justify-center mt-8">
     <MudPaper Class="pa-6" MaxWidth="500px" Style="width:100%;">
-        <MudForm @ref="_form">
-            <MudTextField T="string" Label="@Lang["First name"]" @bind-Value="_firstName" Required="true" Class="mb-3" />
-            <MudTextField T="string" Label="@Lang["Last name"]" @bind-Value="_lastName" Required="true" Class="mb-3" />
-            <MudTextField T="string" Label="@Lang["Email"]" @bind-Value="_email" InputType="InputType.Email" Required="true" Class="mb-3" />
-            <MudTextField T="string" Label="@Lang["Password"]" @bind-Value="_password" InputType="InputType.Password" Required="true"
-                           Validation="@(new Func<string, string?>(ValidatePassword))" HelperText="@Lang["At least 8 characters"]" Class="mb-3" />
-            <MudTextField T="string" Label="@Lang["Phone"]" @bind-Value="_phone" Class="mb-3" />
+        @if (!_accountCreated)
+        {
+            <MudText Typo="Typo.subtitle1" Class="mb-3">@Lang["Step 1 of 2: your account"]</MudText>
+            <MudForm @ref="_form">
+                <MudTextField T="string" Label="@Lang["First name"]" @bind-Value="_firstName" Required="true" Class="mb-3" />
+                <MudTextField T="string" Label="@Lang["Last name"]" @bind-Value="_lastName" Required="true" Class="mb-3" />
+                <MudTextField T="string" Label="@Lang["Email"]" @bind-Value="_email" InputType="InputType.Email" Required="true" Class="mb-3" />
+                <MudTextField T="string" Label="@Lang["Password"]" @bind-Value="_password" InputType="InputType.Password" Required="true"
+                               Validation="@(new Func<string, string?>(ValidatePassword))" HelperText="@Lang["At least 8 characters"]" Class="mb-3" />
+                <MudTextField T="string" Label="@Lang["Phone"]" @bind-Value="_phone" Class="mb-3" />
 
-            @if (_error is not null)
-            {
-                <MudAlert Severity="Severity.Error" Class="mb-3">@_error</MudAlert>
-            }
+                @if (_error is not null)
+                {
+                    <MudAlert Severity="Severity.Error" Class="mb-3">@_error</MudAlert>
+                }
 
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="Submit" Disabled="_submitting">
-                @Lang["Register"]
-            </MudButton>
-        </MudForm>
-        <MudText Class="mt-4">@Lang["Already have an account?"] <MudLink Href="/login">@Lang["Log in"]</MudLink></MudText>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="Submit" Disabled="_submitting">
+                    @Lang["Next"]
+                </MudButton>
+            </MudForm>
+            <MudText Class="mt-4">@Lang["Already have an account?"] <MudLink Href="/login">@Lang["Log in"]</MudLink></MudText>
+        }
+        else
+        {
+            @* Step 2 runs once the account exists and the doctor is logged in, which the
+               clinic list requires. The profile is created as Pending for an admin to approve. *@
+            <MudText Typo="Typo.subtitle1" Class="mb-3">@Lang["Step 2 of 2: your professional details"]</MudText>
+            <MudForm @ref="_profileForm">
+                <MudSelect T="string" Label="@Lang["Specialty"]" @bind-Value="_specialty" Required="true" Class="mb-3">
+                    @foreach (var specialty in Specialties.All)
+                    {
+                        <MudSelectItem T="string" Value="@specialty">@Lang[specialty]</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudTextField T="string" Label="@Lang["License number"]" @bind-Value="_licenseNumber" Required="true" Class="mb-3" />
+                <MudSelect T="Guid" Label="@Lang["Clinics"]" MultiSelection="true" @bind-SelectedValues="_clinicIds" Class="mb-3">
+                    @foreach (var clinic in _clinics)
+                    {
+                        <MudSelectItem T="Guid" Value="@clinic.Id">@clinic.Name (@clinic.City)</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudNumericField T="decimal" Label="@Lang["Consultation fee ($)"]" @bind-Value="_consultationFee" Min="0" Class="mb-3" />
+
+                @if (_error is not null)
+                {
+                    <MudAlert Severity="Severity.Error" Class="mb-3">@_error</MudAlert>
+                }
+
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="SubmitProfile" Disabled="_submitting">
+                    @Lang["Register"]
+                </MudButton>
+            </MudForm>
+        }
     </MudPaper>
 </div>
 
 @code {
     [Inject] private IIdentityApiClient Identity { get; set; } = default!;
+    [Inject] private IAdminApiClient Admin { get; set; } = default!;
     [Inject] private JwtAuthenticationStateProvider AuthState { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
     [Inject] private ILanguageService Lang { get; set; } = default!;
 
     private MudForm _form = default!;
+    private MudForm _profileForm = default!;
     private string _email = "";
     private string _password = "";
     private string _firstName = "";
@@ -41,6 +78,13 @@
     private string? _phone;
     private bool _submitting;
     private string? _error;
+
+    private bool _accountCreated;
+    private string _specialty = "";
+    private string? _licenseNumber;
+    private IReadOnlyCollection<Guid> _clinicIds = [];
+    private decimal _consultationFee;
+    private List<ClinicDto> _clinics = [];
 
     private string? ValidatePassword(string password) =>
         string.IsNullOrEmpty(password) || password.Length >= 8 ? null : Lang["At least 8 characters"];
@@ -57,13 +101,14 @@
             string.IsNullOrWhiteSpace(_phone) ? null : _phone);
 
         var resp = await Identity.RegisterDoctorAsync(req);
-        _submitting = false;
 
         if (resp.IsSuccessStatusCode)
         {
             var auth = await resp.Content.ReadFromJsonAsync<AuthResponse>();
             await AuthState.MarkUserAsAuthenticated(auth!);
-            Navigation.NavigateTo("/profile");
+            try { _clinics = await Admin.GetClinicsAsync(); }
+            catch (Exception) { _clinics = []; } // clinics can still be added later on the Profile page
+            _accountCreated = true;
         }
         else if (resp.StatusCode == System.Net.HttpStatusCode.Conflict)
         {
@@ -73,5 +118,29 @@
         {
             _error = Lang["Registration failed. Please check your details and try again."];
         }
+        _submitting = false;
+    }
+
+    private async Task SubmitProfile()
+    {
+        _error = null;
+        await _profileForm.ValidateAsync();
+        if (!_profileForm.IsValid) return;
+
+        _submitting = true;
+        HttpResponseMessage? resp = null;
+        try
+        {
+            resp = await Admin.CreateMyProfileAsync(new CreateOwnDoctorProfileRequest(
+                _firstName, _lastName, _specialty, null, _licenseNumber, _clinicIds.ToList(), _consultationFee));
+        }
+        catch (Exception) { }
+        _submitting = false;
+
+        // Conflict means the profile already exists (e.g. a double click), which is fine.
+        if (resp is { IsSuccessStatusCode: true } || resp?.StatusCode == System.Net.HttpStatusCode.Conflict)
+            Navigation.NavigateTo("/status");
+        else
+            _error = Lang["Could not save your profile. Please try again."];
     }
 }
