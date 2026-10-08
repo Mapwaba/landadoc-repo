@@ -1,4 +1,5 @@
 @using Microsoft.AspNetCore.Components.Authorization
+@using LandaDoc.Frontend.Shared.Services.ApiClients
 @implements IAsyncDisposable
 
 @* "Are you still there?" — shown to a signed-in user after IdleMinutes without any activity
@@ -25,6 +26,7 @@
 @code {
     [Inject] private IJSRuntime JS { get; set; } = default!;
     [Inject] private JwtAuthenticationStateProvider AuthState { get; set; } = default!;
+    [Inject] private IIdentityApiClient Identity { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
     [Inject] private ILanguageService Lang { get; set; } = default!;
     [Inject] private ISnackbar Snackbar { get; set; } = default!;
@@ -98,6 +100,8 @@
         if (_loggingOut) return;
         _loggingOut = true;
         ClosePrompt();
+        // Recorded server-side so support can tell an inactivity logout from a crash (needs the token, so before signing out)
+        await Identity.ReportSessionEndedAsync(expired ? "inactive" : "inactive-prompt-logout");
         await AuthState.MarkUserAsLoggedOut();   // this unmounts the guard (AppShell shows it only when signed in)
         if (expired) Snackbar.Add(Lang["You were logged out because you were inactive."], Severity.Info);
         Navigation.NavigateTo("/login");

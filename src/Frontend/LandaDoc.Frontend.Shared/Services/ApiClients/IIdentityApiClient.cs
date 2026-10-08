@@ -11,6 +11,8 @@ public interface IIdentityApiClient
     Task<HttpResponseMessage> UpdateMeAsync(UpdateMeRequest req);
     // 200 with a fresh AuthResponse, or 400 when the current password is wrong
     Task<HttpResponseMessage> ChangePasswordAsync(ChangePasswordRequest req);
+    // Tells Identity why the browser is ending the session, for the logs ("inactive", ...)
+    Task ReportSessionEndedAsync(string reason);
     Task<UserCountsDto?> GetStatsAsync();
     // Doctor: contact details of the patients they've had an appointment with (throws if unavailable)
     Task<List<PatientContactDto>> GetMyPatientsAsync();

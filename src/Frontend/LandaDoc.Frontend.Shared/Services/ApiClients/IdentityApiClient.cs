@@ -23,6 +23,17 @@ public class IdentityApiClient(HttpClient http) : IIdentityApiClient
     public Task<HttpResponseMessage> UpdateMeAsync(UpdateMeRequest req) =>
         http.PutAsJsonAsync("api/auth/me", req, JsonDefaults.Options);
 
+    // Best effort with a short timeout: logging must never hold up signing out
+    public async Task ReportSessionEndedAsync(string reason)
+    {
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+            await http.PostAsJsonAsync("api/auth/session-ended", new SessionEndedRequest(reason), JsonDefaults.Options, cts.Token);
+        }
+        catch (Exception) { }
+    }
+
     public Task<HttpResponseMessage> ChangePasswordAsync(ChangePasswordRequest req) =>
         http.PostAsJsonAsync("api/auth/change-password", req, JsonDefaults.Options);
 
