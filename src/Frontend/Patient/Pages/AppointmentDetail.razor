@@ -94,6 +94,10 @@ else
             {
                 <MudAlert Severity="@ClaimSeverity(_claim.Status)" Class="mt-3">
                     @string.Format(Lang[$"claimStatus.{_claim.Status}"], _claim.InsurerName, _claim.MemberNumber)
+                    @if (_claim.Status == InsuranceClaimStatus.Submitted && _appointment?.InsuranceReviewDueAt is { } dueAt)
+                    {
+                        <br />@string.Format(Lang["claimReviewDue"], dueAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm"))
+                    }
                     @if (!string.IsNullOrWhiteSpace(_claim.Note) && _claim.Status is InsuranceClaimStatus.Declined or InsuranceClaimStatus.Rejected)
                     {
                         <br /><i>@_claim.Note</i>
@@ -118,7 +122,7 @@ else
                     <MudRadioGroup T="PaymentProvider" @bind-Value="_selectedProvider" Class="mt-3">
                         <MudRadio T="PaymentProvider" Value="PaymentProvider.Stripe">@Lang["Card"]</MudRadio>
                         <MudRadio T="PaymentProvider" Value="PaymentProvider.MokoAfrika">@Lang["Mobile Money"]</MudRadio>
-                        @* Only offered when admins have set up at least one partner insurer *@
+                        @* Only offered when this doctor takes at least one partner insurer *@
                         @if (_insurers.Count > 0)
                         {
                             <MudRadio T="PaymentProvider" Value="PaymentProvider.Insurance">@Lang["Insurance / medical aid"]</MudRadio>
@@ -257,7 +261,7 @@ else
             // Insurers are only needed while there's still something to pay
             if (_payment?.Status == PaymentStatus.Pending)
             {
-                try { _insurers = await Payments.GetInsurersAsync(); }
+                try { _insurers = await Payments.GetInsurersForDoctorAsync(_appointment.DoctorId); }
                 catch (Exception) { _insurers = []; } // insurance just isn't offered then
             }
             _documents = await Documents.GetForAppointmentAsync(AppointmentId);
@@ -353,8 +357,10 @@ else
         var resp = await Payments.InitiateAsync(_payment.Id, request);
         if (resp.IsSuccessStatusCode && isInsurance)
         {
-            // Nothing to wait for here — the claim now sits with the doctor
+            // Nothing to wait for here — the claim now sits with the doctor (the appointment is
+            // reloaded for the review deadline, which may take a moment to be set)
             _claim = await Payments.GetClaimByAppointmentAsync(AppointmentId);
+            _appointment = await Appointments.GetByIdAsync(AppointmentId) ?? _appointment;
             _payingNow = false;
         }
         else if (resp.IsSuccessStatusCode)

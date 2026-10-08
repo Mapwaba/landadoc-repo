@@ -110,7 +110,13 @@
                                             <span class="ld-muted">—</span>
                                         }
                                     </td>
-                                    <td>@claim.InsurerName</td>
+                                    <td>
+                                        @claim.InsurerName
+                                        @if (claim.Status == InsuranceClaimStatus.Submitted && InsurerContact(claim.InsurerId) is { } contact)
+                                        {
+                                            <div class="ld-muted claim-sub">@contact</div>
+                                        }
+                                    </td>
                                     <td>
                                         @claim.MemberNumber
                                         @if (!string.IsNullOrWhiteSpace(claim.MemberName))
@@ -121,6 +127,14 @@
                                     <td style="font-weight:700;">@Money(claim.Amount)</td>
                                     <td>
                                         <span class="status-pill @ClaimPill(claim.Status)">@Lang[$"claim.{claim.Status}"]</span>
+                                        @if (claim.Status == InsuranceClaimStatus.Submitted && appt?.InsuranceReviewDueAt is { } dueAt)
+                                        {
+                                            <div class="claim-sub claim-due">@string.Format(Lang["answerBy"], dueAt.ToLocalTime().ToString("dd/MM HH:mm"))</div>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(claim.AuthorizationReference))
+                                        {
+                                            <div class="ld-muted claim-sub">@string.Format(Lang["authLabel"], claim.AuthorizationReference)</div>
+                                        }
                                         @if (!string.IsNullOrWhiteSpace(claim.Note))
                                         {
                                             <div class="ld-muted claim-sub">@claim.Note</div>
@@ -136,7 +150,7 @@
                                             @* Approving only makes sense while the booking still waits on this claim *@
                                             @if (appt?.Status == AppointmentStatus.Pending)
                                             {
-                                                <button type="button" class="ld-btn ld-btn-sm ld-btn-primary" disabled="@_busy" @onclick="@(() => Approve(claim))">@Lang["Approve"]</button>
+                                                <button type="button" class="ld-btn ld-btn-sm ld-btn-primary" disabled="@_busy" @onclick="@(() => StartAction(claim, ClaimAction.Approve))">@Lang["Approve"]</button>
                                             }
                                             <button type="button" class="ld-btn ld-btn-sm" disabled="@_busy" @onclick="@(() => StartAction(claim, ClaimAction.Decline))">@Lang["Decline"]</button>
                                         }
@@ -151,9 +165,13 @@
                                 {
                                     <tr class="claim-action-row">
                                         <td colspan="7">
+                                            @if (_action == ClaimAction.Approve)
+                                            {
+                                                <div class="claim-hint">@Lang["Check the cover with the insurer first, then enter the reference they gave you."]</div>
+                                            }
                                             <div class="claim-action">
                                                 <input class="ld-input" @bind="_actionNote" @bind:event="oninput" placeholder="@ActionPlaceholder" />
-                                                <button type="button" class="ld-btn ld-btn-sm ld-btn-primary" disabled="@_busy" @onclick="@(() => ConfirmAction(claim))">@Lang[$"claimConfirm.{_action}"]</button>
+                                                <button type="button" class="ld-btn ld-btn-sm ld-btn-primary" disabled="@(_busy || (_action == ClaimAction.Approve && string.IsNullOrWhiteSpace(_actionNote)))" @onclick="@(() => ConfirmAction(claim))">@Lang[$"claimConfirm.{_action}"]</button>
                                                 <button type="button" class="ld-btn ld-btn-sm" @onclick="CancelAction">@Lang["Cancel"]</button>
                                             </div>
                                         </td>
@@ -217,6 +235,57 @@
                 </div>
             }
         </div>
+
+        @* Which insurers patients may choose when they book with this doctor *@
+        @if (!_insurersFailed)
+        {
+            <div class="ld-card ld-no-print">
+                <div class="pay-head">
+                    <span>@Lang["Insurers I accept"]</span>
+                </div>
+                <div class="ld-card-body">
+                    @if (_allInsurers.Count == 0)
+                    {
+                        <div class="ld-muted">@Lang["There are no partner insurers yet."]</div>
+                    }
+                    else
+                    {
+                        <label class="ins-option">
+                            <input type="radio" name="ins-mode" checked="@_acceptsAll" @onchange="@(() => SetAcceptsAll(true))" />
+                            @Lang["Every partner insurer, including new ones"]
+                        </label>
+                        <label class="ins-option">
+                            <input type="radio" name="ins-mode" checked="@(!_acceptsAll)" @onchange="@(() => SetAcceptsAll(false))" />
+                            @Lang["Only the insurers I tick"]
+                        </label>
+                        @if (!_acceptsAll)
+                        {
+                            <div class="ins-list">
+                                @foreach (var i in _allInsurers)
+                                {
+                                    var insurer = i;
+                                    <label class="ins-check">
+                                        <input type="checkbox" checked="@_accepted.Contains(insurer.Id)" @onchange="@(e => ToggleInsurer(insurer.Id, e.Value is true))" />
+                                        @insurer.Name
+                                    </label>
+                                }
+                            </div>
+                            @if (!_allInsurers.Any(i => _accepted.Contains(i.Id)))
+                            {
+                                <div class="ld-muted ins-note">@Lang["Patients won't be offered insurance when they book with you."]</div>
+                            }
+                        }
+                        <div class="ins-actions">
+                            @if (_insurersMessage is not null)
+                            {
+                                <span class="ld-muted">@_insurersMessage</span>
+                            }
+                            <button type="button" class="ld-btn ld-btn-sm ld-btn-primary" disabled="@_savingInsurers" @onclick="SaveInsurers">@Lang["Save"]</button>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
     }
 </div>
 
@@ -236,8 +305,8 @@
     // Review = waiting for the doctor (Submitted); Owed = approved, waiting for the insurer
     // to pay (Approved); Closed = Declined, Settled or Rejected
     private enum ClaimTab { Review, Owed, Closed }
-    // The actions that open the inline note box (approving needs no note)
-    private enum ClaimAction { Decline, Settle, Reject }
+    // The actions that open the inline note box (approving needs the insurer's reference)
+    private enum ClaimAction { Approve, Decline, Settle, Reject }
 
     private ClaimTab _claimTab = ClaimTab.Review;
     private Guid? _actionClaimId;    // claim whose note box is open, if any
@@ -261,13 +330,32 @@
     {
         ClaimTab.Review => c.Status == InsuranceClaimStatus.Submitted,
         ClaimTab.Owed => c.Status == InsuranceClaimStatus.Approved,
-        _ => c.Status is InsuranceClaimStatus.Declined or InsuranceClaimStatus.Settled or InsuranceClaimStatus.Rejected,
+        _ => c.Status is InsuranceClaimStatus.Declined or InsuranceClaimStatus.Expired or InsuranceClaimStatus.Settled or InsuranceClaimStatus.Rejected,
     }).ToList();
 
     // Hint text in the note box
-    private string ActionPlaceholder => _action == ClaimAction.Settle
-        ? Lang["Insurer's payment reference (optional)"]
-        : Lang["Reason (optional)"];
+    private string ActionPlaceholder => _action switch
+    {
+        ClaimAction.Approve => Lang["Insurer's reference (authorisation no. or agent's name)"],
+        ClaimAction.Settle => Lang["Insurer's payment reference (optional)"],
+        _ => Lang["Reason (optional)"],
+    };
+
+    // Partner insurers (for their contact details and the "Insurers I accept" card)
+    private List<InsurerDto> _allInsurers = [];
+    private bool _insurersFailed;
+    private bool _acceptsAll = true;
+    private HashSet<Guid> _accepted = [];   // keeps paused insurers the doctor chose, too
+    private bool _savingInsurers;
+    private string? _insurersMessage;
+
+    // "+243 81 000 0000 · claims@insurer.cd", to call or write when checking a patient's cover
+    private string? InsurerContact(Guid insurerId)
+    {
+        var insurer = _allInsurers.FirstOrDefault(i => i.Id == insurerId);
+        var parts = new[] { insurer?.Phone, insurer?.Email }.Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
+        return parts.Count == 0 ? null : string.Join(" · ", parts);
+    }
 
     // " ($8 / appt)" when every paid appointment carried the same fee, as it normally does
     private string FeeHint
@@ -294,6 +382,21 @@
         {
             _loadFailed = true;
         }
+
+        // Not essential to the page: without them the card is hidden and contacts aren't shown
+        try
+        {
+            var insurersTask = PaymentsApi.GetInsurersAsync();
+            var choiceTask = PaymentsApi.GetMyAcceptedInsurersAsync();
+            _allInsurers = await insurersTask;
+            var choice = await choiceTask;
+            _acceptsAll = choice.AcceptsAll;
+            _accepted = choice.InsurerIds.ToHashSet();
+        }
+        catch (Exception)
+        {
+            _insurersFailed = true;
+        }
         _loading = false;
 
         // Open on the claims that need something from the doctor
@@ -317,14 +420,13 @@
 
     private void CancelAction() => _actionClaimId = null;
 
-    private Task Approve(InsuranceClaimDto claim) =>
-        RunClaimAsync(() => PaymentsApi.ApproveClaimAsync(claim.Id));
-
     private Task ConfirmAction(InsuranceClaimDto claim)
     {
         var note = string.IsNullOrWhiteSpace(_actionNote) ? null : _actionNote.Trim();
+        if (_action == ClaimAction.Approve && note is null) return Task.CompletedTask;
         return RunClaimAsync(() => _action switch
         {
+            ClaimAction.Approve => PaymentsApi.ApproveClaimAsync(claim.Id, note!),
             ClaimAction.Decline => PaymentsApi.DeclineClaimAsync(claim.Id, note),
             ClaimAction.Settle => PaymentsApi.SettleClaimAsync(claim.Id, note),
             _ => PaymentsApi.RejectClaimAsync(claim.Id, note),
@@ -357,6 +459,34 @@
             _claimError = Lang["Could not update the claim. Please try again."];
         }
         _busy = false;
+    }
+
+    private void SetAcceptsAll(bool value)
+    {
+        _acceptsAll = value;
+        _insurersMessage = null;
+    }
+
+    private void ToggleInsurer(Guid id, bool accepted)
+    {
+        if (accepted) _accepted.Add(id); else _accepted.Remove(id);
+        _insurersMessage = null;
+    }
+
+    private async Task SaveInsurers()
+    {
+        _savingInsurers = true;
+        _insurersMessage = null;
+        try
+        {
+            var resp = await PaymentsApi.SaveMyAcceptedInsurersAsync(new AcceptedInsurersDto(_acceptsAll, _accepted.ToList()));
+            _insurersMessage = resp.IsSuccessStatusCode ? Lang["Saved."] : Lang["Could not save. Please try again."];
+        }
+        catch (Exception)
+        {
+            _insurersMessage = Lang["Could not save. Please try again."];
+        }
+        _savingInsurers = false;
     }
 
     // How a payment was made, for the Method column and the CSV export
@@ -400,13 +530,14 @@
             report.Sections.Add(new PdfSection
             {
                 Title = Lang["Insurance claims"],
-                Columns = [new(Lang["Date"]), new(Lang["Patient"]), new(Lang["Insurer"]), new(Lang["Member no."]), new(Lang["Amount"], Right: true), new(Lang["Status"])],
+                Columns = [new(Lang["Date"]), new(Lang["Patient"]), new(Lang["Insurer"]), new(Lang["Member no."]), new(Lang["Auth. no."]), new(Lang["Amount"], Right: true), new(Lang["Status"])],
                 Rows = _claims.OrderByDescending(c => c.CreatedAt).Select(c => new List<PdfCell>
                 {
                     c.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy"),
                     PatientName(c.AppointmentId),
                     c.InsurerName,
                     c.MemberNumber,
+                    c.AuthorizationReference ?? "-",
                     Money(c.Amount),
                     new(Lang[$"claim.{c.Status}"], ClaimPill(c.Status)),
                 }).ToList(),

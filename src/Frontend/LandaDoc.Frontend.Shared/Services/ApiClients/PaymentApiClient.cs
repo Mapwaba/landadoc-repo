@@ -36,6 +36,15 @@ public class PaymentApiClient(HttpClient http) : IPaymentApiClient
     public Task<HttpResponseMessage> UpdateInsurerAsync(Guid id, SaveInsurerRequest request) =>
         http.PutAsJsonAsync($"api/insurers/{id}", request, JsonDefaults.Options);
 
+    public async Task<List<InsurerDto>> GetInsurersForDoctorAsync(Guid doctorId) =>
+        await http.GetFromJsonAsync<List<InsurerDto>>($"api/insurers/doctor/{doctorId}", JsonDefaults.Options) ?? [];
+
+    public async Task<AcceptedInsurersDto> GetMyAcceptedInsurersAsync() =>
+        await http.GetFromJsonAsync<AcceptedInsurersDto>("api/insurers/doctor/me", JsonDefaults.Options) ?? new AcceptedInsurersDto(true, []);
+
+    public Task<HttpResponseMessage> SaveMyAcceptedInsurersAsync(AcceptedInsurersDto choice) =>
+        http.PutAsJsonAsync("api/insurers/doctor/me", choice, JsonDefaults.Options);
+
     public async Task<InsuranceClaimDto?> GetClaimByAppointmentAsync(Guid appointmentId)
     {
         var resp = await http.GetAsync($"api/insurance-claims/by-appointment/{appointmentId}");
@@ -47,8 +56,8 @@ public class PaymentApiClient(HttpClient http) : IPaymentApiClient
     public async Task<List<InsuranceClaimDto>> GetMyClaimsAsDoctorAsync() =>
         await http.GetFromJsonAsync<List<InsuranceClaimDto>>("api/insurance-claims/doctor/me", JsonDefaults.Options) ?? [];
 
-    public Task<HttpResponseMessage> ApproveClaimAsync(Guid claimId) =>
-        http.PostAsync($"api/insurance-claims/{claimId}/approve", null);
+    public Task<HttpResponseMessage> ApproveClaimAsync(Guid claimId, string authorizationReference) =>
+        http.PostAsJsonAsync($"api/insurance-claims/{claimId}/approve", new ClaimActionRequest(authorizationReference), JsonDefaults.Options);
 
     public Task<HttpResponseMessage> DeclineClaimAsync(Guid claimId, string? reason) =>
         http.PostAsJsonAsync($"api/insurance-claims/{claimId}/decline", new ClaimActionRequest(reason), JsonDefaults.Options);

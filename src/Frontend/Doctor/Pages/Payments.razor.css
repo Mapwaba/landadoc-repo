@@ -106,3 +106,51 @@
         box-shadow: none;
     }
 }
+
+.claim-due {
+    color: #B45309;
+    font-weight: 600;
+}
+
+.claim-hint {
+    margin-bottom: 8px;
+    font-size: 12px;
+    color: var(--ld-text-muted);
+}
+
+/* ── Insurers I accept ───────────────────────────────────────────── */
+
+.ins-option,
+.ins-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13.5px;
+    color: var(--ld-text);
+    cursor: pointer;
+}
+
+.ins-option + .ins-option {
+    margin-top: 8px;
+}
+
+.ins-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 8px 16px;
+    margin: 12px 0 0 24px;
+}
+
+.ins-note {
+    margin: 10px 0 0 24px;
+    font-size: 12.5px;
+}
+
+.ins-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 16px;
+    font-size: 12.5px;
+}
