@@ -334,6 +334,13 @@ html, body {
     margin: 4px 0 20px;
 }
 
+/* Buttons on the right of a page title, e.g. Print and PDF */
+.ld-page-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
 .ld-page-title {
     margin: 0;
     font-size: 22px;

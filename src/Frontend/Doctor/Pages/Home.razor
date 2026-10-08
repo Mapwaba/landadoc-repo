@@ -7,7 +7,10 @@
     <Authorized>
         <div class="ld-page-head">
             <h1 class="ld-page-title">@Lang["Dashboard"]</h1>
-            <PrintButton Disabled="@(_loading || _loadFailed)" />
+            <div class="ld-page-actions">
+                <PrintButton Disabled="@(_loading || _loadFailed)" />
+                <PdfButton Report="BuildReport" Disabled="@(_loading || _loadFailed)" />
+            </div>
         </div>
 
         @if (_loading)
@@ -136,6 +139,34 @@
         }
         _loading = false;
     }
+
+    private PdfReport BuildReport() => new()
+    {
+        FileName = "landadoc-dashboard",
+        Title = Lang["Dashboard"],
+        Stats =
+        [
+            new(Lang["Appointments today"], _todayCount.ToString()),
+            new(Lang["Total patients"], _patientCount.ToString()),
+            new(Lang["Revenue (estimated)"], "$" + _revenue.ToString("0.00", CultureInfo.InvariantCulture)),
+        ],
+        Sections =
+        [
+            new PdfSection
+            {
+                Title = Lang["Next appointments"],
+                Columns = [new(Lang["Date"]), new(Lang["Patient"]), new(Lang["Motif"]), new(Lang["Status"])],
+                Rows = _upcoming.Select(a => new List<PdfCell>
+                {
+                    a.SlotStart.ToString("ddd d MMM yyyy · HH:mm", Culture),
+                    a.PatientName ?? Lang["Patient"],
+                    string.IsNullOrWhiteSpace(a.Motif) ? "-" : a.Motif,
+                    new(Lang[$"status.{a.Status}"], a.Status.ToString().ToLowerInvariant()),
+                }).ToList(),
+                EmptyText = Lang["No upcoming appointments."],
+            },
+        ],
+    };
 
     // "14:30" for today, otherwise "Thu 8 Oct · 14:30" so later appointments are unambiguous
     private string WhenLabel(DateTime slot) =>

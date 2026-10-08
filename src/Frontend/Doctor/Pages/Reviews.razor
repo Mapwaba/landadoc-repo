@@ -5,7 +5,10 @@
 
 <div class="ld-page-head">
     <MudText Typo="Typo.h4">@Lang["My reviews"]</MudText>
-    <PrintButton Disabled="@(_loading || _reviews.Count == 0)" />
+    <div class="ld-page-actions">
+        <PrintButton Disabled="@(_loading || _reviews.Count == 0)" />
+        <PdfButton Report="BuildReport" Disabled="@(_loading || _reviews.Count == 0)" />
+    </div>
 </div>
 
 @if (_loading)
@@ -54,4 +57,30 @@ else
         _averageRounded = _reviews.Count > 0 ? (int)Math.Round(_reviews.Average(r => r.Rating)) : 0;
         _loading = false;
     }
+
+    private PdfReport BuildReport() => new()
+    {
+        FileName = "landadoc-reviews",
+        Title = Lang["My reviews"],
+        Stats =
+        [
+            new(Lang["Average rating"], _reviews.Average(r => r.Rating).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + " / 5"),
+            new(Lang["Reviews"], _reviews.Count.ToString()),
+        ],
+        Sections =
+        [
+            new PdfSection
+            {
+                Title = Lang["Reviews"],
+                Columns = [new(Lang["Date"]), new(Lang["Rating"]), new(Lang["Comment"])],
+                Rows = _reviews.Select(r => new List<PdfCell>
+                {
+                    r.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy"),
+                    $"{r.Rating} / 5",
+                    string.IsNullOrWhiteSpace(r.Comment) ? "-" : r.Comment,
+                }).ToList(),
+                EmptyText = Lang["No reviews yet."],
+            },
+        ],
+    };
 }

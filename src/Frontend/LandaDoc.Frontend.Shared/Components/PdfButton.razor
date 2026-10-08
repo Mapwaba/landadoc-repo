@@ -1,0 +1,60 @@
+@using LandaDoc.Frontend.Shared.Services.ApiClients
+@* "PDF" button for report pages: the page builds a PdfReport and this adds who it's for and
+   the date, then downloads it as a branded A4 PDF (drawn in the browser by landadoc.pdf in
+   wwwroot/landadoc.js, which loads the PDF library the first time it's needed). *@
+<button type="button" class="ld-btn @(Small ? "ld-btn-sm" : "") ld-no-print" @onclick="Download" disabled="@(Disabled || _busy)">
+    <MudIcon Icon="@Icons.Material.Outlined.PictureAsPdf" Style="font-size:16px;" /> @(_busy ? Lang["Creating PDF…"] : Lang["PDF"])
+</button>
+
+@code {
+    [Inject] private IJSRuntime JS { get; set; } = default!;
+    [Inject] private ILanguageService Lang { get; set; } = default!;
+    [Inject] private IIdentityApiClient Identity { get; set; } = default!;
+    [Inject] private ISnackbar Snackbar { get; set; } = default!;
+
+    [Parameter, EditorRequired] public Func<PdfReport> Report { get; set; } = default!;
+    [Parameter] public bool Small { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+
+    private bool _busy;
+
+    private async Task Download()
+    {
+        _busy = true;
+        try
+        {
+            var report = Report();
+            var now = DateTime.Now;
+            report.Author = await AuthorAsync();
+            report.GeneratedOn = $"{Lang["Generated on"]} {now:dd/MM/yyyy HH:mm}";
+            report.Footer = Lang["pdfFooter"];
+            report.PageFormat = Lang["pdfPage"];
+            report.FileName = $"{report.FileName}-{now:yyyy-MM-dd}.pdf";
+            await JS.InvokeVoidAsync("landadoc.pdf.download", report);
+        }
+        catch (Exception)
+        {
+            Snackbar.Add(Lang["The PDF couldn't be created. Please try again."], Severity.Error);
+        }
+        _busy = false;
+    }
+
+    // "Dr. Jane Doe", then email and phone, for the top-right of the report
+    private async Task<List<string>> AuthorAsync()
+    {
+        try
+        {
+            var me = await Identity.GetMeAsync();
+            if (me is not null)
+            {
+                var name = me.Role == "Doctor" ? $"{Lang["Dr."]} {me.FirstName} {me.LastName}" : $"{me.FirstName} {me.LastName}";
+                return new[] { name, me.Email, me.Phone }.Where(s => !string.IsNullOrWhiteSpace(s)).ToList()!;
+            }
+        }
+        catch (Exception)
+        {
+            // Identity may be asleep; the report still works without the name
+        }
+        return [];
+    }
+}

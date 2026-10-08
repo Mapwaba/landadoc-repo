@@ -7,7 +7,10 @@
 <div class="ld-page">
     <div class="ld-page-head">
         <h1 class="ld-page-title">@Lang["My patients"]</h1>
-        <PrintButton Disabled="@(_loading || _loadFailed)" />
+        <div class="ld-page-actions">
+            <PrintButton Disabled="@(_loading || _loadFailed)" />
+            <PdfButton Report="BuildReport" Disabled="@(_loading || _loadFailed)" />
+        </div>
     </div>
 
     @if (_loading)
@@ -151,6 +154,42 @@
             _loadFailed = true;
         }
         _loading = false;
+    }
+
+    // The PDF has the list as filtered on screen
+    private PdfReport BuildReport()
+    {
+        var patients = Filtered;
+        var now = DateTime.Now;
+        return new PdfReport
+        {
+            FileName = "landadoc-patients",
+            Title = Lang["My patients"],
+            Subtitle = string.IsNullOrWhiteSpace(_query) ? null : string.Format(Lang["searchFilter"], _query.Trim()),
+            Stats =
+            [
+                new(Lang["Total patients"], patients.Count.ToString()),
+                new(Lang["Seen in the last 30 days"], patients.Count(p => p.LastVisit >= now.AddDays(-30)).ToString()),
+            ],
+            Sections =
+            [
+                new PdfSection
+                {
+                    Title = Lang["My patients"],
+                    Columns = [new(Lang["Patient"]), new("ID"), new(Lang["Sex"]), new(Lang["Age"]), new(Lang["Phone"]), new(Lang["Last visit"])],
+                    Rows = patients.Select(p => new List<PdfCell>
+                    {
+                        p.Name,
+                        "#" + ShortId(p.Id),
+                        p.Contact?.Gender is { } g ? Lang[g] : "-",
+                        p.Contact?.DateOfBirth is { } dob ? AgeLabel(dob) : "-",
+                        string.IsNullOrWhiteSpace(p.Contact?.Phone) ? "-" : p.Contact!.Phone!,
+                        p.LastVisit is { } last ? last.ToString("d MMM yyyy", Culture) : "-",
+                    }).ToList(),
+                    EmptyText = _patients.Count == 0 ? Lang["You don't have any patients yet."] : Lang["No patient matches your search."],
+                },
+            ],
+        };
     }
 
     private string AgeLabel(DateOnly dob)

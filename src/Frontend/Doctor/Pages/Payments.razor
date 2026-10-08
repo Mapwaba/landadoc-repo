@@ -8,7 +8,10 @@
 <div class="ld-page">
     <div class="ld-page-head">
         <h1 class="ld-page-title">@Lang["Payments & billing"]</h1>
-        <PrintButton Disabled="@(_loading || _loadFailed)" />
+        <div class="ld-page-actions">
+            <PrintButton Disabled="@(_loading || _loadFailed)" />
+            <PdfButton Report="BuildReport" Disabled="@(_loading || _loadFailed)" />
+        </div>
     </div>
 
     @if (_loading)
@@ -373,6 +376,66 @@
         InsuranceClaimStatus.Settled => "status-confirmed",
         _ => "status-failed",
     };
+
+    // The PDF version of this page: the key figures, every insurance claim and every transaction
+    private PdfReport BuildReport()
+    {
+        var dates = _payments.Select(p => p.CreatedAt.ToLocalTime()).ToList();
+        var report = new PdfReport
+        {
+            FileName = "landadoc-payments",
+            Title = Lang["Payments & billing"],
+            Subtitle = dates.Count == 0 ? null : $"{Lang["Period"]}: {dates.Min():dd/MM/yyyy} - {dates.Max():dd/MM/yyyy}",
+            Stats =
+            [
+                new(Lang["Total net revenue"], Money(Paid.Sum(p => p.NetAmount))),
+                new(Lang["Transactions"], Paid.Count.ToString()),
+                new(Lang["Platform fees"], Money(Paid.Sum(p => p.PlatformFee))),
+                new(Lang["Owed by insurers"], Money(ClaimsIn(ClaimTab.Owed).Sum(c => c.Amount))),
+            ],
+        };
+
+        if (_claims.Count > 0)
+        {
+            report.Sections.Add(new PdfSection
+            {
+                Title = Lang["Insurance claims"],
+                Columns = [new(Lang["Date"]), new(Lang["Patient"]), new(Lang["Insurer"]), new(Lang["Member no."]), new(Lang["Amount"], Right: true), new(Lang["Status"])],
+                Rows = _claims.OrderByDescending(c => c.CreatedAt).Select(c => new List<PdfCell>
+                {
+                    c.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy"),
+                    PatientName(c.AppointmentId),
+                    c.InsurerName,
+                    c.MemberNumber,
+                    Money(c.Amount),
+                    new(Lang[$"claim.{c.Status}"], ClaimPill(c.Status)),
+                }).ToList(),
+            });
+        }
+
+        report.Sections.Add(new PdfSection
+        {
+            Title = Lang["Transaction history"],
+            Note = _payments.Count == 0 ? null : Lang["Totals only count the money received."],
+            Columns = [new(Lang["Date"]), new(Lang["Patient"]), new(Lang["Gross"], Right: true), new(Lang["Platform fee"], Right: true), new(Lang["Net (received)"], Right: true), new(Lang["Method"]), new(Lang["Status"])],
+            Rows = _payments.Select(p => new List<PdfCell>
+            {
+                p.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy"),
+                PatientName(p.AppointmentId),
+                Money(p.GrossAmount),
+                Money(p.PlatformFee),
+                Money(p.NetAmount),
+                MethodLabel(p),
+                new(Lang[$"paymentStatus.{p.Status}"], PillClass(p.Status)),
+            }).ToList(),
+            Total = [Lang["Total"], "", Money(Paid.Sum(p => p.GrossAmount)), Money(Paid.Sum(p => p.PlatformFee)), Money(Paid.Sum(p => p.NetAmount)), "", ""],
+            EmptyText = Lang["No payments yet."],
+        });
+        return report;
+    }
+
+    private string PatientName(Guid appointmentId) =>
+        _appointments.TryGetValue(appointmentId, out var appt) ? appt.PatientName ?? Lang["Patient"] : "-";
 
     private async Task Export()
     {

@@ -24,6 +24,7 @@
     </div>
     <div class="agenda-views">
         <PrintButton Disabled="@(_loading || _loadFailed)" />
+        <PdfButton Report="BuildReport" Disabled="@(_loading || _loadFailed)" />
         <button type="button" class="agenda-view-btn @(_view == View.Month ? "active" : "")" @onclick="@(() => _view = View.Month)">
             <MudIcon Icon="@Icons.Material.Outlined.CalendarMonth" Size="Size.Small" /> @Lang["Month"]
         </button>
@@ -354,6 +355,43 @@ else
         Enumerable.Range(0, 7)
             .Select(i => Culture.DateTimeFormat.GetAbbreviatedDayName((DayOfWeek)((i + 1) % 7)))
             .Select(n => n.TrimEnd('.').ToUpper(Culture));
+
+    // The PDF follows the view: the month on screen, or every appointment in List view
+    private PdfReport BuildReport()
+    {
+        var appointments = _view == View.Month
+            ? MonthAppointments
+            : _appointments.OrderByDescending(a => a.SlotStart).ToList();
+
+        var stats = new List<PdfStat> { new(Lang["Total"], appointments.Count.ToString()) };
+        stats.AddRange(new[] { AppointmentStatus.Pending, AppointmentStatus.Confirmed, AppointmentStatus.Completed, AppointmentStatus.Cancelled }
+            .Select(s => new PdfStat(Lang[$"status.{s}"], appointments.Count(a => a.Status == s).ToString())));
+
+        return new PdfReport
+        {
+            FileName = "landadoc-appointments",
+            Title = Lang["Appointments"],
+            Subtitle = _view == View.Month ? MonthTitle : Lang["All appointments"],
+            Stats = stats,
+            Sections =
+            [
+                new PdfSection
+                {
+                    Title = _view == View.Month ? MonthTitle : Lang["All appointments"],
+                    Columns = [new(Lang["Date"]), new(Lang["Time"]), new(Lang["Patient"]), new(Lang["Motif"]), new(Lang["Status"])],
+                    Rows = appointments.Select(a => new List<PdfCell>
+                    {
+                        a.SlotStart.ToString("ddd d MMM yyyy", Culture),
+                        a.SlotStart.ToString("HH:mm"),
+                        a.PatientName ?? Lang["Patient"],
+                        string.IsNullOrWhiteSpace(a.Motif) ? "-" : a.Motif,
+                        new(Lang[$"status.{a.Status}"], a.Status.ToString().ToLowerInvariant()),
+                    }).ToList(),
+                    EmptyText = _view == View.Month ? Lang["No appointments this month."] : Lang["You have no appointments yet."],
+                },
+            ],
+        };
+    }
 
     private string MonthTitle => Capitalize(_month.ToDateTime(TimeOnly.MinValue).ToString("MMMM yyyy", Culture));
 
