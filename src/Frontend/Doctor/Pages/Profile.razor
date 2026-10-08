@@ -170,12 +170,14 @@
                     </div>
                     <div class="ld-field">
                         <label>@Lang["New password"]</label>
-                        <input class="ld-input @(_pwSubmitted && NewPasswordError is not null ? "invalid" : "")" type="password" autocomplete="new-password" @bind="_newPassword" @bind:event="oninput" />
-                        <span class="ld-muted" style="font-size:12px;">@Lang["At least 8 characters"]</span>
+                        <input class="ld-input @(_pwSubmitted && NewPasswordError is not null ? "invalid" : "")" type="password" autocomplete="new-password" maxlength="@PasswordPolicy.MaxLength" @bind="_newPassword" @bind:event="oninput" />
                     </div>
                     <div class="ld-field">
                         <label>@Lang["Confirm new password"]</label>
                         <input class="ld-input @(_pwSubmitted && _confirmPassword != _newPassword ? "invalid" : "")" type="password" autocomplete="new-password" @bind="_confirmPassword" @bind:event="oninput" />
+                    </div>
+                    <div class="ld-field ld-field-full">
+                        <PasswordRequirements Password="@_newPassword" PersonalData="@([_firstName, _lastName, _email])" />
                     </div>
                 </div>
 
@@ -296,7 +298,7 @@
         Specialties.All.Contains(_specialty) || Blank(_specialty) ? Specialties.All : Specialties.All.Prepend(_specialty);
 
     private string? NewPasswordError =>
-        _newPassword.Length < 8 ? Lang["At least 8 characters"]
+        PasswordPolicy.Check(_newPassword, _firstName, _lastName, _email).Count > 0 ? Lang["Your password doesn't meet the requirements."]
         : _newPassword == _currentPassword ? Lang["The new password must be different from the current one."]
         : null;
 
@@ -494,6 +496,10 @@
             else if (resp.StatusCode == System.Net.HttpStatusCode.BadRequest)
             {
                 _pwError = Lang["Your current password is incorrect."];
+            }
+            else if (resp.StatusCode == System.Net.HttpStatusCode.UnprocessableEntity)
+            {
+                _pwError = Lang["Your password doesn't meet the requirements."];
             }
             else
             {

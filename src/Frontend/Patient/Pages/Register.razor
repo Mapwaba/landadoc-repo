@@ -12,6 +12,8 @@
             <MudTextField T="string" Label="@Lang["Email"]" @bind-Value="_email" InputType="InputType.Email" Required="true" Class="mb-3" />
             <MudTextField T="string" Label="@Lang["Password"]" @bind-Value="_password" InputType="InputType.Password" Required="true"
                            RequiredError="@Lang["Password is required"]" Validation="@(new Func<string, string?>(ValidatePassword))" HelperText="@Lang["At least 8 characters"]" Class="mb-3" />
+            <MudTextField T="string" Label="@Lang["Confirm password"]" @bind-Value="_confirmPassword" InputType="InputType.Password" Required="true"
+                          Immediate="true" Validation="@(new Func<string, string?>(ValidateConfirmation))" Class="mb-3" />
             <MudTextField T="string" Label="@Lang["Phone"]" @bind-Value="_phone" Class="mb-3" />
             <MudDatePicker Label="@Lang["Date of birth"]" @bind-Date="_dateOfBirth" Class="mb-3" />
             <MudSelect T="string" Label="@Lang["Gender"]" @bind-Value="_gender" Class="mb-3">
@@ -52,6 +54,7 @@
     private MudForm _form = default!;
     private string _email = "";
     private string _password = "";
+    private string _confirmPassword = "";
     private string _firstName = "";
     private string _lastName = "";
     private string? _phone;
@@ -67,6 +70,9 @@
 
     private string? ValidatePassword(string password) =>
         string.IsNullOrEmpty(password) || password.Length >= 8 ? null : Lang["At least 8 characters"];
+
+    private string? ValidateConfirmation(string confirmation) =>
+        confirmation == _password ? null : Lang["The passwords don't match."];
 
     private async Task Submit()
     {

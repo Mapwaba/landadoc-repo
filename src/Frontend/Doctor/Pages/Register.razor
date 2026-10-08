@@ -21,10 +21,21 @@
                 <MudItem xs="12" sm="6">
                     <MudTextField T="string" Label="@Lang["Phone"]" @bind-Value="_phone" Disabled="_accountCreated" />
                 </MudItem>
-                <MudItem xs="12">
+                <MudItem xs="12" sm="6">
                     <MudTextField T="string" Label="@Lang["Password"]" @bind-Value="_password" InputType="InputType.Password" Required="true"
-                                  Validation="@(new Func<string, string?>(ValidatePassword))" HelperText="@Lang["At least 8 characters"]" Disabled="_accountCreated" />
+                                  Immediate="true" MaxLength="@PasswordPolicy.MaxLength"
+                                  Validation="@(new Func<string, string?>(ValidatePassword))" Disabled="_accountCreated" />
                 </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField T="string" Label="@Lang["Confirm password"]" @bind-Value="_confirmPassword" InputType="InputType.Password" Required="true"
+                                  Immediate="true" Validation="@(new Func<string, string?>(ValidateConfirmation))" Disabled="_accountCreated" />
+                </MudItem>
+                @if (!_accountCreated)
+                {
+                    <MudItem xs="12">
+                        <PasswordRequirements Password="@_password" PersonalData="PersonalData" />
+                    </MudItem>
+                }
             </MudGrid>
 
             <MudText Typo="Typo.subtitle1" Class="mt-6 mb-2"><b>@Lang["Your practice"]</b></MudText>
@@ -119,6 +130,7 @@
     private MudForm _form = default!;
     private string _email = "";
     private string _password = "";
+    private string _confirmPassword = "";
     private string _firstName = "";
     private string _lastName = "";
     private string? _phone;
@@ -152,8 +164,18 @@
     // MudSelect shows selected values with this; without it, a picked clinic appears as its id
     private string ClinicName(Guid id) => _clinics.FirstOrDefault(c => c.Id == id)?.Name ?? "";
 
+    // What the password mustn't contain: the doctor's names, email (username) and chosen clinics
+    private string?[] PersonalData =>
+        [_firstName, _lastName, _email, .. _clinics.Where(c => _clinicIds.Contains(c.Id)).Select(c => c.Name)];
+
+    // Same rules as the server (PasswordPolicy); the checklist under the field shows which are missing
     private string? ValidatePassword(string password) =>
-        string.IsNullOrEmpty(password) || password.Length >= 8 ? null : Lang["At least 8 characters"];
+        string.IsNullOrEmpty(password) || PasswordPolicy.Check(password, PersonalData).Count == 0
+            ? null
+            : Lang["Your password doesn't meet the requirements."];
+
+    private string? ValidateConfirmation(string confirmation) =>
+        confirmation == _password ? null : Lang["The passwords don't match."];
 
     // One form, two calls: create the account (which logs the doctor in), then create their
     // profile, which waits as Pending until an admin approves it.
@@ -252,8 +274,10 @@
             return true;
         }
 
-        _error = await DuplicateAccountMessages.ForAsync(resp, Lang, isDoctor: true)
-            ?? Lang["Registration failed. Please check your details and try again."];
+        _error = resp.StatusCode == System.Net.HttpStatusCode.UnprocessableEntity
+            ? Lang["Your password doesn't meet the requirements."]   // a rule the form didn't catch
+            : await DuplicateAccountMessages.ForAsync(resp, Lang, isDoctor: true)
+              ?? Lang["Registration failed. Please check your details and try again."];
         return false;
     }
 }
