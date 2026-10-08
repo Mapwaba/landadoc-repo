@@ -31,6 +31,9 @@ public interface IAdminApiClient
 
     // Admin-only doctor management
     Task<List<DoctorProfileDto>> GetAllDoctorsAsync(DoctorApprovalStatus? status);
+    Task<DoctorProfileDto?> GetDoctorAsync(Guid id);   // null if there's no such profile
+    // Same fields as the doctor's own edit; name and phone go to Identity separately
+    Task<HttpResponseMessage> UpdateDoctorAsync(Guid id, UpdateOwnDoctorProfileRequest req);
     Task<HttpResponseMessage> CreateDoctorAsync(CreateDoctorProfileRequest req);
     Task<HttpResponseMessage> ApproveDoctorAsync(Guid id);
     Task<HttpResponseMessage> SuspendDoctorAsync(Guid id, SuspendDoctorRequest req);

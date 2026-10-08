@@ -81,6 +81,17 @@ public class AdminApiClient(HttpClient http) : IAdminApiClient
     public Task<HttpResponseMessage> CreateDoctorAsync(CreateDoctorProfileRequest req) =>
         http.PostAsJsonAsync("api/admin/doctors", req);
 
+    public async Task<DoctorProfileDto?> GetDoctorAsync(Guid id)
+    {
+        var resp = await http.GetAsync($"api/admin/doctors/{id}");
+        return resp.IsSuccessStatusCode
+            ? await resp.Content.ReadFromJsonAsync<DoctorProfileDto>(JsonDefaults.Options)
+            : null;
+    }
+
+    public Task<HttpResponseMessage> UpdateDoctorAsync(Guid id, UpdateOwnDoctorProfileRequest req) =>
+        http.PutAsJsonAsync($"api/admin/doctors/{id}", req, JsonDefaults.Options);
+
     public Task<HttpResponseMessage> ApproveDoctorAsync(Guid id) =>
         http.PatchAsync($"api/admin/doctors/{id}/approve", null);
 

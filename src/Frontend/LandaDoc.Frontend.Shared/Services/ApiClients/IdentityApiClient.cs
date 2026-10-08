@@ -35,6 +35,15 @@ public class IdentityApiClient(HttpClient http) : IIdentityApiClient
         return resp.IsSuccessStatusCode ? await resp.Content.ReadFromJsonAsync<UserCountsDto>() : null;
     }
 
+    public async Task<UserDto?> GetUserAsAdminAsync(Guid userId)
+    {
+        var resp = await http.GetAsync($"api/auth/admin/users/{userId}");
+        return resp.IsSuccessStatusCode ? await resp.Content.ReadFromJsonAsync<UserDto>() : null;
+    }
+
+    public Task<HttpResponseMessage> UpdateUserAsAdminAsync(Guid userId, UpdateMeRequest req) =>
+        http.PutAsJsonAsync($"api/auth/admin/users/{userId}", req, JsonDefaults.Options);
+
     public async Task<List<UserDto>> GetAdminUsersAsync(string? role)
     {
         var url = string.IsNullOrWhiteSpace(role) ? "api/auth/admin/users" : $"api/auth/admin/users?role={role}";

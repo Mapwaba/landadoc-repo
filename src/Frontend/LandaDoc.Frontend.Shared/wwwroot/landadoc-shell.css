@@ -699,3 +699,62 @@ html, body {
         padding: 16px;
     }
 }
+
+/* ── "Are you still there?" prompt (Components/IdleSessionGuard.razor) ── */
+
+.ld-idle-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 2000; /* above MudBlazor popovers and the mobile sidebar */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(15, 23, 42, 0.45);
+}
+
+.ld-idle-dialog {
+    width: 100%;
+    max-width: 380px;
+    padding: 26px 24px 22px;
+    border-radius: 14px;
+    background: var(--ld-surface);
+    box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
+    text-align: center;
+}
+
+.ld-idle-icon {
+    width: 52px;
+    height: 52px;
+    margin: 0 auto 12px;
+    border-radius: 50%;
+    background: var(--ld-primary-soft);
+    color: var(--ld-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ld-idle-dialog h2 {
+    margin: 0 0 8px;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--ld-text);
+}
+
+.ld-idle-dialog p {
+    margin: 0 0 20px;
+    font-size: 13.5px;
+    line-height: 1.5;
+    color: var(--ld-text-muted);
+}
+
+.ld-idle-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.ld-idle-actions .ld-btn {
+    flex: 1;
+}

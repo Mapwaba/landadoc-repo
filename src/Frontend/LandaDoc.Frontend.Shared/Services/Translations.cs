@@ -435,6 +435,18 @@ public static class Translations
         },
         ["Download"] = new() { ["en"] = "Download", ["fr"] = "Télécharger" },
 
+        // ── Session: inactivity prompt ────────────────────────────────────
+        ["Are you still there?"] = new() { ["en"] = "Are you still there?", ["fr"] = "Êtes-vous toujours là ?" },
+        ["idleCountdown"] = new() { ["en"] = "You've been inactive for a few minutes. For your security, you'll be logged out in {0} seconds unless you continue.", ["fr"] = "Vous êtes inactif depuis quelques minutes. Pour votre sécurité, vous serez déconnecté dans {0} secondes si vous ne continuez pas." },
+        ["Continue"] = new() { ["en"] = "Continue", ["fr"] = "Continuer" },
+        ["You were logged out because you were inactive."] = new() { ["en"] = "You were logged out because you were inactive.", ["fr"] = "Vous avez été déconnecté pour cause d'inactivité." },
+
+        // ── Admin: doctor page ────────────────────────────────────────────
+        ["No presentation yet."] = new() { ["en"] = "No presentation yet.", ["fr"] = "Pas encore de présentation." },
+        ["registeredOn"] = new() { ["en"] = "Registered on {0}", ["fr"] = "Inscrit le {0}" },
+        ["The email is the doctor's login and can't be changed here."] = new() { ["en"] = "The email is the doctor's login and can't be changed here.", ["fr"] = "L'e-mail est l'identifiant du médecin et ne peut pas être modifié ici." },
+        ["Could not save the profile. Please try again."] = new() { ["en"] = "Could not save the profile. Please try again.", ["fr"] = "Impossible d'enregistrer le profil. Veuillez réessayer." },
+
         // ── Insurance / medical aid ─────────────────────────────────────
         ["Insurance / medical aid"] = new() { ["en"] = "Insurance / medical aid", ["fr"] = "Assurance / mutuelle" },
         ["Insurer"] = new() { ["en"] = "Insurer", ["fr"] = "Assureur" },

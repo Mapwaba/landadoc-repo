@@ -75,6 +75,13 @@
             @ChildContent
         </main>
     </div>
+
+    @* Asks "Are you still there?" after a few quiet minutes; signed-in users only *@
+    <AuthorizeView>
+        <Authorized>
+            <IdleSessionGuard />
+        </Authorized>
+    </AuthorizeView>
 </div>
 
 @code {

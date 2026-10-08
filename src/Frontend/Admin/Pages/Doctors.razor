@@ -28,7 +28,7 @@ else
             <MudTh>@Lang["Actions"]</MudTh>
         </HeaderContent>
         <RowTemplate>
-            <MudTd>@Lang["Dr."] @context.FirstName @context.LastName</MudTd>
+            <MudTd><MudLink Href="@($"/doctors/{context.Id}")">@Lang["Dr."] @context.FirstName @context.LastName</MudLink></MudTd>
             <MudTd>@Lang[context.Specialty]</MudTd>
             <MudTd>@context.LicenseNumber</MudTd>
             <MudTd>
@@ -39,6 +39,8 @@ else
             </MudTd>
             <MudTd>@Lang[$"status.{context.Status}"]</MudTd>
             <MudTd>
+                @* The full profile: everything the doctor filled in, with editing *@
+                <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary" Href="@($"/doctors/{context.Id}")">@Lang["View"]</MudButton>
                 @if (context.Status is DoctorApprovalStatus.Pending or DoctorApprovalStatus.Suspended)
                 {
                     <MudButton Size="Size.Small" Color="Color.Success" OnClick="@(() => Approve(context.Id))">@Lang["Approve"]</MudButton>

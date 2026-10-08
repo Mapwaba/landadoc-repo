@@ -1,0 +1,120 @@
+@using Microsoft.AspNetCore.Components.Authorization
+@implements IAsyncDisposable
+
+@* "Are you still there?" — shown to a signed-in user after IdleMinutes without any activity
+   (in any tab of the app). They can continue, or log out; if nobody answers within
+   CountdownSeconds they're logged out automatically, so a session left open on a shared or
+   unattended computer doesn't stay usable. AppShell renders this only for signed-in users.
+   The activity tracking itself is window.landadoc.idle in wwwroot/landadoc.js. *@
+
+@if (_deadline is not null)
+{
+    <div class="ld-idle-backdrop">
+        <div class="ld-idle-dialog" role="alertdialog" aria-modal="true" aria-labelledby="ld-idle-title">
+            <div class="ld-idle-icon"><MudIcon Icon="@Icons.Material.Outlined.Timer" /></div>
+            <h2 id="ld-idle-title">@Lang["Are you still there?"]</h2>
+            <p>@string.Format(Lang["idleCountdown"], SecondsLeft)</p>
+            <div class="ld-idle-actions">
+                <button type="button" class="ld-btn" @onclick="LogOut">@Lang["Log out"]</button>
+                <button type="button" class="ld-btn ld-btn-primary" @onclick="Continue">@Lang["Continue"]</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Inject] private IJSRuntime JS { get; set; } = default!;
+    [Inject] private JwtAuthenticationStateProvider AuthState { get; set; } = default!;
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+    [Inject] private ILanguageService Lang { get; set; } = default!;
+    [Inject] private ISnackbar Snackbar { get; set; } = default!;
+
+    private const int IdleMinutes = 5;        // quiet time before asking
+    private const int CountdownSeconds = 60;  // time to answer before being logged out
+
+    private DotNetObjectReference<IdleSessionGuard>? _self;
+    private DateTime? _deadline;              // when the countdown ends; null while no prompt is showing
+    private System.Threading.Timer? _tick;    // redraws the countdown every second
+    private bool _loggingOut;
+
+    private int SecondsLeft =>
+        _deadline is null ? 0 : Math.Max(0, (int)Math.Ceiling((_deadline.Value - DateTime.UtcNow).TotalSeconds));
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        _self = DotNetObjectReference.Create(this);
+        try
+        {
+            await JS.InvokeVoidAsync("landadoc.idle.start", _self, IdleMinutes * 60_000);
+        }
+        catch (JSException) { } // script missing: the app simply works without the prompt
+    }
+
+    // Called by landadoc.js once nobody has been active for IdleMinutes. idleForMs can be much
+    // longer than that if the tab was in the background, so the countdown is measured from the
+    // moment the idle limit was reached: someone away for an hour is logged out straight away.
+    [JSInvokable]
+    public Task OnIdle(double idleForMs) => InvokeAsync(async () =>
+    {
+        var overdue = TimeSpan.FromMilliseconds(Math.Max(0, idleForMs - IdleMinutes * 60_000));
+        _deadline = DateTime.UtcNow.AddSeconds(CountdownSeconds) - overdue;
+        if (SecondsLeft == 0)
+        {
+            await ExpireAsync();
+            return;
+        }
+
+        _tick = new System.Threading.Timer(_ => InvokeAsync(async () =>
+        {
+            if (_deadline is null) return;
+            if (SecondsLeft == 0) await ExpireAsync();
+            else StateHasChanged();
+        }), null, 1000, 1000);
+        StateHasChanged();
+    });
+
+    // The user answered "Continue" in another tab
+    [JSInvokable]
+    public Task OnActiveElsewhere() => InvokeAsync(() =>
+    {
+        ClosePrompt();
+        StateHasChanged();
+    });
+
+    private async Task Continue()
+    {
+        ClosePrompt();
+        try { await JS.InvokeVoidAsync("landadoc.idle.resume"); } catch (JSException) { }
+    }
+
+    private Task LogOut() => SignOutAsync(expired: false);
+
+    // Nobody answered in time
+    private Task ExpireAsync() => SignOutAsync(expired: true);
+
+    private async Task SignOutAsync(bool expired)
+    {
+        if (_loggingOut) return;
+        _loggingOut = true;
+        ClosePrompt();
+        await AuthState.MarkUserAsLoggedOut();   // this unmounts the guard (AppShell shows it only when signed in)
+        if (expired) Snackbar.Add(Lang["You were logged out because you were inactive."], Severity.Info);
+        Navigation.NavigateTo("/login");
+    }
+
+    private void ClosePrompt()
+    {
+        _deadline = null;
+        _tick?.Dispose();
+        _tick = null;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        ClosePrompt();
+        try { await JS.InvokeVoidAsync("landadoc.idle.stop"); }
+        catch (Exception) { } // the page may already be unloading
+        _self?.Dispose();
+    }
+}

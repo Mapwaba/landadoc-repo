@@ -15,6 +15,9 @@ public interface IIdentityApiClient
     // Doctor: contact details of the patients they've had an appointment with (throws if unavailable)
     Task<List<PatientContactDto>> GetMyPatientsAsync();
     Task<List<UserDto>> GetAdminUsersAsync(string? role);
+    // Admin: read or correct one account's name and phone (e.g. a doctor's, from the Admin app)
+    Task<UserDto?> GetUserAsAdminAsync(Guid userId);
+    Task<HttpResponseMessage> UpdateUserAsAdminAsync(Guid userId, UpdateMeRequest req);
 
     Task<FamilyOverviewDto?> GetMyFamilyAsync();
     Task<HttpResponseMessage> InviteFamilyAsync(CreateFamilyInviteRequest req);
