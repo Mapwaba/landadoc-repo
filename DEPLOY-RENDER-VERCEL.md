@@ -70,6 +70,8 @@ Create one Vercel project per app: **Add New → Project → import `Mapwaba/lan
 
 If a project ends up with a different URL than the table in step 2.4 assumes, update the matching `Cors__AllowedOrigins__*` value in the env group. If it's the Patient app, also update `Frontend__PatientBaseUrl` on Payment.
 
+To serve the apps from your own domain (`landadoc.cd`, `doctor.landadoc.cd`, `admin.landadoc.cd`) instead of `vercel.app`, follow [CUSTOM-DOMAIN.md](CUSTOM-DOMAIN.md).
+
 ## 4. Webhooks (only if you're testing payments)
 
 - Stripe → webhook endpoint `https://landadoc-payment.onrender.com/api/payments/webhook/stripe`.
