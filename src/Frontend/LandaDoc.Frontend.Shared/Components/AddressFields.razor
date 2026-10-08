@@ -1,0 +1,118 @@
+@using LandaDoc.Shared.Locations
+@* Country, province, town and postal code, filled from LandaDoc.Shared.Locations: the country is
+   searched by name, the province is picked from a list when the country has one (typed in
+   otherwise), and towns are suggestions — any other town can be typed. The country is stored as
+   its ISO code ("CD"). Used on the registration pages and the doctor's profile. *@
+<MudGrid Spacing="2">
+    <MudItem xs="12" sm="6">
+        <MudAutocomplete T="Country" Label="@Lang["Country of residence"]" Value="SelectedCountry" ValueChanged="OnCountryChanged"
+                         SearchFunc="SearchCountries" ToStringFunc="@(c => c?.Name(Lang.CurrentLanguage))" MaxItems="null"
+                         Required="CountryRequired" RequiredError="@Lang["Choose your country"]"
+                         ResetValueOnEmptyText="true" Clearable="true" Variant="Variant" Margin="Margin" Disabled="Disabled" />
+    </MudItem>
+    <MudItem xs="12" sm="6">
+        @if (Provinces.Count > 0)
+        {
+            <MudSelect T="string" Label="@Lang["Province / state (optional)"]" Value="Province" ValueChanged="OnProvinceChanged"
+                       Clearable="true" Variant="Variant" Margin="Margin" Disabled="Disabled">
+                @foreach (var province in Provinces)
+                {
+                    <MudSelectItem T="string" Value="@province">@province</MudSelectItem>
+                }
+            </MudSelect>
+        }
+        else
+        {
+            <MudTextField T="string" Label="@Lang["Province / state (optional)"]" Value="Province" ValueChanged="OnProvinceChanged"
+                          MaxLength="100" Variant="Variant" Margin="Margin" Disabled="Disabled" />
+        }
+    </MudItem>
+    <MudItem xs="12" sm="6">
+        @if (Towns.Count > 0)
+        {
+            @* CoerceValue keeps whatever is typed, so a town missing from the list is fine *@
+            <MudAutocomplete T="string" Label="@Lang["Town / city (optional)"]" Value="City" ValueChanged="OnCityChanged"
+                             SearchFunc="SearchTowns" CoerceValue="true" MaxItems="null" Clearable="true"
+                             Variant="Variant" Margin="Margin" Disabled="Disabled" />
+        }
+        else
+        {
+            <MudTextField T="string" Label="@Lang["Town / city (optional)"]" Value="City" ValueChanged="OnCityChanged"
+                          MaxLength="100" Variant="Variant" Margin="Margin" Disabled="Disabled" />
+        }
+    </MudItem>
+    <MudItem xs="12" sm="6">
+        <MudTextField T="string" Label="@Lang["Postal code (optional)"]" Value="PostalCode" ValueChanged="OnPostalCodeChanged"
+                      MaxLength="20" Variant="Variant" Margin="Margin" Disabled="Disabled" />
+    </MudItem>
+</MudGrid>
+
+@code {
+    [Inject] private ILanguageService Lang { get; set; } = default!;
+
+    [Parameter] public string? Country { get; set; }
+    [Parameter] public EventCallback<string?> CountryChanged { get; set; }
+    [Parameter] public string? Province { get; set; }
+    [Parameter] public EventCallback<string?> ProvinceChanged { get; set; }
+    [Parameter] public string? City { get; set; }
+    [Parameter] public EventCallback<string?> CityChanged { get; set; }
+    [Parameter] public string? PostalCode { get; set; }
+    [Parameter] public EventCallback<string?> PostalCodeChanged { get; set; }
+
+    [Parameter] public bool CountryRequired { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public Variant Variant { get; set; } = Variant.Text;
+    [Parameter] public Margin Margin { get; set; } = Margin.None;
+
+    private Country? SelectedCountry => Locations.FindCountry(Country);
+    private IReadOnlyList<string> Provinces => Locations.ProvincesOf(Country);
+    private IReadOnlyList<string> Towns => Locations.TownsOf(Country, Province);
+
+    // Matches anywhere in either language's name, or the code ("cd"); sorted in the current language
+    private Task<IEnumerable<Country>> SearchCountries(string? text, CancellationToken _)
+    {
+        var lang = Lang.CurrentLanguage;
+        var query = text?.Trim() ?? "";
+        IEnumerable<Country> matches = Locations.Countries;
+        if (query.Length > 0 && SelectedCountry?.Name(lang) != query)
+            matches = matches.Where(c => Contains(c.NameEn, query) || Contains(c.NameFr, query)
+                                         || string.Equals(c.Code, query, StringComparison.OrdinalIgnoreCase));
+        return Task.FromResult<IEnumerable<Country>>(matches.OrderBy(c => c.Name(lang), StringComparer.Create(Culture, true)).ToList());
+    }
+
+    private Task<IEnumerable<string>> SearchTowns(string? text, CancellationToken _)
+    {
+        var query = text?.Trim() ?? "";
+        var towns = query.Length == 0 || Towns.Contains(query) ? Towns : Towns.Where(t => Contains(t, query));
+        return Task.FromResult<IEnumerable<string>>(towns.ToList());
+    }
+
+    private System.Globalization.CultureInfo Culture =>
+        System.Globalization.CultureInfo.GetCultureInfo(Lang.CurrentLanguage == "fr" ? "fr-FR" : "en-US");
+
+    // Accent- and case-insensitive, so "equateur" finds "Équateur"
+    private bool Contains(string value, string query) =>
+        Culture.CompareInfo.IndexOf(value, query, System.Globalization.CompareOptions.IgnoreCase | System.Globalization.CompareOptions.IgnoreNonSpace) >= 0;
+
+    // A new country makes the old province and town meaningless
+    private async Task OnCountryChanged(Country? country)
+    {
+        if (country?.Code == Country) return;
+        await CountryChanged.InvokeAsync(country?.Code);
+        await ProvinceChanged.InvokeAsync(null);
+        await CityChanged.InvokeAsync(null);
+    }
+
+    private async Task OnProvinceChanged(string? province)
+    {
+        if (province == Province) return;
+        await ProvinceChanged.InvokeAsync(string.IsNullOrWhiteSpace(province) ? null : province);
+        // A town picked from the old province's list no longer fits
+        if (City is not null && Locations.TownsOf(Country, Province).Contains(City) && !Locations.TownsOf(Country, province).Contains(City))
+            await CityChanged.InvokeAsync(null);
+    }
+
+    private Task OnCityChanged(string? city) => CityChanged.InvokeAsync(string.IsNullOrWhiteSpace(city) ? null : city.Trim());
+
+    private Task OnPostalCodeChanged(string? code) => PostalCodeChanged.InvokeAsync(string.IsNullOrWhiteSpace(code) ? null : code.Trim());
+}

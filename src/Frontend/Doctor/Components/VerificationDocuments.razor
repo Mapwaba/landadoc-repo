@@ -1,0 +1,136 @@
+@* The documents a doctor sends so LandaDoc can verify them: ID card or passport and medical-
+   council membership card (required), contract with their establishment (optional). Only the
+   doctor and LandaDoc's admins can open them. Shown on the awaiting-approval screen and the profile. *@
+<div class="vd">
+    @if (_loading)
+    {
+        <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+    }
+    else if (_loadFailed)
+    {
+        <div class="ld-field-error">@Lang["Your documents couldn't be loaded. Please try again in a minute."]</div>
+    }
+    else
+    {
+        @if (Missing.Count > 0)
+        {
+            <div class="vd-missing">@string.Format(Lang["vdMissing"], string.Join(", ", Missing.Select(k => Lang[$"vdKind.{k}"])))</div>
+        }
+        @foreach (var k in VerificationDocumentKinds.All)
+        {
+            var kind = k;
+            var docs = _docs.Where(d => d.Kind == kind).ToList();
+            <div class="vd-row">
+                <div class="vd-head">
+                    <div>
+                        <div class="vd-title">
+                            @Lang[$"vdKind.{kind}"]
+                            <span class="vd-tag @(VerificationDocumentKinds.Required.Contains(kind) ? "vd-tag-required" : "")">
+                                @(VerificationDocumentKinds.Required.Contains(kind) ? Lang["Required"] : Lang["Optional"])
+                            </span>
+                        </div>
+                        <div class="ld-muted vd-hint">@Lang[$"vdHint.{kind}"]</div>
+                    </div>
+                    <label class="ld-btn ld-btn-sm @(_uploading == kind ? "vd-busy" : "")">
+                        <MudIcon Icon="@Icons.Material.Outlined.UploadFile" Style="font-size:16px;" />
+                        @(_uploading == kind ? Lang["Uploading…"] : docs.Count == 0 ? Lang["Add"] : Lang["Add another"])
+                        <InputFile class="vd-input" accept=".pdf,image/jpeg,image/png,image/webp" OnChange="@(e => Upload(kind, e))" disabled="@(_uploading is not null)" />
+                    </label>
+                </div>
+                @foreach (var d in docs)
+                {
+                    var doc = d;
+                    <div class="vd-file">
+                        <MudIcon Icon="@Icons.Material.Outlined.Description" Style="font-size:17px;" />
+                        <button type="button" class="vd-link" @onclick="@(() => Open(doc))">@doc.FileName</button>
+                        <span class="ld-muted">@Size(doc.SizeBytes)</span>
+                        <button type="button" class="ld-icon-action danger" title="@Lang["Delete"]" aria-label="@Lang["Delete"]" @onclick="@(() => Delete(doc))">
+                            <MudIcon Icon="@Icons.Material.Outlined.Delete" Style="font-size:17px;" />
+                        </button>
+                    </div>
+                }
+            </div>
+        }
+        @if (_error is not null)
+        {
+            <MudAlert Severity="Severity.Error" Dense="true" Class="mt-3">@_error</MudAlert>
+        }
+        <div class="ld-muted vd-privacy">@Lang["Only you and LandaDoc's administrators can see these documents. PDF or photo, 10 MB at most."]</div>
+    }
+</div>
+
+@code {
+    [Inject] private IDocumentApiClient DocumentsApi { get; set; } = default!;
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+    [Inject] private ILanguageService Lang { get; set; } = default!;
+
+    private const long MaxBytes = 10_000_000; // Document service's limit for these files
+
+    private bool _loading = true;
+    private bool _loadFailed;
+    private List<VerificationDocumentDto> _docs = [];
+    private string? _uploading;   // the kind being uploaded
+    private string? _error;
+
+    private List<string> Missing => VerificationDocumentKinds.Required.Where(k => _docs.All(d => d.Kind != k)).ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { _docs = await DocumentsApi.GetMyVerificationDocumentsAsync(); }
+        catch (Exception) { _loadFailed = true; }
+        _loading = false;
+    }
+
+    private async Task Upload(string kind, InputFileChangeEventArgs e)
+    {
+        _error = null;
+        var file = e.File;
+        if (file.Size > MaxBytes)
+        {
+            _error = Lang["The file must be smaller than 10 MB."];
+            return;
+        }
+
+        _uploading = kind;
+        try
+        {
+            await using var stream = file.OpenReadStream(MaxBytes);
+            var resp = await DocumentsApi.UploadVerificationDocumentAsync(kind, stream, file.Name, file.ContentType);
+            if (resp.IsSuccessStatusCode)
+                _docs = await DocumentsApi.GetMyVerificationDocumentsAsync();
+            else
+                _error = resp.StatusCode == System.Net.HttpStatusCode.BadRequest
+                    ? Lang["Send a PDF or a photo (JPEG, PNG or WebP)."]
+                    : Lang["Upload failed. Please try again."];
+        }
+        catch (Exception)
+        {
+            _error = Lang["Upload failed. Please try again."];
+        }
+        _uploading = null;
+    }
+
+    private async Task Delete(VerificationDocumentDto doc)
+    {
+        _error = null;
+        try
+        {
+            var resp = await DocumentsApi.DeleteVerificationDocumentAsync(doc.Id);
+            if (resp.IsSuccessStatusCode) _docs.Remove(doc);
+            else _error = Lang["The document couldn't be deleted. Please try again."];
+        }
+        catch (Exception)
+        {
+            _error = Lang["The document couldn't be deleted. Please try again."];
+        }
+    }
+
+    private async Task Open(VerificationDocumentDto doc)
+    {
+        var url = await DocumentsApi.GetVerificationDocumentUrlAsync(doc.Id);
+        if (url is not null) Navigation.NavigateTo(url, forceLoad: true);
+        else _error = Lang["This document couldn't be opened. Please try again."];
+    }
+
+    private static string Size(long bytes) => bytes >= 1_000_000 ? $"{bytes / 1_000_000.0:0.#} MB" : $"{Math.Max(1, bytes / 1000)} KB";
+}

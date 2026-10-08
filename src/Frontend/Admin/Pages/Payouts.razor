@@ -1,0 +1,295 @@
+@page "/payouts"
+@attribute [Authorize(Roles = "Admin")]
+
+@* Paying doctors. LandaDoc collects card and mobile money payments; this page shows what each
+   doctor is owed. An admin first checks the doctor's payout account (e.g. by confirming the
+   number with them), sends the money outside the app (Mobile Money or bank transfer), then
+   records it here with the transaction reference. The doctor is notified and sees it on their
+   Payments page. Balances are worked out by the Payment service (DoctorBalances). *@
+
+<PageTitle>Payouts</PageTitle>
+
+<div class="ld-page">
+    <div class="ld-page-head">
+        <h1 class="ld-page-title">@Lang["Doctor payouts"]</h1>
+    </div>
+
+    @if (_loading)
+    {
+        <MudProgressCircular Indeterminate="true" />
+    }
+    else if (_loadFailed)
+    {
+        <MudAlert Severity="Severity.Warning">@Lang["Balances couldn't be loaded. Please try again in a minute."]</MudAlert>
+    }
+    else
+    {
+        <div class="ld-stats">
+            <div class="ld-stat">
+                <div class="ld-stat-icon ld-tint-green"><MudIcon Icon="@Icons.Material.Outlined.AccountBalanceWallet" /></div>
+                <div>
+                    <div class="ld-stat-label">@Lang["Owed to doctors"]</div>
+                    <div class="ld-stat-value">@Money(_balances.Where(b => b.Balance > 0).Sum(b => b.Balance))</div>
+                </div>
+            </div>
+            <div class="ld-stat">
+                <div class="ld-stat-icon ld-tint-blue"><MudIcon Icon="@Icons.Material.Outlined.Send" /></div>
+                <div>
+                    <div class="ld-stat-label">@Lang["Paid out so far"]</div>
+                    <div class="ld-stat-value">@Money(_balances.Sum(b => b.PaidOut))</div>
+                </div>
+            </div>
+            <div class="ld-stat">
+                <div class="ld-stat-icon ld-tint-amber"><MudIcon Icon="@Icons.Material.Outlined.Rule" /></div>
+                <div>
+                    <div class="ld-stat-label">@Lang["Accounts to check"]</div>
+                    <div class="ld-stat-value">@_balances.Count(b => b.Account is { IsVerified: false })</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="ld-card">
+            @if (_balances.Count == 0)
+            {
+                <div class="ld-empty">@Lang["No doctor has earned anything yet."]</div>
+            }
+            else
+            {
+                <div class="ld-table-wrap">
+                    <table class="ld-table">
+                        <thead>
+                            <tr>
+                                <th>@Lang["Doctor"]</th>
+                                <th class="ld-num">@Lang["Balance due"]</th>
+                                <th>@Lang["Paid to"]</th>
+                                <th class="ld-num">@Lang["Paid out"]</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var b in _balances)
+                            {
+                                var row = b;
+                                <tr>
+                                    <td>
+                                        <div class="po-name">@DoctorName(row.DoctorId)</div>
+                                        <div class="ld-muted po-sub">@string.Format(Lang["payoutBreakdownShort"], Money(row.Earned), Money(row.InsuranceFees))</div>
+                                    </td>
+                                    <td class="ld-num po-amount @(row.Balance < 0 ? "po-negative" : "")">@Money(row.Balance)</td>
+                                    <td>
+                                        @if (row.Account is { } account)
+                                        {
+                                            <div>@AccountLabel(account)</div>
+                                            <span class="status-pill @(account.IsVerified ? "status-confirmed" : "status-pending")">
+                                                @(account.IsVerified ? Lang["Checked"] : Lang["To check"])
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="ld-muted">@Lang["No account yet"]</span>
+                                        }
+                                    </td>
+                                    <td class="ld-num">
+                                        @Money(row.PaidOut)
+                                        @if (row.LastPayoutAt is { } last)
+                                        {
+                                            <div class="ld-muted po-sub">@last.ToLocalTime().ToString("dd/MM/yyyy")</div>
+                                        }
+                                    </td>
+                                    <td class="po-actions">
+                                        @if (row.Account is { IsVerified: false })
+                                        {
+                                            <button type="button" class="ld-btn ld-btn-sm" disabled="@_busy" @onclick="@(() => Verify(row))">@Lang["Mark as checked"]</button>
+                                        }
+                                        @if (row.Account is { IsVerified: true } && row.Balance > 0)
+                                        {
+                                            <button type="button" class="ld-btn ld-btn-sm ld-btn-primary" disabled="@_busy" @onclick="@(() => StartPayout(row))">@Lang["Record a payout"]</button>
+                                        }
+                                        <button type="button" class="ld-btn ld-btn-sm" @onclick="@(() => ToggleHistory(row))">
+                                            @(_historyFor == row.DoctorId ? Lang["Hide"] : Lang["History"])
+                                        </button>
+                                    </td>
+                                </tr>
+                                @if (_payoutFor == row.DoctorId)
+                                {
+                                    <tr class="po-form-row">
+                                        <td colspan="5">
+                                            <div class="po-hint">@string.Format(Lang["payoutHint"], AccountLabel(row.Account!))</div>
+                                            <div class="po-form">
+                                                <input class="ld-input" type="number" min="0.01" step="0.01" max="@row.Balance.ToString(System.Globalization.CultureInfo.InvariantCulture)" @bind="_amount" placeholder="@Lang["Amount ($)"]" />
+                                                <input class="ld-input" @bind="_reference" @bind:event="oninput" placeholder="@Lang["Transaction reference"]" />
+                                                <input class="ld-input" @bind="_note" @bind:event="oninput" placeholder="@Lang["Note (optional)"]" />
+                                                <button type="button" class="ld-btn ld-btn-sm ld-btn-primary" disabled="@(_busy || _amount <= 0 || _amount > row.Balance)" @onclick="@(() => RecordPayout(row))">@Lang["Record"]</button>
+                                                <button type="button" class="ld-btn ld-btn-sm" @onclick="@(() => _payoutFor = null)">@Lang["Cancel"]</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                                @if (_historyFor == row.DoctorId)
+                                {
+                                    <tr class="po-form-row">
+                                        <td colspan="5">
+                                            @if (_history is null)
+                                            {
+                                                <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+                                            }
+                                            else if (_history.Count == 0)
+                                            {
+                                                <span class="ld-muted">@Lang["No payouts yet."]</span>
+                                            }
+                                            else
+                                            {
+                                                @foreach (var p in _history)
+                                                {
+                                                    <div class="po-history">
+                                                        <b>@Money(p.Amount)</b>
+                                                        <span>@p.PaidAt.ToLocalTime().ToString("dd/MM/yyyy")</span>
+                                                        <span class="ld-muted">@p.PaidTo</span>
+                                                        <span class="ld-muted">@(p.Reference is null ? "" : string.Format(Lang["refLabel"], p.Reference))</span>
+                                                        @if (p.Note is not null)
+                                                        {
+                                                            <span class="ld-muted">— @p.Note</span>
+                                                        }
+                                                    </div>
+                                                }
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+        @if (_error is not null)
+        {
+            <MudAlert Severity="Severity.Error" Class="mt-3">@_error</MudAlert>
+        }
+    }
+</div>
+
+@code {
+    [Inject] private IPaymentApiClient PaymentsApi { get; set; } = default!;
+    [Inject] private IAdminApiClient Admin { get; set; } = default!;
+    [Inject] private ILanguageService Lang { get; set; } = default!;
+    [Inject] private ISnackbar Snackbar { get; set; } = default!;
+
+    private bool _loading = true;
+    private bool _loadFailed;
+    private bool _busy;
+    private string? _error;
+    private List<DoctorBalanceDto> _balances = [];
+    private Dictionary<Guid, string> _names = [];   // doctor account id -> "Dr. Jane Doe"
+
+    private Guid? _payoutFor;   // the doctor whose payout form is open
+    private decimal _amount;
+    private string _reference = "";
+    private string _note = "";
+
+    private Guid? _historyFor;
+    private List<PayoutDto>? _history;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var doctorsTask = Admin.GetAllDoctorsAsync(null);
+            _balances = await PaymentsApi.GetPayoutBalancesAsync();
+            _names = (await doctorsTask).ToDictionary(d => d.UserId, d => $"{Lang["Dr."]} {d.FirstName} {d.LastName}");
+        }
+        catch (Exception)
+        {
+            _loadFailed = true;
+        }
+        _loading = false;
+    }
+
+    private async Task ReloadAsync() => _balances = await PaymentsApi.GetPayoutBalancesAsync();
+
+    private async Task Verify(DoctorBalanceDto row)
+    {
+        _busy = true;
+        _error = null;
+        try
+        {
+            var resp = await PaymentsApi.VerifyPayoutAccountAsync(row.DoctorId);
+            if (resp.IsSuccessStatusCode) await ReloadAsync();
+            else _error = Lang["Could not save. Please try again."];
+        }
+        catch (Exception)
+        {
+            _error = Lang["Could not save. Please try again."];
+        }
+        _busy = false;
+    }
+
+    private void StartPayout(DoctorBalanceDto row)
+    {
+        _payoutFor = row.DoctorId;
+        _amount = row.Balance;   // usually everything that's owed
+        _reference = "";
+        _note = "";
+        _error = null;
+    }
+
+    private async Task RecordPayout(DoctorBalanceDto row)
+    {
+        _busy = true;
+        _error = null;
+        try
+        {
+            var resp = await PaymentsApi.RecordPayoutAsync(row.DoctorId, new RecordPayoutRequest(
+                _amount, string.IsNullOrWhiteSpace(_reference) ? null : _reference.Trim(), string.IsNullOrWhiteSpace(_note) ? null : _note.Trim()));
+            if (resp.IsSuccessStatusCode)
+            {
+                Snackbar.Add(string.Format(Lang["payoutRecorded"], Money(_amount), DoctorName(row.DoctorId)), Severity.Success);
+                _payoutFor = null;
+                if (_historyFor == row.DoctorId) _history = (await PaymentsApi.GetDoctorPayoutsAsync(row.DoctorId))?.Payouts ?? [];
+                await ReloadAsync();
+            }
+            else
+            {
+                // 409: the account changed since it was checked, or the amount is more than owed
+                _error = resp.StatusCode == System.Net.HttpStatusCode.Conflict
+                    ? Lang["This payout can't be recorded: the account must be checked and the amount can't be more than the balance. Refresh the page."]
+                    : Lang["Could not save. Please try again."];
+            }
+        }
+        catch (Exception)
+        {
+            _error = Lang["Could not save. Please try again."];
+        }
+        _busy = false;
+    }
+
+    private async Task ToggleHistory(DoctorBalanceDto row)
+    {
+        if (_historyFor == row.DoctorId)
+        {
+            _historyFor = null;
+            return;
+        }
+        _historyFor = row.DoctorId;
+        _history = null;
+        try { _history = (await PaymentsApi.GetDoctorPayoutsAsync(row.DoctorId))?.Payouts ?? []; }
+        catch (Exception) { _history = []; }
+    }
+
+    private string DoctorName(Guid userId) => _names.GetValueOrDefault(userId) ?? Lang["Unknown doctor"];
+
+    private static string AccountLabel(PayoutAccountDto a) => a.Method == PayoutMethod.MobileMoney
+        ? $"{OperatorName(a.Operator)} · {a.MobileNumber} · {a.AccountName}"
+        : $"{a.BankName} · {a.BankAccountNumber} · {a.AccountName}";
+
+    private static string OperatorName(MobileMoneyOperator? op) => op switch
+    {
+        MobileMoneyOperator.Airtel => "Airtel Money",
+        MobileMoneyOperator.Orange => "Orange Money",
+        MobileMoneyOperator.Mpesa => "M-Pesa",
+        MobileMoneyOperator.Africell => "Africell Money",
+        _ => "Mobile Money",
+    };
+
+    private static string Money(decimal amount) => "$" + amount.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+}

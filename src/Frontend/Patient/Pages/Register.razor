@@ -19,6 +19,10 @@
                 <MudSelectItem Value="@("Female")">@Lang["Female"]</MudSelectItem>
                 <MudSelectItem Value="@("Other")">@Lang["Other"]</MudSelectItem>
             </MudSelect>
+            <MudTextField T="string" Label="@Lang["ID card or passport number (optional)"]" @bind-Value="_idNumber" MaxLength="50" Class="mb-3" />
+            <div class="mb-3">
+                <AddressFields @bind-Country="_country" @bind-Province="_province" @bind-City="_city" @bind-PostalCode="_postalCode" CountryRequired="true" />
+            </div>
 
             @if (_error is not null)
             {
@@ -53,6 +57,11 @@
     private string? _phone;
     private DateTime? _dateOfBirth;
     private string? _gender;
+    private string? _idNumber;
+    private string? _country;
+    private string? _province;
+    private string? _city;
+    private string? _postalCode;
     private bool _submitting;
     private string? _error;
 
@@ -70,7 +79,9 @@
             _email, _password, _firstName, _lastName,
             string.IsNullOrWhiteSpace(_phone) ? null : _phone,
             _dateOfBirth is null ? null : DateOnly.FromDateTime(_dateOfBirth.Value),
-            string.IsNullOrWhiteSpace(_gender) ? null : _gender);
+            string.IsNullOrWhiteSpace(_gender) ? null : _gender,
+            _country, _province, _city, _postalCode,
+            string.IsNullOrWhiteSpace(_idNumber) ? null : _idNumber.Trim());
 
         var resp = await Identity.RegisterPatientAsync(req);
         var duplicate = await DuplicateAccountMessages.ForAsync(resp, Lang, isDoctor: false);

@@ -1,0 +1,68 @@
+/* Verification documents on the registration form */
+
+.reg-doc {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--ld-border);
+}
+
+.reg-doc-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ld-text);
+}
+
+.reg-doc-tag {
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: var(--ld-primary-soft);
+    color: var(--ld-primary);
+    font-size: 10.5px;
+    font-weight: 600;
+}
+
+.reg-doc-hint,
+.reg-doc-file {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 2px;
+    font-size: 12.5px;
+    color: var(--ld-text-muted);
+    overflow-wrap: anywhere;
+}
+
+.reg-doc-missing {
+    color: var(--ld-danger);
+}
+
+/* The label is the button; the real file input sits invisibly over it */
+.reg-doc-pick {
+    position: relative;
+    flex-shrink: 0;
+    overflow: hidden;
+    padding: 6px 12px;
+    border: 1px solid var(--ld-border);
+    border-radius: 8px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--ld-text);
+    cursor: pointer;
+}
+
+.reg-doc-pick:hover {
+    background: #F8F9FB;
+}
+
+::deep .reg-doc-input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+}

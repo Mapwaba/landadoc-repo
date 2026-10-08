@@ -67,4 +67,22 @@ public class PaymentApiClient(HttpClient http) : IPaymentApiClient
 
     public Task<HttpResponseMessage> RejectClaimAsync(Guid claimId, string? reason) =>
         http.PostAsJsonAsync($"api/insurance-claims/{claimId}/reject", new ClaimActionRequest(reason), JsonDefaults.Options);
+
+    public Task<DoctorPayoutsDto?> GetMyPayoutsAsync() =>
+        http.GetFromJsonAsync<DoctorPayoutsDto>("api/payouts/me", JsonDefaults.Options);
+
+    public Task<HttpResponseMessage> SaveMyPayoutAccountAsync(SavePayoutAccountRequest request) =>
+        http.PutAsJsonAsync("api/payouts/me/account", request, JsonDefaults.Options);
+
+    public async Task<List<DoctorBalanceDto>> GetPayoutBalancesAsync() =>
+        await http.GetFromJsonAsync<List<DoctorBalanceDto>>("api/payouts/balances", JsonDefaults.Options) ?? [];
+
+    public Task<DoctorPayoutsDto?> GetDoctorPayoutsAsync(Guid doctorId) =>
+        http.GetFromJsonAsync<DoctorPayoutsDto>($"api/payouts/doctor/{doctorId}", JsonDefaults.Options);
+
+    public Task<HttpResponseMessage> VerifyPayoutAccountAsync(Guid doctorId) =>
+        http.PostAsync($"api/payouts/doctor/{doctorId}/account/verify", null);
+
+    public Task<HttpResponseMessage> RecordPayoutAsync(Guid doctorId, RecordPayoutRequest request) =>
+        http.PostAsJsonAsync($"api/payouts/doctor/{doctorId}", request, JsonDefaults.Options);
 }

@@ -20,6 +20,17 @@
             </div>
         </div>
     </div>
+
+    @* While waiting, the doctor can see and complete what the admins need to verify them *@
+    @if (State != DoctorApproval.State.Suspended)
+    {
+        <div class="ld-card aw-docs">
+            <div class="aw-docs-head">@Lang["Verification documents"]</div>
+            <div class="ld-card-body">
+                <VerificationDocuments />
+            </div>
+        </div>
+    }
 </div>
 
 @code {

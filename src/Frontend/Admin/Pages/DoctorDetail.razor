@@ -1,5 +1,6 @@
 @page "/doctors/{Id:guid}"
 @attribute [Authorize(Roles = "Admin")]
+@using LandaDoc.Shared.Locations
 
 @* One doctor, as an admin sees it: the same profile card the doctor sees on their own Profile
    page (Doctor/Pages/Profile.razor), with approve / suspend, and an edit form covering every
@@ -19,6 +20,10 @@
         {
             <div class="dd-status">
                 <span class="status-pill @StatusPill(_doctor.Status)">@Lang[$"status.{_doctor.Status}"]</span>
+                @if (_doctor.Status == DoctorApprovalStatus.Pending && MissingDocuments.Count > 0)
+                {
+                    <span class="dd-missing">@string.Format(Lang["vdMissing"], string.Join(", ", MissingDocuments.Select(k => Lang[$"vdKind.{k}"])))</span>
+                }
                 @if (_doctor.Status is DoctorApprovalStatus.Pending or DoctorApprovalStatus.Suspended)
                 {
                     <button type="button" class="ld-btn ld-btn-primary" disabled="@_busy" @onclick="Approve">@Lang["Approve"]</button>
@@ -162,6 +167,58 @@
                 </button>
             </div>
         </div>
+
+        @* Where the doctor lives, from their account *@
+        <div class="ld-card">
+            <div class="pp-card-head">
+                <MudIcon Icon="@Icons.Material.Outlined.Home" Style="font-size:19px;" /> @Lang["Where they live"]
+            </div>
+            <div class="ld-card-body dd-address">
+                <div><span class="ld-muted">@Lang["Country"]</span> @(Locations.FindCountry(_account?.Country)?.Name(Lang.CurrentLanguage) ?? Lang["Not provided"])</div>
+                <div><span class="ld-muted">@Lang["Province / state"]</span> @(_account?.Province ?? "—")</div>
+                <div><span class="ld-muted">@Lang["Town / city"]</span> @(_account?.City ?? "—")</div>
+                <div><span class="ld-muted">@Lang["Postal code"]</span> @(_account?.PostalCode ?? "—")</div>
+            </div>
+        </div>
+
+        @* What the doctor sent to be verified; only admins (and the doctor) can open these *@
+        <div class="ld-card">
+            <div class="pp-card-head">
+                <MudIcon Icon="@Icons.Material.Outlined.VerifiedUser" Style="font-size:19px;" /> @Lang["Verification documents"]
+            </div>
+            <div class="ld-card-body">
+                @if (_documents is null)
+                {
+                    <div class="ld-field-error">@Lang["The documents couldn't be loaded. Please try again in a minute."]</div>
+                }
+                else
+                {
+                    @foreach (var k in VerificationDocumentKinds.All)
+                    {
+                        var kind = k;
+                        var docs = _documents.Where(d => d.Kind == kind).ToList();
+                        <div class="dd-doc">
+                            <div class="dd-doc-kind">
+                                @Lang[$"vdKind.{kind}"]
+                                @if (docs.Count == 0)
+                                {
+                                    <span class="status-pill @(VerificationDocumentKinds.Required.Contains(kind) ? "status-failed" : "status-cancelled")">@Lang["Missing"]</span>
+                                }
+                            </div>
+                            @foreach (var d in docs)
+                            {
+                                var doc = d;
+                                <button type="button" class="dd-doc-file" @onclick="@(() => OpenDocument(doc))">
+                                    <MudIcon Icon="@Icons.Material.Outlined.Description" Style="font-size:16px;" />
+                                    @doc.FileName
+                                    <span class="ld-muted">@doc.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy")</span>
+                                </button>
+                            }
+                        </div>
+                    }
+                }
+            </div>
+        </div>
     }
 </div>
 
@@ -171,8 +228,14 @@
     [Inject] private IIdentityApiClient Identity { get; set; } = default!;
     [Inject] private ILanguageService Lang { get; set; } = default!;
     [Inject] private ISnackbar Snackbar { get; set; } = default!;
+    [Inject] private IDocumentApiClient DocumentsApi { get; set; } = default!;
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
 
     private bool _loading = true;
+    private List<VerificationDocumentDto>? _documents = [];   // null when the Document service didn't answer
+
+    private List<string> MissingDocuments => _documents is null ? []
+        : VerificationDocumentKinds.Required.Where(k => _documents.All(d => d.Kind != k)).ToList();
     private DoctorProfileDto? _doctor;   // the profile as saved
     private UserDto? _account;           // the doctor's account: email and phone (null if Identity didn't answer)
     private List<ClinicDto> _clinics = [];
@@ -200,8 +263,20 @@
         var clinicsTask = Admin.GetClinicsAsync();
         _doctor = await Admin.GetDoctorAsync(Id);
         _clinics = await clinicsTask;
-        if (_doctor is not null) await LoadAccountAsync();
+        if (_doctor is not null)
+        {
+            await LoadAccountAsync();
+            try { _documents = await DocumentsApi.GetVerificationDocumentsForDoctorAsync(_doctor.UserId); }
+            catch (Exception) { _documents = null; }
+        }
         _loading = false;
+    }
+
+    private async Task OpenDocument(VerificationDocumentDto doc)
+    {
+        var url = await DocumentsApi.GetVerificationDocumentUrlAsync(doc.Id);
+        if (url is not null) Navigation.NavigateTo(url, forceLoad: true);
+        else Snackbar.Add(Lang["This document couldn't be opened. Please try again."], Severity.Error);
     }
 
     private async Task LoadAccountAsync()

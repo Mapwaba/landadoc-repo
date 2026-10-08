@@ -55,6 +55,43 @@
                 </MudItem>
             </MudGrid>
 
+            <MudText Typo="Typo.subtitle1" Class="mt-6 mb-2"><b>@Lang["Where you live"]</b></MudText>
+            <AddressFields @bind-Country="_country" @bind-Province="_province" @bind-City="_city" @bind-PostalCode="_postalCode"
+                           CountryRequired="true" Disabled="_accountCreated" />
+
+            @* Sent right after the account is created; LandaDoc checks them before approving the doctor *@
+            <MudText Typo="Typo.subtitle1" Class="mt-6 mb-1"><b>@Lang["Verification documents"]</b></MudText>
+            <MudText Typo="Typo.body2" Class="mb-2">@Lang["LandaDoc checks these before approving your account. PDF or photo, 10 MB at most."]</MudText>
+            @foreach (var k in VerificationDocumentKinds.All)
+            {
+                var kind = k;
+                var required = VerificationDocumentKinds.Required.Contains(kind);
+                <div class="reg-doc">
+                    <div class="reg-doc-text">
+                        <div class="reg-doc-title">
+                            @Lang[$"vdKind.{kind}"]
+                            <span class="reg-doc-tag">@(required ? Lang["Required"] : Lang["Optional"])</span>
+                        </div>
+                        @if (_files.TryGetValue(kind, out var chosen))
+                        {
+                            <div class="reg-doc-file">
+                                <MudIcon Icon="@(_uploaded.Contains(kind) ? Icons.Material.Outlined.CheckCircle : Icons.Material.Outlined.Description)" Style="font-size:16px;" />
+                                @chosen.Name
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="reg-doc-hint @(_submitted && required ? "reg-doc-missing" : "")">@Lang[$"vdHint.{kind}"]</div>
+                        }
+                    </div>
+                    <label class="reg-doc-pick">
+                        @(_files.ContainsKey(kind) ? Lang["Change"] : Lang["Choose a file"])
+                        <InputFile class="reg-doc-input" accept=".pdf,image/jpeg,image/png,image/webp"
+                                   OnChange="@(e => PickFile(kind, e))" disabled="@_uploaded.Contains(kind)" />
+                    </label>
+                </div>
+            }
+
             @if (_error is not null)
             {
                 <MudAlert Severity="Severity.Error" Class="mt-4">@_error</MudAlert>
@@ -74,6 +111,10 @@
     [Inject] private JwtAuthenticationStateProvider AuthState { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
     [Inject] private ILanguageService Lang { get; set; } = default!;
+    [Inject] private IDocumentApiClient DocumentsApi { get; set; } = default!;
+    [Inject] private ISnackbar Snackbar { get; set; } = default!;
+
+    private const long MaxDocumentBytes = 10_000_000; // Document service's limit for these files
 
     private MudForm _form = default!;
     private string _email = "";
@@ -86,6 +127,15 @@
     private IReadOnlyCollection<Guid> _clinicIds = [];
     private decimal _consultationFee;
     private List<ClinicOptionDto> _clinics = [];
+    private string? _country;
+    private string? _province;
+    private string? _city;
+    private string? _postalCode;
+
+    // Verification documents chosen on the form, by kind, and the kinds already sent
+    private readonly Dictionary<string, IBrowserFile> _files = [];
+    private readonly HashSet<string> _uploaded = [];
+    private bool _submitted;
 
     // Set once the account exists, so a retry after a failed profile save doesn't try to
     // register the same email again (which would fail with "already exists").
@@ -110,8 +160,14 @@
     private async Task Submit()
     {
         _error = null;
+        _submitted = true;
         await _form.ValidateAsync();
         if (!_form.IsValid) return;
+        if (VerificationDocumentKinds.Required.Any(k => !_files.ContainsKey(k)))
+        {
+            _error = Lang["Attach your ID card or passport and your membership card."];
+            return;
+        }
 
         _submitting = true;
         try
@@ -127,7 +183,13 @@
             if (duplicate is not null)
                 _error = duplicate;
             else if (resp.IsSuccessStatusCode || resp.StatusCode == System.Net.HttpStatusCode.Conflict)
+            {
+                // A failed upload doesn't stop the application: the awaiting-approval screen
+                // lists what's missing and lets the doctor add it
+                if (!await UploadDocumentsAsync())
+                    Snackbar.Add(Lang["Some documents couldn't be sent. Add them on the next screen."], Severity.Warning);
                 Navigation.NavigateTo("/status");
+            }
             else
                 _error = Lang["Your account was created, but your profile couldn't be saved. Please try again."];
         }
@@ -143,11 +205,44 @@
         }
     }
 
+    private void PickFile(string kind, InputFileChangeEventArgs e)
+    {
+        _error = null;
+        if (e.File.Size > MaxDocumentBytes)
+        {
+            _error = Lang["The file must be smaller than 10 MB."];
+            return;
+        }
+        _files[kind] = e.File;
+    }
+
+    // Sends the chosen documents not sent yet; false if any failed
+    private async Task<bool> UploadDocumentsAsync()
+    {
+        var allSent = true;
+        foreach (var (kind, file) in _files.Where(f => !_uploaded.Contains(f.Key)))
+        {
+            try
+            {
+                await using var stream = file.OpenReadStream(MaxDocumentBytes);
+                var resp = await DocumentsApi.UploadVerificationDocumentAsync(kind, stream, file.Name, file.ContentType);
+                if (resp.IsSuccessStatusCode) _uploaded.Add(kind);
+                else allSent = false;
+            }
+            catch (Exception)
+            {
+                allSent = false;
+            }
+        }
+        return allSent;
+    }
+
     private async Task<bool> CreateAccountAsync()
     {
         var resp = await Identity.RegisterDoctorAsync(new RegisterDoctorRequest(
             _email, _password, _firstName, _lastName,
-            string.IsNullOrWhiteSpace(_phone) ? null : _phone));
+            string.IsNullOrWhiteSpace(_phone) ? null : _phone,
+            _country, _province, _city, _postalCode));
 
         if (resp.IsSuccessStatusCode)
         {

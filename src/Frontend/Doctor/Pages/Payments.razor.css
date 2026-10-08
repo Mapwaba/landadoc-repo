@@ -154,3 +154,84 @@
     margin-top: 16px;
     font-size: 12.5px;
 }
+
+/* ── Earnings from LandaDoc ───────────────────────────────────────── */
+
+.payout-card {
+    margin-bottom: 20px;
+}
+
+.payout-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 20px;
+    padding: 18px 20px;
+}
+
+.payout-label {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ld-text-muted);
+}
+
+.payout-amount {
+    margin: 4px 0 6px;
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--ld-text);
+}
+
+.payout-negative {
+    color: var(--ld-danger);
+}
+
+.payout-sub {
+    margin-top: 4px;
+    font-size: 12.5px;
+}
+
+.payout-account-line {
+    margin-top: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ld-text);
+    overflow-wrap: anywhere;
+}
+
+.payout-change {
+    margin-top: 10px;
+}
+
+.payout-methods {
+    display: flex;
+    gap: 16px;
+    margin: 8px 0;
+    font-size: 13.5px;
+}
+
+.payout-methods label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+}
+
+.payout-form {
+    display: grid;
+    gap: 8px;
+}
+
+.payout-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+@media (max-width: 760px) {
+    .payout-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

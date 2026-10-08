@@ -28,4 +28,13 @@ public interface IPaymentApiClient
     Task<HttpResponseMessage> DeclineClaimAsync(Guid claimId, string? reason);
     Task<HttpResponseMessage> SettleClaimAsync(Guid claimId, string? insurerReference);
     Task<HttpResponseMessage> RejectClaimAsync(Guid claimId, string? reason);
+
+    // Doctor payouts. The doctor sees their balance and payouts and gives the account to be paid
+    // on; admins check that account and record each payout they send.
+    Task<DoctorPayoutsDto?> GetMyPayoutsAsync();
+    Task<HttpResponseMessage> SaveMyPayoutAccountAsync(SavePayoutAccountRequest request);
+    Task<List<DoctorBalanceDto>> GetPayoutBalancesAsync();
+    Task<DoctorPayoutsDto?> GetDoctorPayoutsAsync(Guid doctorId);
+    Task<HttpResponseMessage> VerifyPayoutAccountAsync(Guid doctorId);
+    Task<HttpResponseMessage> RecordPayoutAsync(Guid doctorId, RecordPayoutRequest request);
 }

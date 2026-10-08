@@ -55,6 +55,115 @@
             </div>
         </div>
 
+        @* What LandaDoc owes the doctor, the account it's sent to, and what was already sent *@
+        @if (_payouts is not null)
+        {
+            var balance = _payouts.Balance;
+            <div class="ld-card payout-card">
+                <div class="pay-head">
+                    <span>@Lang["Your earnings from LandaDoc"]</span>
+                </div>
+                <div class="payout-grid">
+                    <div class="payout-balance">
+                        <div class="payout-label">@Lang["Balance due to you"]</div>
+                        <div class="payout-amount @(balance.Balance < 0 ? "payout-negative" : "")">@Money(balance.Balance)</div>
+                        <div class="ld-muted payout-sub">@string.Format(Lang["payoutBreakdown"], Money(balance.Earned), Money(balance.InsuranceFees), Money(balance.PaidOut))</div>
+                        @if (balance.LastPayoutAt is { } last)
+                        {
+                            <div class="ld-muted payout-sub">@string.Format(Lang["lastPayout"], last.ToLocalTime().ToString("dd/MM/yyyy"))</div>
+                        }
+                        @if (balance.Balance < 0)
+                        {
+                            <div class="ld-muted payout-sub">@Lang["LandaDoc's fees on insurance claims are taken from your next payments."]</div>
+                        }
+                    </div>
+                    <div class="payout-account ld-no-print">
+                        <div class="payout-label">@Lang["Paid to"]</div>
+                        @if (_editingAccount)
+                        {
+                            <div class="payout-methods">
+                                <label><input type="radio" name="payout-method" checked="@(_accountForm.Method == PayoutMethod.MobileMoney)" @onchange="@(() => _accountForm.Method = PayoutMethod.MobileMoney)" /> @Lang["Mobile Money"]</label>
+                                <label><input type="radio" name="payout-method" checked="@(_accountForm.Method == PayoutMethod.Bank)" @onchange="@(() => _accountForm.Method = PayoutMethod.Bank)" /> @Lang["Bank account"]</label>
+                            </div>
+                            <div class="payout-form">
+                                <input class="ld-input" placeholder="@Lang["Name on the account"]" @bind="_accountForm.AccountName" @bind:event="oninput" />
+                                @if (_accountForm.Method == PayoutMethod.MobileMoney)
+                                {
+                                    <select class="ld-select" @bind="_accountForm.Operator">
+                                        <option value="">@Lang["Operator"]</option>
+                                        @foreach (var op in Enum.GetValues<MobileMoneyOperator>())
+                                        {
+                                            <option value="@op">@OperatorName(op)</option>
+                                        }
+                                    </select>
+                                    <input class="ld-input" type="tel" placeholder="@Lang["Mobile money number"]" @bind="_accountForm.MobileNumber" @bind:event="oninput" />
+                                }
+                                else
+                                {
+                                    <input class="ld-input" placeholder="@Lang["Bank"]" @bind="_accountForm.BankName" @bind:event="oninput" />
+                                    <input class="ld-input" placeholder="@Lang["Account number"]" @bind="_accountForm.BankAccountNumber" @bind:event="oninput" />
+                                }
+                            </div>
+                            @if (_accountError is not null)
+                            {
+                                <div class="ld-field-error payout-sub">@_accountError</div>
+                            }
+                            <div class="payout-actions">
+                                <button type="button" class="ld-btn ld-btn-sm" @onclick="@(() => _editingAccount = false)">@Lang["Cancel"]</button>
+                                <button type="button" class="ld-btn ld-btn-sm ld-btn-primary" disabled="@_savingAccount" @onclick="SaveAccount">@Lang["Save"]</button>
+                            </div>
+                        }
+                        else if (balance.Account is { } account)
+                        {
+                            <div class="payout-account-line">@AccountLabel(account)</div>
+                            <div class="payout-sub">
+                                @if (account.IsVerified)
+                                {
+                                    <span class="status-pill status-confirmed">@Lang["Checked"]</span>
+                                }
+                                else
+                                {
+                                    <span class="status-pill status-pending">@Lang["Waiting for LandaDoc to check it"]</span>
+                                }
+                            </div>
+                            <button type="button" class="ld-btn ld-btn-sm payout-change" @onclick="EditAccount">@Lang["Change"]</button>
+                        }
+                        else
+                        {
+                            <div class="ld-muted payout-sub">@Lang["Tell LandaDoc where to send your earnings."]</div>
+                            <button type="button" class="ld-btn ld-btn-sm ld-btn-primary payout-change" @onclick="EditAccount">@Lang["Add an account"]</button>
+                        }
+                    </div>
+                </div>
+                @if (_payouts.Payouts.Count > 0)
+                {
+                    <div class="ld-table-wrap">
+                        <table class="ld-table">
+                            <thead>
+                                <tr>
+                                    <th>@Lang["Date"]</th>
+                                    <th>@Lang["Amount"]</th>
+                                    <th>@Lang["Paid to"]</th>
+                                    <th>@Lang["Reference"]</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var payout in _payouts.Payouts)
+                                {
+                                    <tr>
+                                        <td class="ld-muted">@payout.PaidAt.ToLocalTime().ToString("dd/MM/yyyy")</td>
+                                        <td style="font-weight:700;">@Money(payout.Amount)</td>
+                                        <td>@payout.PaidTo</td>
+                                        <td class="ld-muted">@(payout.Reference ?? "—")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        }
+
         @* Insurance claims: review new ones, then reconcile approved ones with the insurer *@
         <div class="ld-card claims-card">
             <div class="pay-head">
@@ -168,6 +277,10 @@
                                             @if (_action == ClaimAction.Approve)
                                             {
                                                 <div class="claim-hint">@Lang["Check the cover with the insurer first, then enter the reference they gave you."]</div>
+                                            }
+                                            else if (_action == ClaimAction.Settle && ClaimFee(claim) is { } fee && fee > 0)
+                                            {
+                                                <div class="claim-hint">@string.Format(Lang["settleFeeHint"], Money(fee))</div>
                                             }
                                             <div class="claim-action">
                                                 <input class="ld-input" @bind="_actionNote" @bind:event="oninput" placeholder="@ActionPlaceholder" />
@@ -383,6 +496,8 @@
             _loadFailed = true;
         }
 
+        await LoadPayoutsAsync();
+
         // Not essential to the page: without them the card is hidden and contacts aren't shown
         try
         {
@@ -446,6 +561,7 @@
                 _actionClaimId = null;
                 _claims = await PaymentsApi.GetMyClaimsAsDoctorAsync();
                 _payments = await PaymentsApi.GetMineAsDoctorAsync();
+                await LoadPayoutsAsync();   // a settled claim's fee changes the balance
             }
             else
             {
@@ -460,6 +576,98 @@
         }
         _busy = false;
     }
+
+    // ── Payouts ──────────────────────────────────────────────────────
+    private DoctorPayoutsDto? _payouts;   // null hides the card (e.g. the service didn't answer)
+    private bool _editingAccount;
+    private bool _savingAccount;
+    private string? _accountError;
+    private AccountForm _accountForm = new();
+
+    private sealed class AccountForm
+    {
+        public PayoutMethod Method { get; set; } = PayoutMethod.MobileMoney;
+        public string AccountName { get; set; } = "";
+        public MobileMoneyOperator? Operator { get; set; }
+        public string MobileNumber { get; set; } = "";
+        public string BankName { get; set; } = "";
+        public string BankAccountNumber { get; set; } = "";
+    }
+
+    private async Task LoadPayoutsAsync()
+    {
+        try { _payouts = await PaymentsApi.GetMyPayoutsAsync(); }
+        catch (Exception) { _payouts = null; }
+    }
+
+    private void EditAccount()
+    {
+        var a = _payouts?.Balance.Account;
+        _accountForm = a is null ? new AccountForm() : new AccountForm
+        {
+            Method = a.Method,
+            AccountName = a.AccountName,
+            Operator = a.Operator,
+            MobileNumber = a.MobileNumber ?? "",
+            BankName = a.BankName ?? "",
+            BankAccountNumber = a.BankAccountNumber ?? "",
+        };
+        _accountError = null;
+        _editingAccount = true;
+    }
+
+    private async Task SaveAccount()
+    {
+        var f = _accountForm;
+        var mobile = f.Method == PayoutMethod.MobileMoney;
+        if (string.IsNullOrWhiteSpace(f.AccountName)
+            || (mobile && (f.Operator is null || string.IsNullOrWhiteSpace(f.MobileNumber)))
+            || (!mobile && (string.IsNullOrWhiteSpace(f.BankName) || string.IsNullOrWhiteSpace(f.BankAccountNumber))))
+        {
+            _accountError = Lang["Fill in every field."];
+            return;
+        }
+
+        _savingAccount = true;
+        _accountError = null;
+        try
+        {
+            var resp = await PaymentsApi.SaveMyPayoutAccountAsync(new SavePayoutAccountRequest(
+                f.Method, f.AccountName.Trim(), mobile ? f.Operator : null,
+                mobile ? f.MobileNumber.Trim() : null, mobile ? null : f.BankName.Trim(), mobile ? null : f.BankAccountNumber.Trim()));
+            if (resp.IsSuccessStatusCode)
+            {
+                _editingAccount = false;
+                await LoadPayoutsAsync();
+            }
+            else
+            {
+                _accountError = Lang["Could not save. Please try again."];
+            }
+        }
+        catch (Exception)
+        {
+            _accountError = Lang["Could not save. Please try again."];
+        }
+        _savingAccount = false;
+    }
+
+    private string AccountLabel(PayoutAccountDto a) => a.Method == PayoutMethod.MobileMoney
+        ? $"{OperatorName(a.Operator)} · {a.MobileNumber} · {a.AccountName}"
+        : $"{a.BankName} · {a.BankAccountNumber} · {a.AccountName}";
+
+    private static string OperatorName(MobileMoneyOperator? op) => op switch
+    {
+        MobileMoneyOperator.Airtel => "Airtel Money",
+        MobileMoneyOperator.Orange => "Orange Money",
+        MobileMoneyOperator.Mpesa => "M-Pesa",
+        MobileMoneyOperator.Africell => "Africell Money",
+        _ => "Mobile Money",
+    };
+
+    // LandaDoc's fee on an approved claim (taken from the balance once the insurer pays)
+    private decimal? ClaimFee(InsuranceClaimDto claim) =>
+        _payments.FirstOrDefault(p => p.ProviderRef == $"claim_{claim.Id:N}")?.PlatformFee;
 
     private void SetAcceptsAll(bool value)
     {
@@ -524,6 +732,24 @@
                 new(Lang["Owed by insurers"], Money(ClaimsIn(ClaimTab.Owed).Sum(c => c.Amount))),
             ],
         };
+        if (_payouts is not null)
+        {
+            report.Stats.Add(new(Lang["Balance due to you"], Money(_payouts.Balance.Balance)));
+            report.Sections.Add(new PdfSection
+            {
+                Title = Lang["Payouts from LandaDoc"],
+                Note = string.Format(Lang["payoutBreakdown"], Money(_payouts.Balance.Earned), Money(_payouts.Balance.InsuranceFees), Money(_payouts.Balance.PaidOut)),
+                Columns = [new(Lang["Date"]), new(Lang["Amount"], Right: true), new(Lang["Paid to"]), new(Lang["Reference"])],
+                Rows = _payouts.Payouts.Select(p => new List<PdfCell>
+                {
+                    p.PaidAt.ToLocalTime().ToString("dd/MM/yyyy"),
+                    Money(p.Amount),
+                    p.PaidTo,
+                    p.Reference ?? "-",
+                }).ToList(),
+                EmptyText = Lang["No payouts yet."],
+            });
+        }
 
         if (_claims.Count > 0)
         {

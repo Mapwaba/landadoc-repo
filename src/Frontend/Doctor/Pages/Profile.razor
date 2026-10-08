@@ -127,7 +127,37 @@
             </div>
         </div>
 
-        @* Card 2: password *@
+        @* Card 2: where the doctor lives (their account, not the public profile) *@
+        <div class="ld-card">
+            <div class="pp-card-head">
+                <MudIcon Icon="@Icons.Material.Outlined.Home" Style="font-size:19px;" /> @Lang["Where you live"]
+            </div>
+            <div class="ld-card-body">
+                <AddressFields @bind-Country="_country" @bind-Province="_province" @bind-City="_city" @bind-PostalCode="_postalCode"
+                               Variant="Variant.Outlined" Margin="Margin.Dense" />
+                @if (_addressError is not null)
+                {
+                    <MudAlert Severity="Severity.Error" Class="mt-4">@_addressError</MudAlert>
+                }
+                <div class="ld-form-actions">
+                    <button type="button" class="ld-btn ld-btn-primary" @onclick="SaveAddress" disabled="@_savingAddress">
+                        <MudIcon Icon="@Icons.Material.Outlined.Save" Style="font-size:17px;" /> @Lang["Save address"]
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        @* Card 3: documents LandaDoc verifies (never shown to patients) *@
+        <div class="ld-card">
+            <div class="pp-card-head">
+                <MudIcon Icon="@Icons.Material.Outlined.VerifiedUser" Style="font-size:19px;" /> @Lang["Verification documents"]
+            </div>
+            <div class="ld-card-body">
+                <VerificationDocuments />
+            </div>
+        </div>
+
+        @* Card 4: password *@
         <div class="ld-card">
             <div class="pp-card-head">
                 <MudIcon Icon="@Icons.Material.Outlined.Lock" Style="font-size:19px;" /> @Lang["Password"]
@@ -243,6 +273,14 @@
     private DoctorProfileDto? _saved;   // last saved profile, restored when an edit is cancelled
     private string? _savedPhone;
 
+    // Where the doctor lives (their account in Identity)
+    private string? _country;
+    private string? _province;
+    private string? _city;
+    private string? _postalCode;
+    private bool _savingAddress;
+    private string? _addressError;
+
     private string _currentPassword = "";
     private string _newPassword = "";
     private string _confirmPassword = "";
@@ -275,6 +313,10 @@
             var me = await meTask;
             _email = me?.Email;
             _phone = _savedPhone = Blank(me?.Phone) ? null : me!.Phone;
+            _country = me?.Country;
+            _province = me?.Province;
+            _city = me?.City;
+            _postalCode = me?.PostalCode;
         }
         catch (Exception) { } // contact details are optional on this page
 
@@ -392,6 +434,28 @@
             _error = Lang["Could not save your profile. Please try again."];
         }
         _saving = false;
+    }
+
+    private async Task SaveAddress()
+    {
+        _addressError = null;
+        if (Blank(_country))
+        {
+            _addressError = Lang["Choose your country"];
+            return;
+        }
+        _savingAddress = true;
+        try
+        {
+            var resp = await Identity.UpdateAddressAsync(new UpdateAddressRequest(_country!, _province, _city, _postalCode, null));
+            if (resp.IsSuccessStatusCode) Snackbar.Add(Lang["Address saved."], Severity.Success);
+            else _addressError = Lang["Your address couldn't be saved. Please try again."];
+        }
+        catch (Exception)
+        {
+            _addressError = Lang["Your address couldn't be saved. Please try again."];
+        }
+        _savingAddress = false;
     }
 
     private async Task ChangePassword()
