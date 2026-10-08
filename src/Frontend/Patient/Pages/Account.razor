@@ -1,0 +1,224 @@
+@page "/account"
+@attribute [Authorize(Roles = "Patient")]
+
+@* The patient's own account: name and phone, address and ID number, and password. Email is the
+   login and isn't changed here. Each card saves on its own. *@
+
+<PageTitle>My account</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">@Lang["My account"]</MudText>
+
+@if (_loading)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else if (_me is null)
+{
+    <MudAlert Severity="Severity.Warning">@Lang["Your account couldn't be loaded. Please try again in a minute."]</MudAlert>
+}
+else
+{
+    <MudPaper Class="pa-6 mb-4" MaxWidth="720px">
+        <MudText Typo="Typo.h6" Class="mb-3">@Lang["My details"]</MudText>
+        <MudGrid Spacing="2">
+            <MudItem xs="12" sm="6">
+                <MudTextField T="string" Label="@Lang["First name"]" @bind-Value="_firstName" MaxLength="100" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField T="string" Label="@Lang["Last name"]" @bind-Value="_lastName" MaxLength="100" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField T="string" Label="@Lang["Phone"]" @bind-Value="_phone" MaxLength="30" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField T="string" Label="@Lang["Email"]" Value="@_me.Email" Disabled="true"
+                              HelperText="@Lang["Your email is your login and can't be changed here."]" />
+            </MudItem>
+        </MudGrid>
+        @if (_detailsError is not null)
+        {
+            <MudAlert Severity="Severity.Error" Class="mt-3">@_detailsError</MudAlert>
+        }
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" Disabled="_savingDetails" OnClick="SaveDetails">@Lang["Save"]</MudButton>
+    </MudPaper>
+
+    <MudPaper Class="pa-6 mb-4" MaxWidth="720px">
+        <MudText Typo="Typo.h6" Class="mb-3">@Lang["Where you live"]</MudText>
+        <AddressFields @bind-Country="_country" @bind-Province="_province" @bind-City="_city" @bind-PostalCode="_postalCode" />
+        <MudTextField T="string" Label="@Lang["ID card or passport number (optional)"]" @bind-Value="_idNumber" MaxLength="50" Class="mt-2" />
+        @if (_addressError is not null)
+        {
+            <MudAlert Severity="Severity.Error" Class="mt-3">@_addressError</MudAlert>
+        }
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" Disabled="_savingAddress" OnClick="SaveAddress">@Lang["Save address"]</MudButton>
+    </MudPaper>
+
+    <MudPaper Class="pa-6 mb-4" MaxWidth="720px">
+        <MudText Typo="Typo.h6" Class="mb-3">@Lang["Password"]</MudText>
+        <MudGrid Spacing="2">
+            <MudItem xs="12">
+                <MudTextField T="string" Label="@Lang["Current password"]" @bind-Value="_currentPassword" InputType="InputType.Password" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField T="string" Label="@Lang["New password"]" @bind-Value="_newPassword" InputType="InputType.Password"
+                              HelperText="@Lang["At least 8 characters"]" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField T="string" Label="@Lang["Confirm new password"]" @bind-Value="_confirmPassword" InputType="InputType.Password" />
+            </MudItem>
+        </MudGrid>
+        @if (_passwordError is not null)
+        {
+            <MudAlert Severity="Severity.Error" Class="mt-3">@_passwordError</MudAlert>
+        }
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" Disabled="_changingPassword" OnClick="ChangePassword">@Lang["Change password"]</MudButton>
+    </MudPaper>
+}
+
+@code {
+    [Inject] private IIdentityApiClient Identity { get; set; } = default!;
+    [Inject] private JwtAuthenticationStateProvider AuthState { get; set; } = default!;
+    [Inject] private ILanguageService Lang { get; set; } = default!;
+    [Inject] private ISnackbar Snackbar { get; set; } = default!;
+
+    private bool _loading = true;
+    private UserDto? _me;
+
+    private string _firstName = "";
+    private string _lastName = "";
+    private string? _phone;
+    private bool _savingDetails;
+    private string? _detailsError;
+
+    private string? _country;
+    private string? _province;
+    private string? _city;
+    private string? _postalCode;
+    private string? _idNumber;
+    private bool _savingAddress;
+    private string? _addressError;
+
+    private string _currentPassword = "";
+    private string _newPassword = "";
+    private string _confirmPassword = "";
+    private bool _changingPassword;
+    private string? _passwordError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { _me = await Identity.GetMeAsync(); }
+        catch (Exception) { _me = null; }
+        if (_me is not null)
+        {
+            _firstName = _me.FirstName;
+            _lastName = _me.LastName;
+            _phone = _me.Phone;
+            _country = _me.Country;
+            _province = _me.Province;
+            _city = _me.City;
+            _postalCode = _me.PostalCode;
+            _idNumber = _me.IdNumber;
+        }
+        _loading = false;
+    }
+
+    private async Task SaveDetails()
+    {
+        _detailsError = null;
+        if (string.IsNullOrWhiteSpace(_firstName) || string.IsNullOrWhiteSpace(_lastName))
+        {
+            _detailsError = Lang["Enter your first and last name."];
+            return;
+        }
+        _savingDetails = true;
+        try
+        {
+            var resp = await Identity.UpdateMeAsync(new UpdateMeRequest(
+                _firstName.Trim(), _lastName.Trim(), string.IsNullOrWhiteSpace(_phone) ? null : _phone.Trim()));
+            var duplicate = await DuplicateAccountMessages.ForAsync(resp, Lang, isDoctor: false);
+            if (duplicate is not null) _detailsError = duplicate;   // phone or name already used
+            else if (resp.IsSuccessStatusCode) Snackbar.Add(Lang["Your details have been saved."], Severity.Success);
+            else _detailsError = Lang["Could not save. Please try again."];
+        }
+        catch (Exception)
+        {
+            _detailsError = Lang["Could not save. Please try again."];
+        }
+        _savingDetails = false;
+    }
+
+    private async Task SaveAddress()
+    {
+        _addressError = null;
+        if (string.IsNullOrWhiteSpace(_country))
+        {
+            _addressError = Lang["Choose your country"];
+            return;
+        }
+        _savingAddress = true;
+        try
+        {
+            var resp = await Identity.UpdateAddressAsync(new UpdateAddressRequest(
+                _country, _province, _city, _postalCode, string.IsNullOrWhiteSpace(_idNumber) ? null : _idNumber.Trim()));
+            if (resp.IsSuccessStatusCode) Snackbar.Add(Lang["Address saved."], Severity.Success);
+            else _addressError = Lang["Your address couldn't be saved. Please try again."];
+        }
+        catch (Exception)
+        {
+            _addressError = Lang["Your address couldn't be saved. Please try again."];
+        }
+        _savingAddress = false;
+    }
+
+    private async Task ChangePassword()
+    {
+        _passwordError = null;
+        if (string.IsNullOrWhiteSpace(_currentPassword))
+        {
+            _passwordError = Lang["Enter your current password."];
+            return;
+        }
+        if (_newPassword.Length < 8)
+        {
+            _passwordError = Lang["At least 8 characters"];
+            return;
+        }
+        if (_newPassword == _currentPassword)
+        {
+            _passwordError = Lang["The new password must be different from the current one."];
+            return;
+        }
+        if (_confirmPassword != _newPassword)
+        {
+            _passwordError = Lang["The two new passwords don't match."];
+            return;
+        }
+
+        _changingPassword = true;
+        try
+        {
+            var resp = await Identity.ChangePasswordAsync(new ChangePasswordRequest(_currentPassword, _newPassword));
+            if (resp.IsSuccessStatusCode)
+            {
+                // Other sessions are signed out; this one continues with the new tokens
+                var auth = await resp.Content.ReadFromJsonAsync<AuthResponse>(JsonDefaults.Options);
+                if (auth is not null) await AuthState.MarkUserAsAuthenticated(auth);
+                _currentPassword = _newPassword = _confirmPassword = "";
+                Snackbar.Add(Lang["Your password has been changed."], Severity.Success);
+            }
+            else if (resp.StatusCode == System.Net.HttpStatusCode.BadRequest)
+            {
+                _passwordError = Lang["Your current password is incorrect."];
+            }
+            else
+            {
+                _passwordError = Lang["Could not change your password. Please try again."];
+            }
+        }
+        catch (Exception)
+        {
+            _passwordError = Lang["Could not change your password. Please try again."];
+        }
+        _changingPassword = false;
+    }
+}
