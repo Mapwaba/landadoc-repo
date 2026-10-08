@@ -19,7 +19,8 @@
                     <MudTextField T="string" Label="@Lang["Email"]" @bind-Value="_email" InputType="InputType.Email" Required="true" Disabled="_accountCreated" />
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudTextField T="string" Label="@Lang["Phone"]" @bind-Value="_phone" Disabled="_accountCreated" />
+                    <MudTextField T="string" Label="@Lang["Phone"]" @bind-Value="_phone" Required="true" RequiredError="@Lang["Enter your phone number."]"
+                                  InputType="InputType.Telephone" Disabled="_accountCreated" />
                 </MudItem>
                 <MudItem xs="12" sm="6">
                     <MudTextField T="string" Label="@Lang["Password"]" @bind-Value="_password" InputType="InputType.Password" Required="true"
