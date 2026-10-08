@@ -89,7 +89,17 @@ else
         <MudPaper Class="pa-6 mb-4">
             <MudText Typo="Typo.h6">@Lang["Payment"]</MudText>
             <MudText>@string.Format(Lang["totalAmountLabel"], _payment.GrossAmount.ToString("0.00")) — <MudChip T="string" Size="Size.Small">@Lang[$"status.{_payment.Status}"]</MudChip></MudText>
-            @if (_payment.Status == PaymentStatus.Pending)
+            @if (_claim is not null)
+            {
+                <MudAlert Severity="@ClaimSeverity(_claim.Status)" Class="mt-3">
+                    @string.Format(Lang[$"claimStatus.{_claim.Status}"], _claim.InsurerName, _claim.MemberNumber)
+                    @if (!string.IsNullOrWhiteSpace(_claim.Note) && _claim.Status is InsuranceClaimStatus.Declined or InsuranceClaimStatus.Rejected)
+                    {
+                        <br /><i>@_claim.Note</i>
+                    }
+                </MudAlert>
+            }
+            @if (_payment.Status == PaymentStatus.Pending && _claim?.Status != InsuranceClaimStatus.Submitted)
             {
                 @if (_paymentError is not null)
                 {
@@ -105,7 +115,25 @@ else
                     <MudRadioGroup T="PaymentProvider" @bind-Value="_selectedProvider" Class="mt-3">
                         <MudRadio T="PaymentProvider" Value="PaymentProvider.Stripe">@Lang["Card"]</MudRadio>
                         <MudRadio T="PaymentProvider" Value="PaymentProvider.MokoAfrika">@Lang["Mobile Money"]</MudRadio>
+                        @if (_insurers.Count > 0)
+                        {
+                            <MudRadio T="PaymentProvider" Value="PaymentProvider.Insurance">@Lang["Insurance / medical aid"]</MudRadio>
+                        }
                     </MudRadioGroup>
+
+                    @if (_selectedProvider == PaymentProvider.Insurance)
+                    {
+                        <MudSelect T="Guid?" @bind-Value="_insurerId" Label="@Lang["Insurer"]" Class="mt-2">
+                            @foreach (var insurer in _insurers)
+                            {
+                                <MudSelectItem T="Guid?" Value="@insurer.Id">@insurer.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                        <MudTextField @bind-Value="_memberNumber" Label="@Lang["Member / policy number"]" Class="mt-2" />
+                        <MudTextField @bind-Value="_memberName" Label="@Lang["Main member's name (optional)"]"
+                                      HelperText="@Lang["If you're covered as a dependant"]" Class="mt-2" />
+                        <MudText Typo="Typo.caption" Class="mt-2 d-block">@Lang["The doctor checks your cover before confirming the appointment."]</MudText>
+                    }
 
                     @if (_selectedProvider == PaymentProvider.MokoAfrika)
                     {
@@ -120,7 +148,7 @@ else
                     }
 
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-3" Disabled="@(_payingNow || !CanPay)" OnClick="PayNow">
-                        @Lang["Pay now"]
+                        @(_selectedProvider == PaymentProvider.Insurance ? Lang["Send to my insurer"] : Lang["Pay now"])
                     </MudButton>
                 }
             }
@@ -179,8 +207,26 @@ else
     private string? _mokoMessage;
     private CancellationTokenSource? _mokoPollCts;
 
-    private bool CanPay => _selectedProvider == PaymentProvider.Stripe
-        || (!string.IsNullOrWhiteSpace(_mokoFullName) && !string.IsNullOrWhiteSpace(_mokoPhoneNumber));
+    private InsuranceClaimDto? _claim;
+    private List<InsurerDto> _insurers = [];
+    private Guid? _insurerId;
+    private string _memberNumber = "";
+    private string _memberName = "";
+
+    private bool CanPay => _selectedProvider switch
+    {
+        PaymentProvider.Stripe => true,
+        PaymentProvider.MokoAfrika => !string.IsNullOrWhiteSpace(_mokoFullName) && !string.IsNullOrWhiteSpace(_mokoPhoneNumber),
+        PaymentProvider.Insurance => _insurerId is not null && !string.IsNullOrWhiteSpace(_memberNumber),
+        _ => false,
+    };
+
+    private static Severity ClaimSeverity(InsuranceClaimStatus status) => status switch
+    {
+        InsuranceClaimStatus.Approved or InsuranceClaimStatus.Settled => Severity.Success,
+        InsuranceClaimStatus.Submitted => Severity.Info,
+        _ => Severity.Warning,
+    };
 
     private bool _showReschedule;
     private DateTime? _newDate;
@@ -199,6 +245,12 @@ else
             _doctorName = doctor is null ? Lang["Unknown doctor"] : $"{Lang["Dr."]} {doctor.FirstName} {doctor.LastName}";
 
             _payment = await Payments.GetByAppointmentAsync(AppointmentId);
+            _claim = await Payments.GetClaimByAppointmentAsync(AppointmentId);
+            if (_payment?.Status == PaymentStatus.Pending)
+            {
+                try { _insurers = await Payments.GetInsurersAsync(); }
+                catch (Exception) { _insurers = []; } // insurance just isn't offered then
+            }
             _documents = await Documents.GetForAppointmentAsync(AppointmentId);
 
             if (_appointment.Status == AppointmentStatus.Completed)
@@ -279,14 +331,24 @@ else
         _payingNow = true;
 
         var isMoko = _selectedProvider == PaymentProvider.MokoAfrika;
+        var isInsurance = _selectedProvider == PaymentProvider.Insurance;
         var request = new InitiatePaymentRequest(
             _selectedProvider,
             isMoko ? _mokoPhoneNumber : null,
             isMoko ? _mokoOperator : null,
-            isMoko ? _mokoFullName : null);
+            isMoko ? _mokoFullName : null,
+            isInsurance ? _insurerId : null,
+            isInsurance ? _memberNumber : null,
+            isInsurance && !string.IsNullOrWhiteSpace(_memberName) ? _memberName : null);
 
         var resp = await Payments.InitiateAsync(_payment.Id, request);
-        if (resp.IsSuccessStatusCode)
+        if (resp.IsSuccessStatusCode && isInsurance)
+        {
+            // Nothing to wait for here — the claim now sits with the doctor
+            _claim = await Payments.GetClaimByAppointmentAsync(AppointmentId);
+            _payingNow = false;
+        }
+        else if (resp.IsSuccessStatusCode)
         {
             var result = await resp.Content.ReadFromJsonAsync<InitiatePaymentResponse>(JsonDefaults.Options);
             if (result?.CheckoutUrl is not null)
@@ -303,7 +365,9 @@ else
         }
         else
         {
-            _paymentError = isMoko
+            _paymentError = isInsurance
+                ? Lang["Could not send the claim to your insurer. Please try again."]
+                : isMoko
                 ? Lang["Could not start the mobile money payment. Please try again."]
                 : Lang["Could not start payment. Please try again shortly."];
             _payingNow = false;

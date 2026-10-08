@@ -26,4 +26,36 @@ public class PaymentApiClient(HttpClient http) : IPaymentApiClient
 
     public Task<HttpResponseMessage> InitiateAsync(Guid paymentId, InitiatePaymentRequest request) =>
         http.PostAsJsonAsync($"api/payments/{paymentId}/initiate", request, JsonDefaults.Options);
+
+    public async Task<List<InsurerDto>> GetInsurersAsync() =>
+        await http.GetFromJsonAsync<List<InsurerDto>>("api/insurers", JsonDefaults.Options) ?? [];
+
+    public Task<HttpResponseMessage> CreateInsurerAsync(SaveInsurerRequest request) =>
+        http.PostAsJsonAsync("api/insurers", request, JsonDefaults.Options);
+
+    public Task<HttpResponseMessage> UpdateInsurerAsync(Guid id, SaveInsurerRequest request) =>
+        http.PutAsJsonAsync($"api/insurers/{id}", request, JsonDefaults.Options);
+
+    public async Task<InsuranceClaimDto?> GetClaimByAppointmentAsync(Guid appointmentId)
+    {
+        var resp = await http.GetAsync($"api/insurance-claims/by-appointment/{appointmentId}");
+        return resp.IsSuccessStatusCode
+            ? await resp.Content.ReadFromJsonAsync<InsuranceClaimDto>(JsonDefaults.Options)
+            : null;
+    }
+
+    public async Task<List<InsuranceClaimDto>> GetMyClaimsAsDoctorAsync() =>
+        await http.GetFromJsonAsync<List<InsuranceClaimDto>>("api/insurance-claims/doctor/me", JsonDefaults.Options) ?? [];
+
+    public Task<HttpResponseMessage> ApproveClaimAsync(Guid claimId) =>
+        http.PostAsync($"api/insurance-claims/{claimId}/approve", null);
+
+    public Task<HttpResponseMessage> DeclineClaimAsync(Guid claimId, string? reason) =>
+        http.PostAsJsonAsync($"api/insurance-claims/{claimId}/decline", new ClaimActionRequest(reason), JsonDefaults.Options);
+
+    public Task<HttpResponseMessage> SettleClaimAsync(Guid claimId, string? insurerReference) =>
+        http.PostAsJsonAsync($"api/insurance-claims/{claimId}/settle", new ClaimActionRequest(insurerReference), JsonDefaults.Options);
+
+    public Task<HttpResponseMessage> RejectClaimAsync(Guid claimId, string? reason) =>
+        http.PostAsJsonAsync($"api/insurance-claims/{claimId}/reject", new ClaimActionRequest(reason), JsonDefaults.Options);
 }

@@ -1,0 +1,165 @@
+@page "/insurers"
+@attribute [Authorize(Roles = "Admin")]
+
+<PageTitle>Insurers</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-1">@Lang["Insurers & medical aids"]</MudText>
+<MudText Class="mb-4" Color="Color.Secondary">@Lang["Partners patients can choose at checkout. Doctors review each claim and reconcile it with the insurer."]</MudText>
+
+<MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mb-4" OnClick="ToggleCreateForm">
+    @(_showForm && _editingId is null ? Lang["Cancel"] : Lang["Add insurer"])
+</MudButton>
+
+@if (_showForm)
+{
+    <MudPaper Class="pa-6 mb-6">
+        <MudText Typo="Typo.h6" Class="mb-3">@(_editingId is null ? Lang["New insurer"] : Lang["Edit insurer"])</MudText>
+        <MudForm @ref="_form">
+            <MudTextField T="string" Label="@Lang["Name"]" @bind-Value="_name" Required="true" MaxLength="120" Class="mb-3" />
+            <MudTextField T="string" Label="@Lang["Phone"]" @bind-Value="_phone" Class="mb-3" />
+            <MudTextField T="string" Label="@Lang["Email"]" @bind-Value="_email" InputType="InputType.Email" Class="mb-3" />
+            <MudSwitch T="bool" @bind-Value="_isActive" Color="Color.Primary" Label="@Lang["Offered to patients"]" Class="mb-3" />
+
+            @if (_formError is not null)
+            {
+                <MudAlert Severity="Severity.Error" Class="mb-3">@_formError</MudAlert>
+            }
+
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Save" Disabled="_saving">
+                @(_editingId is null ? Lang["Create"] : Lang["Save"])
+            </MudButton>
+            <MudButton Variant="Variant.Text" Class="ml-2" OnClick="CloseForm">@Lang["Cancel"]</MudButton>
+        </MudForm>
+    </MudPaper>
+}
+
+@if (_loading)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else if (_loadFailed)
+{
+    <MudAlert Severity="Severity.Warning">@Lang["Insurers couldn't be loaded. Please try again in a minute."]</MudAlert>
+}
+else if (_insurers.Count == 0)
+{
+    <MudAlert Severity="Severity.Info">@Lang["No insurers yet. Add one so patients can pay through their insurance."]</MudAlert>
+}
+else
+{
+    <MudTable Items="_insurers" Hover="true">
+        <HeaderContent>
+            <MudTh>@Lang["Name"]</MudTh>
+            <MudTh>@Lang["Phone"]</MudTh>
+            <MudTh>@Lang["Email"]</MudTh>
+            <MudTh>@Lang["Status"]</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.Name</MudTd>
+            <MudTd>@(context.Phone ?? "—")</MudTd>
+            <MudTd>@(context.Email ?? "—")</MudTd>
+            <MudTd>
+                <MudChip T="string" Size="Size.Small" Color="@(context.IsActive ? Color.Success : Color.Default)">
+                    @(context.IsActive ? Lang["Active"] : Lang["Inactive"])
+                </MudChip>
+            </MudTd>
+            <MudTd Style="text-align:right;">
+                <MudButton Size="Size.Small" OnClick="@(() => Edit(context))">@Lang["Edit"]</MudButton>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    [Inject] private IPaymentApiClient Payments { get; set; } = default!;
+    [Inject] private ILanguageService Lang { get; set; } = default!;
+
+    private bool _loading = true;
+    private bool _loadFailed;
+    private List<InsurerDto> _insurers = [];
+
+    private bool _showForm;
+    private Guid? _editingId;   // null while adding a new insurer
+    private MudForm _form = default!;
+    private string _name = "";
+    private string? _phone;
+    private string? _email;
+    private bool _isActive = true;
+    private bool _saving;
+    private string? _formError;
+
+    protected override async Task OnInitializedAsync() => await Load();
+
+    private async Task Load()
+    {
+        _loading = true;
+        _loadFailed = false;
+        try
+        {
+            _insurers = await Payments.GetInsurersAsync();
+        }
+        catch (Exception)
+        {
+            _loadFailed = true;
+        }
+        _loading = false;
+    }
+
+    private void ToggleCreateForm()
+    {
+        if (_showForm && _editingId is null)
+        {
+            CloseForm();
+            return;
+        }
+        Fill(null, "", null, null, true);
+    }
+
+    private void Edit(InsurerDto insurer) =>
+        Fill(insurer.Id, insurer.Name, insurer.Phone, insurer.Email, insurer.IsActive);
+
+    private void Fill(Guid? id, string name, string? phone, string? email, bool isActive)
+    {
+        _editingId = id;
+        _name = name;
+        _phone = phone;
+        _email = email;
+        _isActive = isActive;
+        _formError = null;
+        _showForm = true;
+    }
+
+    private void CloseForm()
+    {
+        _showForm = false;
+        _editingId = null;
+        _formError = null;
+    }
+
+    private async Task Save()
+    {
+        _formError = null;
+        await _form.ValidateAsync();
+        if (!_form.IsValid) return;
+
+        _saving = true;
+        var request = new SaveInsurerRequest(_name.Trim(), _phone, _email, _isActive);
+        var resp = _editingId is null
+            ? await Payments.CreateInsurerAsync(request)
+            : await Payments.UpdateInsurerAsync(_editingId.Value, request);
+        _saving = false;
+
+        if (resp.IsSuccessStatusCode)
+        {
+            CloseForm();
+            await Load();
+        }
+        else
+        {
+            _formError = resp.StatusCode == System.Net.HttpStatusCode.Conflict
+                ? Lang["An insurer with this name already exists."]
+                : Lang["Could not save the insurer."];
+        }
+    }
+}

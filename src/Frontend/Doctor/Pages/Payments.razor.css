@@ -9,3 +9,86 @@
     font-weight: 600;
     color: var(--ld-text);
 }
+
+/* ── Insurance claims ────────────────────────────────────────────── */
+
+.claims-card {
+    margin-bottom: 20px;
+}
+
+.claim-tabs {
+    display: inline-flex;
+    flex-wrap: wrap;
+    padding: 3px;
+    background: var(--ld-bg);
+    border-radius: 8px;
+}
+
+.claim-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 30px;
+    padding: 0 12px;
+    border: none;
+    border-radius: 6px;
+    background: none;
+    color: var(--ld-text-muted);
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.claim-tab.active {
+    background: var(--ld-surface);
+    color: var(--ld-text);
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.08);
+}
+
+.claim-tab-count {
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    background: #E5E7EB;
+    color: var(--ld-text-muted);
+    font-size: 10.5px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.claim-tab.active .claim-tab-count {
+    background: var(--ld-primary-soft);
+    color: var(--ld-primary);
+}
+
+.claim-sub {
+    margin-top: 2px;
+    font-size: 11.5px;
+}
+
+.claim-actions {
+    white-space: nowrap;
+    text-align: right;
+}
+
+.claim-actions .ld-btn + .ld-btn {
+    margin-left: 6px;
+}
+
+.claim-action-row td {
+    background: #F8FAFF;
+}
+
+.claim-action {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.claim-action .ld-input {
+    flex: 1;
+    padding: 7px 10px;
+}
