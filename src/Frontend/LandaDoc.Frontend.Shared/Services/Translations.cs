@@ -326,6 +326,29 @@ public static class Translations
         },
         ["Reviews"] = new() { ["en"] = "Reviews", ["fr"] = "Avis" },
         ["No reviews yet."] = new() { ["en"] = "No reviews yet.", ["fr"] = "Aucun avis pour le moment." },
+        ["oneOpenSlot"] = new() { ["en"] = "1 open slot", ["fr"] = "1 créneau libre" },
+        ["manyOpenSlots"] = new() { ["en"] = "{0} open slots", ["fr"] = "{0} créneaux libres" },
+        ["Available times"] = new() { ["en"] = "Available times", ["fr"] = "Horaires disponibles" },
+        ["Your appointment"] = new() { ["en"] = "Your appointment", ["fr"] = "Votre rendez-vous" },
+        ["Pick a day on the calendar, then a time."] = new()
+        {
+            ["en"] = "Pick a day on the calendar, then a time.",
+            ["fr"] = "Choisissez un jour dans le calendrier, puis un horaire.",
+        },
+        ["This day has passed."] = new() { ["en"] = "This day has passed.", ["fr"] = "Ce jour est passé." },
+        ["Booking for"] = new() { ["en"] = "Booking for", ["fr"] = "Rendez-vous pour" },
+        ["Myself"] = new() { ["en"] = "Myself", ["fr"] = "Moi-même" },
+        ["You're no longer authorized to book for that person."] = new()
+        {
+            ["en"] = "You're no longer authorized to book for that person.",
+            ["fr"] = "Vous n'êtes plus autorisé à réserver pour cette personne.",
+        },
+        ["Log in to book"] =new() { ["en"] = "Log in to book", ["fr"] = "Se connecter pour réserver" },
+        ["Only patient accounts can book appointments."] = new()
+        {
+            ["en"] = "Only patient accounts can book appointments.",
+            ["fr"] = "Seuls les comptes patients peuvent prendre rendez-vous.",
+        },
 
         // ── Patient: Book appointment ────────────────────────────────────
         ["Book an appointment"] = new() { ["en"] = "Book an appointment", ["fr"] = "Prendre un rendez-vous" },

@@ -1,0 +1,498 @@
+/* Patient view of a doctor: profile header, then the same month calendar + day panel as the
+   doctor's agenda (Doctor/Pages/Appointments.razor.css), with slots the patient can pick.
+   Colours come from landadoc-shell.css (--ld-*). */
+
+/* ── Profile header ──────────────────────────────────────────────── */
+
+.profile-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 18px;
+    padding: 20px 22px;
+    margin-bottom: 20px;
+    background: var(--ld-surface);
+    border: 1px solid var(--ld-border);
+    border-radius: 12px;
+}
+
+.profile-avatar {
+    width: 64px;
+    height: 64px;
+    min-width: 64px;
+    border-radius: 50%;
+    background: var(--ld-primary-soft);
+    color: var(--ld-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    font-weight: 700;
+}
+
+.profile-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.profile-name {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--ld-text);
+    letter-spacing: -0.01em;
+}
+
+.profile-specialty {
+    margin-top: 2px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ld-primary);
+}
+
+.profile-clinics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    margin-top: 8px;
+}
+
+.profile-clinic {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12.5px;
+    color: var(--ld-text-muted);
+}
+
+.profile-bio {
+    margin: 10px 0 0;
+    font-size: 13.5px;
+    line-height: 1.5;
+    color: var(--ld-text);
+}
+
+.profile-facts {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+    text-align: right;
+}
+
+.profile-rating {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--ld-text-muted);
+}
+
+.profile-fee {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ld-text);
+}
+
+/* ── Toolbar ─────────────────────────────────────────────────────── */
+
+.agenda-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+    background: var(--ld-surface);
+    border: 1px solid var(--ld-border);
+    border-radius: 12px;
+}
+
+.agenda-toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.agenda-title {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--ld-text);
+    letter-spacing: -0.01em;
+    min-width: 170px;
+}
+
+.agenda-nav {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px;
+    background: var(--ld-bg);
+    border-radius: 8px;
+}
+
+.agenda-nav-btn,
+.agenda-nav-today {
+    border: none;
+    background: none;
+    height: 30px;
+    border-radius: 6px;
+    color: var(--ld-text);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.agenda-nav-btn {
+    width: 30px;
+}
+
+.agenda-nav-today {
+    padding: 0 12px;
+}
+
+.agenda-nav-btn:hover,
+.agenda-nav-today:hover {
+    background: var(--ld-surface);
+}
+
+/* ── Calendar + side panel ───────────────────────────────────────── */
+
+.agenda-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 20px;
+    align-items: start;
+}
+
+.agenda-calendar {
+    background: var(--ld-surface);
+    border: 1px solid var(--ld-border);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.agenda-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    border-bottom: 1px solid var(--ld-border);
+    background: #FAFBFC;
+}
+
+.agenda-weekdays div {
+    padding: 10px 0;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--ld-text-muted);
+}
+
+.agenda-grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.agenda-day {
+    min-height: 112px;
+    padding: 8px;
+    border-right: 1px solid #EEF0F4;
+    border-bottom: 1px solid #EEF0F4;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    transition: background 0.12s ease;
+}
+
+.agenda-day:nth-child(7n) {
+    border-right: none;
+}
+
+.agenda-day:hover {
+    background: #F8FAFF;
+}
+
+.agenda-day.other-month .agenda-day-number {
+    color: #B4BCC8;
+}
+
+.agenda-day.selected {
+    box-shadow: inset 0 0 0 2px var(--ld-primary);
+}
+
+.agenda-day-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2px;
+}
+
+.agenda-day-number {
+    width: 26px;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ld-text);
+}
+
+.agenda-day-number.today {
+    background: var(--ld-primary);
+    color: white;
+}
+
+.agenda-chip {
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-size: 10.5px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ── Side panel ──────────────────────────────────────────────────── */
+
+.agenda-side {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.side-card {
+    background: var(--ld-surface);
+    border: 1px solid var(--ld-border);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.side-card-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--ld-border);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ld-text);
+}
+
+.side-card-title > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+}
+
+.side-card-title ::deep .mud-icon-root {
+    color: var(--ld-primary);
+}
+
+.side-card-title-tinted {
+    background: #F8FAFF;
+}
+
+.side-card-body {
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.side-empty {
+    font-size: 12.5px;
+    color: var(--ld-text-muted);
+}
+
+.slot-label {
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ld-text-muted);
+}
+
+.slot-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.slot {
+    padding: 9px 0;
+    border-radius: 6px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.slot-open {
+    border: 1px solid var(--ld-border);
+    background: var(--ld-surface);
+    color: var(--ld-primary);
+}
+
+/* ── Patient-specific: past days, slot picking, booking ──────────── */
+
+.agenda-nav-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+    background: none;
+}
+
+.agenda-day.past {
+    background: #FAFBFC;
+}
+
+.agenda-day.past .agenda-day-number {
+    color: #B4BCC8;
+}
+
+.agenda-chip {
+    background: #DCFCE7;
+    color: #166534;
+}
+
+button.slot {
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.12s ease, background 0.12s ease;
+}
+
+.slot-open:hover {
+    border-color: var(--ld-primary);
+    background: var(--ld-primary-soft);
+}
+
+.slot-open.chosen {
+    border-color: var(--ld-primary);
+    background: var(--ld-primary);
+    color: white;
+}
+
+.booking-summary {
+    padding: 10px 12px;
+    border: 1px solid var(--ld-border);
+    border-left: 3px solid var(--ld-primary);
+    border-radius: 8px;
+}
+
+.booking-time {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--ld-text);
+}
+
+.booking-date {
+    font-size: 12.5px;
+    color: var(--ld-text-muted);
+}
+
+.booking-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 40px;
+    border: none;
+    border-radius: 8px;
+    background: var(--ld-primary);
+    color: white !important;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.booking-button:hover {
+    opacity: 0.92;
+}
+
+.booking-button:disabled {
+    background: #CBD5E1;
+    cursor: default;
+    opacity: 1;
+}
+
+/* ── Reviews ─────────────────────────────────────────────────────── */
+
+.reviews-card {
+    margin-top: 20px;
+    background: var(--ld-surface);
+    border: 1px solid var(--ld-border);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.review {
+    padding-bottom: 10px;
+    border-bottom: 1px solid #EEF0F4;
+}
+
+.review:last-child {
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.review-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.review-date {
+    font-size: 11.5px;
+    color: var(--ld-text-muted);
+}
+
+.review-comment {
+    margin-top: 4px;
+    font-size: 13px;
+    color: var(--ld-text);
+}
+
+/* ── Narrower screens: panel below the calendar ──────────────────── */
+
+@media (max-width: 1200px) {
+    .agenda-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 640px) {
+    .profile-card {
+        flex-wrap: wrap;
+    }
+
+    .profile-facts {
+        width: 100%;
+        align-items: flex-start;
+        text-align: left;
+    }
+
+    .agenda-day {
+        min-height: 64px;
+        padding: 4px;
+    }
+
+    .agenda-chip {
+        font-size: 0;
+        padding: 0;
+        height: 6px;
+    }
+}

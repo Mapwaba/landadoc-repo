@@ -1,4 +1,5 @@
 @page "/doctors/{DoctorId:guid}"
+@using System.Globalization
 
 <PageTitle>Doctor profile</PageTitle>
 
@@ -12,77 +13,197 @@ else if (_doctor is null)
 }
 else
 {
-    <MudPaper Class="pa-6 mb-6">
-        <MudText Typo="Typo.h4">@Lang["Dr."] @_doctor.FirstName @_doctor.LastName</MudText>
-        <MudText Typo="Typo.subtitle1" Color="Color.Secondary">@Lang[_doctor.Specialty]</MudText>
-        @if (_doctor.Clinics.Count > 0)
-        {
-            <div class="mt-2">
-                @foreach (var clinic in _doctor.Clinics)
+    @* Who the doctor is *@
+    <div class="profile-card">
+        <div class="profile-avatar">@Initials</div>
+        <div class="profile-main">
+            <h2 class="profile-name">@Lang["Dr."] @_doctor.FirstName @_doctor.LastName</h2>
+            <div class="profile-specialty">@Lang[_doctor.Specialty]</div>
+            @if (_doctor.Clinics.Count > 0)
+            {
+                <div class="profile-clinics">
+                    @foreach (var clinic in _doctor.Clinics)
+                    {
+                        <span class="profile-clinic">
+                            <MudIcon Icon="@Icons.Material.Outlined.LocationOn" Style="font-size:14px;" /> @clinic.Name — @clinic.City
+                        </span>
+                    }
+                </div>
+            }
+            @if (!string.IsNullOrWhiteSpace(_doctor.Bio))
+            {
+                <p class="profile-bio">@_doctor.Bio</p>
+            }
+        </div>
+        <div class="profile-facts">
+            <div class="profile-rating">
+                <MudRating SelectedValue="@((int)Math.Round(_doctor.AverageRating))" ReadOnly="true" Size="Size.Small" />
+                <span>(@string.Format(Lang["reviewCount"], _doctor.RatingCount, _doctor.RatingCount == 1 ? "" : "s"))</span>
+            </div>
+            <div class="profile-fee">@string.Format(Lang["perConsultation"], _doctor.ConsultationFee.ToString("0.00"))</div>
+        </div>
+    </div>
+
+    @* Toolbar: month title with previous / today / next *@
+    <div class="agenda-toolbar">
+        <div class="agenda-toolbar-left">
+            <h2 class="agenda-title">@MonthTitle</h2>
+            <div class="agenda-nav">
+                <button type="button" class="agenda-nav-btn" @onclick="PreviousMonth" disabled="@(_month <= ThisMonth)" aria-label="Previous month">
+                    <MudIcon Icon="@Icons.Material.Outlined.ChevronLeft" Size="Size.Small" />
+                </button>
+                <button type="button" class="agenda-nav-today" @onclick="GoToToday">@Lang["Today"]</button>
+                <button type="button" class="agenda-nav-btn" @onclick="NextMonth" aria-label="Next month">
+                    <MudIcon Icon="@Icons.Material.Outlined.ChevronRight" Size="Size.Small" />
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="agenda-layout">
+        @* Month grid, weeks starting on Monday; each upcoming day shows how many slots are open *@
+        <div class="agenda-calendar">
+            <div class="agenda-weekdays">
+                @foreach (var name in WeekdayHeaders)
                 {
-                    <MudChip T="string" Class="mr-1 mb-1">@clinic.Name — @clinic.City</MudChip>
+                    <div>@name</div>
                 }
             </div>
-        }
-        @if (!string.IsNullOrWhiteSpace(_doctor.Bio))
-        {
-            <MudText Class="mt-3">@_doctor.Bio</MudText>
-        }
-        <MudRating SelectedValue="@((int)Math.Round(_doctor.AverageRating))" ReadOnly="true" Class="mt-3" />
-        <MudText Typo="Typo.caption">(@string.Format(Lang["reviewCount"], _doctor.RatingCount, _doctor.RatingCount == 1 ? "" : "s"))</MudText>
-        <MudText Typo="Typo.h6" Class="mt-3">@string.Format(Lang["perConsultation"], _doctor.ConsultationFee.ToString("0.00"))</MudText>
-
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@($"/book/{DoctorId}")" Class="mt-4">
-            @Lang["Book appointment"]
-        </MudButton>
-    </MudPaper>
-
-    <MudPaper Class="pa-6 mb-6">
-        <MudText Typo="Typo.h5" Class="mb-3">@Lang["Availability"]</MudText>
-        <MudDatePicker Label="@Lang["Check a date"]" @bind-Date="_date" MinDate="DateTime.Today" @bind-Date:after="LoadSlots" />
-
-        @if (_loadingSlots)
-        {
-            <MudProgressCircular Indeterminate="true" Class="mt-4" />
-        }
-        else if (_date is not null)
-        {
-            @if (_slots.Count == 0)
-            {
-                <MudAlert Severity="Severity.Info" Class="mt-4">@Lang["No open slots on this date."]</MudAlert>
-            }
-            else
-            {
-                <MudText Typo="Typo.subtitle1" Class="mt-4 mb-2">
-                    @string.Format(Lang["availableSlotsFor"], _date.Value.ToString("dd/MM/yyyy"))
-                </MudText>
-                @foreach (var slot in _slots)
+            <div class="agenda-grid">
+                @foreach (var day in CalendarDays)
                 {
-                    <MudChip T="string" Class="mr-1 mb-1">@slot</MudChip>
+                    var date = day;
+                    var past = date < Today;
+                    _openCounts.TryGetValue(date, out var count);
+                    <div class="agenda-day @(date.Month != _month.Month ? "other-month" : "") @(past ? "past" : "") @(date == _selected ? "selected" : "")"
+                         @onclick="@(() => SelectDay(date))">
+                        <div class="agenda-day-head">
+                            <span class="agenda-day-number @(date == Today ? "today" : "")">@date.Day</span>
+                        </div>
+                        @if (!past && count > 0)
+                        {
+                            <div class="agenda-chip">@SlotCountLabel(count)</div>
+                        }
+                    </div>
                 }
-            }
-        }
-    </MudPaper>
+            </div>
+        </div>
 
-    <MudText Typo="Typo.h5" Class="mb-3">@Lang["Reviews"]</MudText>
-    @if (_reviews.Count == 0)
-    {
-        <MudText>@Lang["No reviews yet."]</MudText>
-    }
-    else
-    {
-        @foreach (var review in _reviews)
-        {
-            <MudPaper Class="pa-4 mb-2">
-                <MudRating SelectedValue="review.Rating" ReadOnly="true" />
-                @if (!string.IsNullOrWhiteSpace(review.Comment))
-                {
-                    <MudText Class="mt-1">@review.Comment</MudText>
-                }
-                <MudText Typo="Typo.caption">@review.CreatedAt.ToLocalTime().ToString("d")</MudText>
-            </MudPaper>
-        }
-    }
+        <div class="agenda-side">
+            @* Open times for the selected day *@
+            <div class="side-card">
+                <div class="side-card-title">
+                    <span><MudIcon Icon="@Icons.Material.Outlined.Schedule" Size="Size.Small" /> @SelectedTitle</span>
+                </div>
+                <div class="side-card-body">
+                    @if (_selected < Today)
+                    {
+                        <div class="side-empty">@Lang["This day has passed."]</div>
+                    }
+                    else if (_loadingSlots)
+                    {
+                        <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+                    }
+                    else if (_slotsFailed)
+                    {
+                        <div class="side-empty">@Lang["Slots are unavailable right now."]</div>
+                    }
+                    else
+                    {
+                        <div class="slot-label">@Lang["Available times"]</div>
+                        @if (_slots.Count == 0)
+                        {
+                            <div class="side-empty">@Lang["No open slots this day."]</div>
+                        }
+                        else
+                        {
+                            <div class="slot-grid">
+                                @foreach (var slot in _slots)
+                                {
+                                    var s = slot;
+                                    <button type="button" class="slot slot-open @(s == _selectedSlot ? "chosen" : "")" @onclick="@(() => _selectedSlot = s)">@s</button>
+                                }
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+
+            @* Booking: who it's for, why, and confirm *@
+            <div class="side-card">
+                <div class="side-card-title side-card-title-tinted">
+                    <span><MudIcon Icon="@Icons.Material.Outlined.CalendarToday" Size="Size.Small" /> @Lang["Your appointment"]</span>
+                </div>
+                <div class="side-card-body">
+                    @if (_selectedSlot is null)
+                    {
+                        <div class="side-empty">@Lang["Pick a day on the calendar, then a time."]</div>
+                    }
+                    else
+                    {
+                        <div class="booking-summary">
+                            <div class="booking-time">@_selectedSlot</div>
+                            <div class="booking-date">@SelectedTitle</div>
+                        </div>
+                    }
+
+                    @if (!_isAuthenticated)
+                    {
+                        <a class="booking-button" href="@LoginHref">@Lang["Log in to book"]</a>
+                    }
+                    else if (!_isPatient)
+                    {
+                        <div class="side-empty">@Lang["Only patient accounts can book appointments."]</div>
+                    }
+                    else
+                    {
+                        <MudSelect T="Guid?" Label="@Lang["Booking for"]" @bind-Value="_bookForPatientId" Dense="true" Variant="Variant.Outlined" Margin="Margin.Dense">
+                            @foreach (var option in _bookForOptions)
+                            {
+                                <MudSelectItem T="Guid?" Value="@option.Id">@option.Label</MudSelectItem>
+                            }
+                        </MudSelect>
+                        <MudTextField T="string" Label="@Lang["Reason for visit (optional)"]" @bind-Value="_motif" Lines="2" Variant="Variant.Outlined" Margin="Margin.Dense" />
+
+                        @if (_error is not null)
+                        {
+                            <MudAlert Severity="Severity.Error" Dense="true">@_error</MudAlert>
+                        }
+
+                        <button type="button" class="booking-button" disabled="@(_selectedSlot is null || _submitting)" @onclick="Confirm">
+                            @Lang["Confirm booking"]
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* What other patients said *@
+    <div class="reviews-card">
+        <div class="side-card-title">
+            <span><MudIcon Icon="@Icons.Material.Outlined.StarOutline" Size="Size.Small" /> @Lang["Reviews"]</span>
+        </div>
+        <div class="side-card-body">
+            @if (_reviews.Count == 0)
+            {
+                <div class="side-empty">@Lang["No reviews yet."]</div>
+            }
+            @foreach (var review in _reviews)
+            {
+                <div class="review">
+                    <div class="review-top">
+                        <MudRating SelectedValue="review.Rating" ReadOnly="true" Size="Size.Small" />
+                        <span class="review-date">@review.CreatedAt.ToLocalTime().ToString("d", Culture)</span>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(review.Comment))
+                    {
+                        <div class="review-comment">@review.Comment</div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
 }
 
 @code {
@@ -90,32 +211,209 @@ else
     [Inject] private ISearchApiClient Search { get; set; } = default!;
     [Inject] private IReviewApiClient Reviews { get; set; } = default!;
     [Inject] private IAvailabilityApiClient Availability { get; set; } = default!;
+    [Inject] private IAppointmentApiClient Appointments { get; set; } = default!;
+    [Inject] private IIdentityApiClient Identity { get; set; } = default!;
+    [Inject] private AuthenticationStateProvider AuthState { get; set; } = default!;
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
     [Inject] private ILanguageService Lang { get; set; } = default!;
 
     private bool _loading = true;
     private DoctorSearchResultDto? _doctor;
     private List<ReviewDto> _reviews = [];
 
-    private DateTime? _date;
+    private DateOnly _month;      // first day of the month on screen
+    private DateOnly _selected;   // day shown in the right-hand panel
+    private Dictionary<DateOnly, int> _openCounts = [];
+    private int _monthVersion;    // drops counts from a month the patient has already left
+
     private bool _loadingSlots;
+    private bool _slotsFailed;
     private List<string> _slots = [];
+    private string? _selectedSlot;
+
+    private bool _isAuthenticated;
+    private bool _isPatient;
+    private List<(Guid? Id, string Label)> _bookForOptions = [];
+    private Guid? _bookForPatientId;
+    private string? _motif;
+    private bool _submitting;
+    private string? _error;
+
+    // Slots are clinic clock times (no time zone conversion in the backend), so days are
+    // compared as plain dates, the same way the doctor's agenda does it.
+    private static DateOnly Today => DateOnly.FromDateTime(DateTime.Now);
+    private static DateOnly ThisMonth => new(Today.Year, Today.Month, 1);
+    private CultureInfo Culture => CultureInfo.GetCultureInfo(Lang.CurrentLanguage == "fr" ? "fr-FR" : "en-US");
 
     protected override async Task OnInitializedAsync()
     {
-        _doctor = await Search.GetDoctorAsync(DoctorId);
-        _reviews = (await Reviews.GetForDoctorAsync(DoctorId)).ToList();
+        _selected = Today;
+        _month = ThisMonth;
+
+        var doctorTask = Search.GetDoctorAsync(DoctorId);
+        var reviewsTask = Reviews.GetForDoctorAsync(DoctorId);
+        _doctor = await doctorTask;
+        _reviews = (await reviewsTask).ToList();
+
+        var user = (await AuthState.GetAuthenticationStateAsync()).User;
+        _isAuthenticated = user.Identity?.IsAuthenticated == true;
+        _isPatient = user.IsInRole("Patient");
+        if (_isPatient)
+        {
+            _bookForOptions = [(null, Lang["Myself"])];
+            var family = await Identity.GetMyFamilyAsync();
+            if (family is not null)
+            {
+                _bookForOptions.AddRange(family.Family.Select(f => ((Guid?)f.UserId, $"{f.FirstName} {f.LastName} ({f.RelationLabel})")));
+                _bookForOptions.AddRange(family.Dependents.Select(d => ((Guid?)d.Id, $"{d.FirstName} {d.LastName} ({d.RelationLabel})")));
+            }
+        }
         _loading = false;
 
-        _date = DateTime.Today;
-        await LoadSlots();
+        if (_doctor is null) return;
+        _ = LoadMonthCountsAsync();
+        await LoadSlotsAsync();
     }
 
-    private async Task LoadSlots()
+    private async Task SelectDay(DateOnly date)
     {
-        if (_date is null) return;
+        _selected = date;
+        if (date.Month != _month.Month || date.Year != _month.Year)
+        {
+            _month = new DateOnly(date.Year, date.Month, 1);
+            _ = LoadMonthCountsAsync();
+        }
+        await LoadSlotsAsync();
+    }
+
+    private void PreviousMonth()
+    {
+        if (_month <= ThisMonth) return;
+        _month = _month.AddMonths(-1);
+        _ = LoadMonthCountsAsync();
+    }
+
+    private void NextMonth()
+    {
+        _month = _month.AddMonths(1);
+        _ = LoadMonthCountsAsync();
+    }
+
+    private Task GoToToday() => SelectDay(Today);
+
+    private async Task LoadSlotsAsync()
+    {
+        _selectedSlot = null;
+        _error = null;
+        _slots = [];
+        _slotsFailed = false;
+        if (_selected < Today) return;
 
         _loadingSlots = true;
-        _slots = await Availability.GetSlotsAsync(DoctorId, DateOnly.FromDateTime(_date.Value));
+        StateHasChanged();
+        try
+        {
+            var day = _selected;
+            var slots = await Availability.GetSlotsAsync(DoctorId, day);
+            if (day != _selected) return;   // the patient clicked another day meanwhile
+            _slots = slots;
+            _openCounts[day] = slots.Count;
+        }
+        catch (Exception)
+        {
+            _slotsFailed = true;
+        }
         _loadingSlots = false;
     }
+
+    // There's no public weekly schedule, so ask for each upcoming day's slots on the grid
+    // in parallel and show the counts as they arrive. Failed days just show nothing.
+    private async Task LoadMonthCountsAsync()
+    {
+        var version = ++_monthVersion;
+        var days = CalendarDays.Where(d => d >= Today && !_openCounts.ContainsKey(d)).ToList();
+
+        await Task.WhenAll(days.Select(async day =>
+        {
+            try
+            {
+                var slots = await Availability.GetSlotsAsync(DoctorId, day);
+                if (version != _monthVersion) return;
+                _openCounts[day] = slots.Count;
+                StateHasChanged();
+            }
+            catch (Exception)
+            {
+            }
+        }));
+    }
+
+    private async Task Confirm()
+    {
+        if (_selectedSlot is null) return;
+
+        _error = null;
+        _submitting = true;
+
+        // Availability computes slots against UTC day boundaries with bare wall-clock
+        // times (no timezone conversion anywhere in the backend) — match that here so
+        // the booked slot lines up with what was actually offered.
+        var time = TimeOnly.Parse(_selectedSlot);
+        var slotStart = DateTime.SpecifyKind(_selected.ToDateTime(time), DateTimeKind.Utc);
+
+        var resp = await Appointments.CreateAsync(new CreateAppointmentRequest(DoctorId, slotStart, _motif, _bookForPatientId));
+        _submitting = false;
+
+        if (resp.IsSuccessStatusCode)
+        {
+            var appt = await resp.Content.ReadFromJsonAsync<AppointmentDto>(JsonDefaults.Options);
+            Navigation.NavigateTo($"/appointments/{appt!.Id}");
+        }
+        else if (resp.StatusCode == System.Net.HttpStatusCode.Conflict)
+        {
+            await LoadSlotsAsync();
+            _error = Lang["That slot was just taken. Please pick another time."];
+        }
+        else if (resp.StatusCode == System.Net.HttpStatusCode.Forbidden)
+        {
+            _error = Lang["You're no longer authorized to book for that person."];
+        }
+        else
+        {
+            _error = Lang["Booking failed. Please try again."];
+        }
+    }
+
+    private string LoginHref => $"/login?returnUrl={Uri.EscapeDataString($"/doctors/{DoctorId}")}";
+
+    private string Initials =>
+        $"{_doctor?.FirstName.FirstOrDefault()}{_doctor?.LastName.FirstOrDefault()}".ToUpperInvariant();
+
+    private string SlotCountLabel(int count) =>
+        count == 1 ? Lang["oneOpenSlot"] : string.Format(Lang["manyOpenSlots"], count);
+
+    // Monday-first weeks covering the whole month (4 to 6 rows)
+    private IEnumerable<DateOnly> CalendarDays
+    {
+        get
+        {
+            var start = _month.AddDays(-(((int)_month.DayOfWeek + 6) % 7));
+            var end = _month.AddMonths(1).AddDays(-1);
+            end = end.AddDays((7 - ((int)end.DayOfWeek + 6) % 7 - 1) % 7);
+            for (var d = start; d <= end; d = d.AddDays(1))
+                yield return d;
+        }
+    }
+
+    private IEnumerable<string> WeekdayHeaders =>
+        Enumerable.Range(0, 7)
+            .Select(i => Culture.DateTimeFormat.GetAbbreviatedDayName((DayOfWeek)((i + 1) % 7)))
+            .Select(n => n.TrimEnd('.').ToUpper(Culture));
+
+    private string MonthTitle => Capitalize(_month.ToDateTime(TimeOnly.MinValue).ToString("MMMM yyyy", Culture));
+
+    private string SelectedTitle => Culture.TextInfo.ToTitleCase(
+        _selected.ToDateTime(TimeOnly.MinValue).ToString(Lang.CurrentLanguage == "fr" ? "dddd d MMMM" : "dddd, MMMM d", Culture));
+
+    private string Capitalize(string s) => s.Length == 0 ? s : char.ToUpper(s[0], Culture) + s[1..];
 }
