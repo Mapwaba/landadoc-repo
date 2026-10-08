@@ -225,6 +225,7 @@ else
     private DateOnly _selected;   // day shown in the right-hand panel
     private Dictionary<DateOnly, int> _openCounts = [];
     private int _monthVersion;    // drops counts from a month the patient has already left
+    private bool _patientMoved;   // the patient picked a day or changed month — stop choosing for them
 
     private bool _loadingSlots;
     private bool _slotsFailed;
@@ -271,11 +272,40 @@ else
         _loading = false;
 
         if (_doctor is null) return;
-        _ = LoadMonthCountsAsync();
         await LoadSlotsAsync();
+        _ = OpenOnFirstOpenDayAsync();
     }
 
-    private async Task SelectDay(DateOnly date)
+    // Today often has no open times (a day off, or the day's slots are over), which reads as
+    // "this doctor has no availability". Open on the first upcoming day that has times
+    // instead, looking at this month and then the next.
+    private async Task OpenOnFirstOpenDayAsync()
+    {
+        for (var monthsAhead = 0; monthsAhead < 2; monthsAhead++)
+        {
+            await LoadMonthCountsAsync();
+            if (_patientMoved || _slots.Count > 0) return;
+
+            var firstOpen = CalendarDays.Where(d => d >= Today).FirstOrDefault(d => _openCounts.GetValueOrDefault(d) > 0);
+            if (firstOpen != default)
+            {
+                await ShowDay(firstOpen);
+                StateHasChanged(); // not started by a click, so Blazor won't re-render on its own
+                return;
+            }
+            _month = _month.AddMonths(1);
+        }
+        _month = ThisMonth; // nothing open in the next two months — stay on today
+        StateHasChanged();
+    }
+
+    private Task SelectDay(DateOnly date)
+    {
+        _patientMoved = true;
+        return ShowDay(date);
+    }
+
+    private async Task ShowDay(DateOnly date)
     {
         _selected = date;
         if (date.Month != _month.Month || date.Year != _month.Year)
@@ -289,12 +319,14 @@ else
     private void PreviousMonth()
     {
         if (_month <= ThisMonth) return;
+        _patientMoved = true;
         _month = _month.AddMonths(-1);
         _ = LoadMonthCountsAsync();
     }
 
     private void NextMonth()
     {
+        _patientMoved = true;
         _month = _month.AddMonths(1);
         _ = LoadMonthCountsAsync();
     }
