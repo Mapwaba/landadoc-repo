@@ -14,7 +14,8 @@
                            RequiredError="@Lang["Password is required"]" Validation="@(new Func<string, string?>(ValidatePassword))" HelperText="@Lang["At least 8 characters"]" Class="mb-3" />
             <MudTextField T="string" Label="@Lang["Confirm password"]" @bind-Value="_confirmPassword" InputType="InputType.Password" Required="true"
                           Immediate="true" Validation="@(new Func<string, string?>(ValidateConfirmation))" Class="mb-3" />
-            <MudTextField T="string" Label="@Lang["Phone"]" @bind-Value="_phone" Class="mb-3" />
+            <MudTextField T="string" Label="@Lang["Phone"]" @bind-Value="_phone" Required="true" RequiredError="@Lang["Enter your phone number."]"
+                          InputType="InputType.Telephone" Class="mb-3" />
             <MudDatePicker Label="@Lang["Date of birth"]" @bind-Date="_dateOfBirth" Class="mb-3" />
             <MudSelect T="string" Label="@Lang["Gender"]" @bind-Value="_gender" Class="mb-3">
                 <MudSelectItem Value="@("Male")">@Lang["Male"]</MudSelectItem>
