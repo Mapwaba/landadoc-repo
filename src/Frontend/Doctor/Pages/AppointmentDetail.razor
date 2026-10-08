@@ -57,6 +57,10 @@ else
                 </MudFileUpload>
             </MudItem>
         </MudGrid>
+        @if (_uploadError is not null)
+        {
+            <MudAlert Severity="Severity.Error" Class="mb-3">@_uploadError</MudAlert>
+        }
         <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mb-4" Disabled="@(_selectedFile is null || _uploading)" OnClick="Upload">
             @Lang["Upload"]
         </MudButton>
@@ -95,7 +99,10 @@ else
     private string _category = "Other";
     private IBrowserFile? _selectedFile;
     private bool _uploading;
+    private string? _uploadError;
     private Guid _doctorId;
+
+    private const long MaxUploadBytes = 25_000_000; // Document service's request limit
 
     protected override async Task OnInitializedAsync()
     {
@@ -128,23 +135,49 @@ else
         }
     }
 
-    private void OnFileSelected(IBrowserFile file) => _selectedFile = file;
+    private void OnFileSelected(IBrowserFile file)
+    {
+        _selectedFile = file;
+        _uploadError = file.Size > MaxUploadBytes ? Lang["File is too large (max 25 MB)."] : null;
+    }
 
+    // Any failure (service asleep or unreachable, storage error, file too big) shows a message
+    // under the form instead of crashing the page.
     private async Task Upload()
     {
         if (_selectedFile is null || _appointment is null) return;
-        _uploading = true;
-
-        await using var stream = _selectedFile.OpenReadStream(25_000_000);
-        var resp = await Documents.UploadAsync(
-            _appointment.PatientId, _doctorId, AppointmentId, _category, stream, _selectedFile.Name, _selectedFile.ContentType);
-
-        if (resp.IsSuccessStatusCode)
+        if (_selectedFile.Size > MaxUploadBytes)
         {
-            _documents = await Documents.GetForAppointmentAsync(AppointmentId);
-            _selectedFile = null;
+            _uploadError = Lang["File is too large (max 25 MB)."];
+            return;
         }
-        _uploading = false;
+
+        _uploading = true;
+        _uploadError = null;
+        try
+        {
+            await using var stream = _selectedFile.OpenReadStream(MaxUploadBytes);
+            var resp = await Documents.UploadAsync(
+                _appointment.PatientId, _doctorId, AppointmentId, _category, stream, _selectedFile.Name, _selectedFile.ContentType);
+
+            if (resp.IsSuccessStatusCode)
+            {
+                _documents = await Documents.GetForAppointmentAsync(AppointmentId);
+                _selectedFile = null;
+            }
+            else
+            {
+                _uploadError = Lang["Upload failed. Please try again."];
+            }
+        }
+        catch (Exception)
+        {
+            _uploadError = Lang["Upload failed. Please try again."];
+        }
+        finally
+        {
+            _uploading = false;
+        }
     }
 
     private async Task Download(Guid documentId)
