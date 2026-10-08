@@ -92,3 +92,17 @@
     flex: 1;
     padding: 7px 10px;
 }
+
+/* On paper, the claims table is labelled with its open tab only, and without the note box */
+@media print {
+    .claim-tab:not(.active),
+    .claim-action-row {
+        display: none;
+    }
+
+    .claim-tabs,
+    .claim-tab.active {
+        background: none;
+        box-shadow: none;
+    }
+}

@@ -156,3 +156,14 @@
         grid-template-columns: minmax(0, 1fr);
     }
 }
+
+/* Paper is narrower than the 900px breakpoint: keep the three stats side by side */
+@media print {
+    .dash-stats {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .dash-link {
+        display: none;
+    }
+}

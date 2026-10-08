@@ -23,6 +23,7 @@
         }
     </div>
     <div class="agenda-views">
+        <PrintButton Disabled="@(_loading || _loadFailed)" />
         <button type="button" class="agenda-view-btn @(_view == View.Month ? "active" : "")" @onclick="@(() => _view = View.Month)">
             <MudIcon Icon="@Icons.Material.Outlined.CalendarMonth" Size="Size.Small" /> @Lang["Month"]
         </button>
@@ -68,6 +69,38 @@ else if (_view == View.List)
 }
 else
 {
+    @* On paper, the month on screen prints as a list instead of the calendar grid *@
+    <div class="ld-print-only ld-card">
+        @if (MonthAppointments.Count == 0)
+        {
+            <div class="ld-empty">@Lang["No appointments this month."]</div>
+        }
+        else
+        {
+            <table class="ld-table">
+                <thead>
+                    <tr>
+                        <th>@Lang["Date"]</th>
+                        <th>@Lang["Patient"]</th>
+                        <th>@Lang["Motif"]</th>
+                        <th>@Lang["Status"]</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var appt in MonthAppointments)
+                    {
+                        <tr>
+                            <td>@appt.SlotStart.ToString("g", Culture)</td>
+                            <td>@(appt.PatientName ?? "—")</td>
+                            <td>@(appt.Motif ?? "—")</td>
+                            <td><span class="status-pill status-@appt.Status.ToString().ToLowerInvariant()">@Lang[$"status.{appt.Status}"]</span></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+
     <div class="agenda-layout">
         @* Month grid, weeks starting on Monday *@
         <div class="agenda-calendar">
@@ -297,6 +330,12 @@ else
             .ToList();
 
     private List<AppointmentDto> SelectedAppointments => AppointmentsOn(_selected);
+
+    private List<AppointmentDto> MonthAppointments =>
+        _appointments
+            .Where(a => a.SlotStart.Year == _month.Year && a.SlotStart.Month == _month.Month)
+            .OrderBy(a => a.SlotStart)
+            .ToList();
 
     // Monday-first weeks covering the whole month (4 to 6 rows)
     private IEnumerable<DateOnly> CalendarDays

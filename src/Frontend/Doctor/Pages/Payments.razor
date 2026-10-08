@@ -8,6 +8,7 @@
 <div class="ld-page">
     <div class="ld-page-head">
         <h1 class="ld-page-title">@Lang["Payments & billing"]</h1>
+        <PrintButton Disabled="@(_loading || _loadFailed)" />
     </div>
 
     @if (_loading)

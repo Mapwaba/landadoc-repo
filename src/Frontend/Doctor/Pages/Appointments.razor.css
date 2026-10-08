@@ -416,3 +416,13 @@
         display: none;
     }
 }
+
+/* ── Printing: the month prints as a list (see the .ld-print-only table) ── */
+
+@media print {
+    .agenda-nav,
+    .agenda-view-btn,
+    .agenda-layout {
+        display: none;
+    }
+}

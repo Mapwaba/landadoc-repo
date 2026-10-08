@@ -115,6 +115,11 @@
     margin-bottom: 14px;
 }
 
+.pf-history-actions {
+    display: flex;
+    gap: 8px;
+}
+
 .pf-history-head h2 {
     display: flex;
     align-items: center;
@@ -180,6 +185,17 @@ a.pf-item:hover {
 }
 
 @media (max-width: 960px) {
+    .pf-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+/* On paper: patient card above the history, no way back to the list */
+@media print {
+    .pf-back {
+        display: none;
+    }
+
     .pf-layout {
         grid-template-columns: minmax(0, 1fr);
     }

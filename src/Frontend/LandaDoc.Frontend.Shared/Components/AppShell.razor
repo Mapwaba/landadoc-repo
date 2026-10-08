@@ -72,6 +72,18 @@
         </header>
 
         <main class="ld-content">
+            @* Only on paper: who printed the page and when (the date is filled in by landadoc.js) *@
+            <AuthorizeView>
+                <Authorized>
+                    <div class="ld-print-header">
+                        <img src="_content/LandaDoc.Frontend.Shared/landadoc-logo.png" alt="LandaDoc" />
+                        <div class="ld-print-meta">
+                            <div class="ld-print-user">@(_displayName ?? _email)</div>
+                            <div>@Lang["Printed on"] <span class="ld-print-date"></span></div>
+                        </div>
+                    </div>
+                </Authorized>
+            </AuthorizeView>
             @ChildContent
         </main>
     </div>

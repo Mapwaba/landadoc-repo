@@ -758,3 +758,110 @@ html, body {
 .ld-idle-actions .ld-btn {
     flex: 1;
 }
+
+/* ── Printing (Components/PrintButton.razor, or the browser's Ctrl+P) ─────
+   Only the page content goes on paper, under a header with the user's name and the date.
+   Mark anything that shouldn't print with .ld-no-print, and paper-only content with
+   .ld-print-only. */
+
+.ld-print-header,
+.ld-print-only {
+    display: none;
+}
+
+@media print {
+    @page {
+        margin: 14mm 12mm;
+    }
+
+    html, body {
+        background: #FFFFFF;
+    }
+
+    /* Keep the coloured status pills and tints instead of printing them blank */
+    * {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .ld-sidebar,
+    .ld-topbar,
+    .ld-backdrop,
+    .ld-idle-backdrop,
+    .ld-no-print,
+    .mud-snackbar-provider,
+    .mud-overlay,
+    .mud-popover-provider,
+    #blazor-error-ui,
+    .ld-content .ld-btn,
+    .ld-content .ld-icon-action,
+    .ld-content .mud-button-root {
+        display: none !important;
+    }
+
+    .ld-print-only {
+        display: block;
+    }
+
+    .ld-print-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding-bottom: 10px;
+        margin-bottom: 18px;
+        border-bottom: 1px solid var(--ld-border);
+        font-size: 11.5px;
+        color: var(--ld-text-muted);
+    }
+
+    .ld-print-header img {
+        height: 38px;
+        width: auto;
+    }
+
+    .ld-print-meta {
+        text-align: right;
+    }
+
+    .ld-print-user {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--ld-text);
+    }
+
+    .ld-main {
+        margin-left: 0;
+    }
+
+    .ld-content,
+    .ld-page {
+        max-width: none;
+        padding: 0;
+    }
+
+    .ld-card,
+    .ld-content .mud-paper:not(.mud-popover):not(.mud-appbar) {
+        box-shadow: none !important;
+    }
+
+    /* Wide tables wrap onto the page instead of scrolling */
+    .ld-table-wrap,
+    .ld-content .mud-table-container {
+        overflow: visible !important;
+    }
+
+    /* Repeat the column titles on every page and don't split a row across two */
+    thead {
+        display: table-header-group;
+    }
+
+    tr {
+        break-inside: avoid;
+    }
+
+    .ld-content a {
+        color: inherit;
+        text-decoration: none;
+    }
+}

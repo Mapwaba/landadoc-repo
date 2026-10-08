@@ -5,7 +5,10 @@
 
 <AuthorizeView>
     <Authorized>
-        <h1 class="dash-title">@Lang["Dashboard"]</h1>
+        <div class="ld-page-head">
+            <h1 class="ld-page-title">@Lang["Dashboard"]</h1>
+            <PrintButton Disabled="@(_loading || _loadFailed)" />
+        </div>
 
         @if (_loading)
         {

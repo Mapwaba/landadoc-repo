@@ -3,7 +3,10 @@
 
 <PageTitle>My reviews</PageTitle>
 
-<MudText Typo="Typo.h4" Class="mb-4">@Lang["My reviews"]</MudText>
+<div class="ld-page-head">
+    <MudText Typo="Typo.h4">@Lang["My reviews"]</MudText>
+    <PrintButton Disabled="@(_loading || _reviews.Count == 0)" />
+</div>
 
 @if (_loading)
 {

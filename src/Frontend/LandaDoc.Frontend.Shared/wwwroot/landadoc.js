@@ -14,6 +14,16 @@ window.landadoc.downloadText = function (fileName, text, mimeType) {
     setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
 };
 
+// Stamps the print header (AppShell.razor) with the time of printing, whether printing starts from
+// a Print button or the browser's own Ctrl+P. Blazor renders the span empty and never touches it.
+window.addEventListener("beforeprint", function () {
+    const now = new Date();
+    const pad = function (n) { return String(n).padStart(2, "0"); };
+    const stamp = pad(now.getDate()) + "/" + pad(now.getMonth() + 1) + "/" + now.getFullYear()
+        + " " + pad(now.getHours()) + ":" + pad(now.getMinutes());
+    document.querySelectorAll(".ld-print-date").forEach(function (el) { el.textContent = stamp; });
+});
+
 // Inactivity watch for signed-in users (used by IdleSessionGuard.razor). Any mouse, keyboard,
 // scroll or touch activity counts. The last activity time is shared through localStorage, so
 // working in one tab keeps the others alive too. When nobody has been active for idleMs, .NET's

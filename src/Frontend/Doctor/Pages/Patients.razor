@@ -7,6 +7,7 @@
 <div class="ld-page">
     <div class="ld-page-head">
         <h1 class="ld-page-title">@Lang["My patients"]</h1>
+        <PrintButton Disabled="@(_loading || _loadFailed)" />
     </div>
 
     @if (_loading)
@@ -30,6 +31,11 @@
                     <span class="pt-search-icon"><MudIcon Icon="@Icons.Material.Outlined.Search" Style="font-size:17px;" /></span>
                 </div>
             </div>
+            @if (!string.IsNullOrWhiteSpace(_query))
+            {
+                @* On paper the search box is gone, so say the list is filtered *@
+                <div class="ld-print-only pt-print-filter">@string.Format(Lang["searchFilter"], _query.Trim())</div>
+            }
 
             @if (Filtered.Count == 0)
             {

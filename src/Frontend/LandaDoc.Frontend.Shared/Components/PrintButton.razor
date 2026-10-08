@@ -1,0 +1,16 @@
+@* "Print" button for report pages (payments, appointments, patients...). The browser prints the
+   page as shown, without the sidebar, top bar and buttons, under a header with the user's name
+   and the date — see the "Printing" rules in wwwroot/landadoc-shell.css. *@
+<button type="button" class="ld-btn @(Small ? "ld-btn-sm" : "") ld-no-print" @onclick="Print" disabled="@Disabled">
+    <MudIcon Icon="@Icons.Material.Outlined.Print" Style="font-size:16px;" /> @Lang["Print"]
+</button>
+
+@code {
+    [Inject] private IJSRuntime JS { get; set; } = default!;
+    [Inject] private ILanguageService Lang { get; set; } = default!;
+
+    [Parameter] public bool Small { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+
+    private async Task Print() => await JS.InvokeVoidAsync("print");
+}

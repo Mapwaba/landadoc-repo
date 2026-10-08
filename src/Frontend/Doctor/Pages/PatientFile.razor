@@ -60,15 +60,18 @@
             <div>
                 <div class="pf-history-head">
                     <h2><MudIcon Icon="@Icons.Material.Outlined.MonitorHeart" Style="color:var(--ld-primary);" /> @Lang["Medical history"]</h2>
-                    @if (!_showReportForm)
-                    {
-                        <button type="button" class="ld-btn ld-btn-primary" @onclick="OpenReportForm">@Lang["New report"]</button>
-                    }
+                    <div class="pf-history-actions">
+                        <PrintButton />
+                        @if (!_showReportForm)
+                        {
+                            <button type="button" class="ld-btn ld-btn-primary" @onclick="OpenReportForm">@Lang["New report"]</button>
+                        }
+                    </div>
                 </div>
 
                 @if (_showReportForm)
                 {
-                    <div class="ld-card" style="margin-bottom:16px;">
+                    <div class="ld-card ld-no-print" style="margin-bottom:16px;">
                         <div class="ld-card-body">
                             <div class="ld-form-grid">
                                 <div class="ld-field">
