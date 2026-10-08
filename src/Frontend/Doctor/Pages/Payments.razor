@@ -228,13 +228,16 @@
     private Dictionary<Guid, AppointmentDto> _appointments = [];
     private List<InsuranceClaimDto> _claims = [];
 
+    // Review = waiting for the doctor (Submitted); Owed = approved, waiting for the insurer
+    // to pay (Approved); Closed = Declined, Settled or Rejected
     private enum ClaimTab { Review, Owed, Closed }
+    // The actions that open the inline note box (approving needs no note)
     private enum ClaimAction { Decline, Settle, Reject }
 
     private ClaimTab _claimTab = ClaimTab.Review;
-    private Guid? _actionClaimId;
+    private Guid? _actionClaimId;    // claim whose note box is open, if any
     private ClaimAction _action;
-    private string _actionNote = "";
+    private string _actionNote = "";   // reason, or the insurer's payment reference when settling
     private bool _busy;
     private string? _claimError;
 
@@ -245,6 +248,7 @@
         .Where(p => p.Provider != PaymentProvider.Insurance || ClaimFor(p)?.Status == InsuranceClaimStatus.Settled)
         .ToList();
 
+    // The claim behind an insurance ledger row (its ProviderRef is "claim_<claim id>")
     private InsuranceClaimDto? ClaimFor(PaymentDto p) =>
         _claims.FirstOrDefault(c => p.ProviderRef == $"claim_{c.Id:N}");
 
@@ -255,6 +259,7 @@
         _ => c.Status is InsuranceClaimStatus.Declined or InsuranceClaimStatus.Settled or InsuranceClaimStatus.Rejected,
     }).ToList();
 
+    // Hint text in the note box
     private string ActionPlaceholder => _action == ClaimAction.Settle
         ? Lang["Insurer's payment reference (optional)"]
         : Lang["Reason (optional)"];
@@ -296,6 +301,7 @@
         CancelAction();
     }
 
+    // Open the note box under a claim's row
     private void StartAction(InsuranceClaimDto claim, ClaimAction action)
     {
         _actionClaimId = claim.Id;
@@ -348,6 +354,7 @@
         _busy = false;
     }
 
+    // How a payment was made, for the Method column and the CSV export
     private string MethodLabel(PaymentDto p) => p.Provider switch
     {
         PaymentProvider.Stripe => Lang["Card"],
@@ -356,6 +363,7 @@
         _ => "—",
     };
 
+    // Claim status colours: amber to review, blue awaiting insurer, green paid, red declined/rejected
     private static string ClaimPill(InsuranceClaimStatus status) => status switch
     {
         InsuranceClaimStatus.Submitted => "status-pending",

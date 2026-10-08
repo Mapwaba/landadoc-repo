@@ -1,6 +1,10 @@
 @page "/insurers"
 @attribute [Authorize(Roles = "Admin")]
 
+@* Partner insurers / medical aids. Active ones are offered to patients at checkout; switching
+   one off hides it from new checkouts but keeps existing claims intact. The same form is used
+   to add an insurer and to edit one (_editingId says which). *@
+
 <PageTitle>Insurers</PageTitle>
 
 <MudText Typo="Typo.h4" Class="mb-1">@Lang["Insurers & medical aids"]</MudText>
@@ -106,6 +110,7 @@ else
         _loading = false;
     }
 
+    // "Add insurer" opens an empty form; pressing it again while adding closes it
     private void ToggleCreateForm()
     {
         if (_showForm && _editingId is null)
@@ -119,6 +124,7 @@ else
     private void Edit(InsurerDto insurer) =>
         Fill(insurer.Id, insurer.Name, insurer.Phone, insurer.Email, insurer.IsActive);
 
+    // Put values into the form and show it (id = null means a new insurer)
     private void Fill(Guid? id, string name, string? phone, string? email, bool isActive)
     {
         _editingId = id;

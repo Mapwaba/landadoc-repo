@@ -14,8 +14,9 @@ public interface IPaymentApiClient
     Task<HttpResponseMessage> CreateInsurerAsync(SaveInsurerRequest request);
     Task<HttpResponseMessage> UpdateInsurerAsync(Guid id, SaveInsurerRequest request);
 
-    // Insurance claims
-    Task<InsuranceClaimDto?> GetClaimByAppointmentAsync(Guid appointmentId);
+    // Insurance claims. The patient files one through InitiateAsync (Provider = Insurance);
+    // the doctor then approves/declines it and later records whether the insurer paid.
+    Task<InsuranceClaimDto?> GetClaimByAppointmentAsync(Guid appointmentId);  // latest claim, null if none
     Task<List<InsuranceClaimDto>> GetMyClaimsAsDoctorAsync();
     Task<HttpResponseMessage> ApproveClaimAsync(Guid claimId);
     Task<HttpResponseMessage> DeclineClaimAsync(Guid claimId, string? reason);

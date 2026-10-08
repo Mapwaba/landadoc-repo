@@ -1,6 +1,11 @@
 @page "/doctors/{DoctorId:guid}"
 @using System.Globalization
 
+@* A doctor's public profile, opened from "View profile" in the search results. Laid out like the
+   doctor's own agenda (Doctor/Pages/Appointments.razor): a month calendar showing how many times
+   are open each day, a side panel with the chosen day's times, and booking right there.
+   Anyone can view it; booking needs a patient account. *@
+
 <PageTitle>Doctor profile</PageTitle>
 
 @if (_loading)
@@ -72,7 +77,7 @@ else
             <div class="agenda-grid">
                 @foreach (var day in CalendarDays)
                 {
-                    var date = day;
+                    var date = day;   // copy for the click handler below
                     var past = date < Today;
                     _openCounts.TryGetValue(date, out var count);
                     <div class="agenda-day @(date.Month != _month.Month ? "other-month" : "") @(past ? "past" : "") @(date == _selected ? "selected" : "")"
@@ -147,6 +152,7 @@ else
                         </div>
                     }
 
+                    @* Visitors are sent to log in (and brought back here); doctors and admins can't book *@
                     @if (!_isAuthenticated)
                     {
                         <a class="booking-button" href="@LoginHref">@Lang["Log in to book"]</a>
@@ -217,24 +223,29 @@ else
     [Inject] private NavigationManager Navigation { get; set; } = default!;
     [Inject] private ILanguageService Lang { get; set; } = default!;
 
+    // The doctor and their reviews
     private bool _loading = true;
     private DoctorSearchResultDto? _doctor;
     private List<ReviewDto> _reviews = [];
 
+    // Calendar
+
     private DateOnly _month;      // first day of the month on screen
     private DateOnly _selected;   // day shown in the right-hand panel
-    private Dictionary<DateOnly, int> _openCounts = [];
+    private Dictionary<DateOnly, int> _openCounts = [];   // open times per day, filled in as answers arrive
     private int _monthVersion;    // drops counts from a month the patient has already left
     private bool _patientMoved;   // the patient picked a day or changed month — stop choosing for them
 
+    // Times for the selected day, and the one the patient picked ("HH:mm")
     private bool _loadingSlots;
     private bool _slotsFailed;
     private List<string> _slots = [];
     private string? _selectedSlot;
 
+    // Booking form
     private bool _isAuthenticated;
     private bool _isPatient;
-    private List<(Guid? Id, string Label)> _bookForOptions = [];
+    private List<(Guid? Id, string Label)> _bookForOptions = [];   // "Myself" (null id) plus family members and dependants
     private Guid? _bookForPatientId;
     private string? _motif;
     private bool _submitting;
@@ -251,6 +262,7 @@ else
         _selected = Today;
         _month = ThisMonth;
 
+        // Fetch the doctor and the reviews at the same time
         var doctorTask = Search.GetDoctorAsync(DoctorId);
         var reviewsTask = Reviews.GetForDoctorAsync(DoctorId);
         _doctor = await doctorTask;
@@ -259,6 +271,8 @@ else
         var user = (await AuthState.GetAuthenticationStateAsync()).User;
         _isAuthenticated = user.Identity?.IsAuthenticated == true;
         _isPatient = user.IsInRole("Patient");
+
+        // A patient can book for themselves or for anyone in their family they're allowed to book for
         if (_isPatient)
         {
             _bookForOptions = [(null, Lang["Myself"])];
@@ -272,8 +286,8 @@ else
         _loading = false;
 
         if (_doctor is null) return;
-        await LoadSlotsAsync();
-        _ = OpenOnFirstOpenDayAsync();
+        await LoadSlotsAsync();             // today's times first, so the panel fills quickly
+        _ = OpenOnFirstOpenDayAsync();      // then the calendar counts, in the background
     }
 
     // Today often has no open times (a day off, or the day's slots are over), which reads as
@@ -299,12 +313,14 @@ else
         StateHasChanged();
     }
 
+    // The patient clicked a day (or "Today")
     private Task SelectDay(DateOnly date)
     {
         _patientMoved = true;
         return ShowDay(date);
     }
 
+    // Show a day's times in the side panel, switching the calendar to its month if needed
     private async Task ShowDay(DateOnly date)
     {
         _selected = date;
@@ -316,6 +332,8 @@ else
         await LoadSlotsAsync();
     }
 
+    // Month arrows only move the calendar; the selected day stays as it is.
+    // There's no going back before the current month — those days are all past.
     private void PreviousMonth()
     {
         if (_month <= ThisMonth) return;
@@ -333,6 +351,8 @@ else
 
     private Task GoToToday() => SelectDay(Today);
 
+    // Load the selected day's open times into the side panel. Picking another day clears
+    // the chosen time, so a booking can never go out for a day the patient isn't looking at.
     private async Task LoadSlotsAsync()
     {
         _selectedSlot = null;
@@ -349,7 +369,7 @@ else
             var slots = await Availability.GetSlotsAsync(DoctorId, day);
             if (day != _selected) return;   // the patient clicked another day meanwhile
             _slots = slots;
-            _openCounts[day] = slots.Count;
+            _openCounts[day] = slots.Count;   // keep the calendar tag in step with what we just saw
         }
         catch (Exception)
         {
@@ -363,6 +383,7 @@ else
     private async Task LoadMonthCountsAsync()
     {
         var version = ++_monthVersion;
+        // Past days can't be booked, and days already counted don't need asking again
         var days = CalendarDays.Where(d => d >= Today && !_openCounts.ContainsKey(d)).ToList();
 
         await Task.WhenAll(days.Select(async day =>
@@ -376,10 +397,12 @@ else
             }
             catch (Exception)
             {
+                // one day failing shouldn't stop the others; that day simply shows no tag
             }
         }));
     }
 
+    // Create the appointment for the chosen time, then open it — that's where the patient pays.
     private async Task Confirm()
     {
         if (_selectedSlot is null) return;
@@ -403,11 +426,13 @@ else
         }
         else if (resp.StatusCode == System.Net.HttpStatusCode.Conflict)
         {
+            // Someone else booked it first: refresh the times so the taken one disappears
             await LoadSlotsAsync();
             _error = Lang["That slot was just taken. Please pick another time."];
         }
         else if (resp.StatusCode == System.Net.HttpStatusCode.Forbidden)
         {
+            // The family link was revoked since the page loaded
             _error = Lang["You're no longer authorized to book for that person."];
         }
         else
@@ -416,15 +441,18 @@ else
         }
     }
 
+    // Login brings the patient back to this doctor afterwards
     private string LoginHref => $"/login?returnUrl={Uri.EscapeDataString($"/doctors/{DoctorId}")}";
 
     private string Initials =>
         $"{_doctor?.FirstName.FirstOrDefault()}{_doctor?.LastName.FirstOrDefault()}".ToUpperInvariant();
 
+    // "1 open slot" / "5 open slots"
     private string SlotCountLabel(int count) =>
         count == 1 ? Lang["oneOpenSlot"] : string.Format(Lang["manyOpenSlots"], count);
 
-    // Monday-first weeks covering the whole month (4 to 6 rows)
+    // Monday-first weeks covering the whole month (4 to 6 rows): starts on the Monday on or
+    // before the 1st and ends on the Sunday on or after the last day, so the grid is always full weeks.
     private IEnumerable<DateOnly> CalendarDays
     {
         get
@@ -437,13 +465,16 @@ else
         }
     }
 
+    // "MON".."SUN" (or "LUN".."DIM") in the current language
     private IEnumerable<string> WeekdayHeaders =>
         Enumerable.Range(0, 7)
             .Select(i => Culture.DateTimeFormat.GetAbbreviatedDayName((DayOfWeek)((i + 1) % 7)))
             .Select(n => n.TrimEnd('.').ToUpper(Culture));
 
+    // "October 2026" / "Octobre 2026"
     private string MonthTitle => Capitalize(_month.ToDateTime(TimeOnly.MinValue).ToString("MMMM yyyy", Culture));
 
+    // "Friday, October 9" / "Vendredi 9 Octobre"
     private string SelectedTitle => Culture.TextInfo.ToTitleCase(
         _selected.ToDateTime(TimeOnly.MinValue).ToString(Lang.CurrentLanguage == "fr" ? "dddd d MMMM" : "dddd, MMMM d", Culture));
 

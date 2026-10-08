@@ -89,6 +89,7 @@ else
         <MudPaper Class="pa-6 mb-4">
             <MudText Typo="Typo.h6">@Lang["Payment"]</MudText>
             <MudText>@string.Format(Lang["totalAmountLabel"], _payment.GrossAmount.ToString("0.00")) — <MudChip T="string" Size="Size.Small">@Lang[$"status.{_payment.Status}"]</MudChip></MudText>
+            @* Where the patient's insurance claim stands (latest claim for this appointment) *@
             @if (_claim is not null)
             {
                 <MudAlert Severity="@ClaimSeverity(_claim.Status)" Class="mt-3">
@@ -99,6 +100,8 @@ else
                     }
                 </MudAlert>
             }
+            @* Payment options, unless it's paid or a claim is already with the doctor
+               (after a declined claim they come back so the patient can pay another way) *@
             @if (_payment.Status == PaymentStatus.Pending && _claim?.Status != InsuranceClaimStatus.Submitted)
             {
                 @if (_paymentError is not null)
@@ -115,12 +118,14 @@ else
                     <MudRadioGroup T="PaymentProvider" @bind-Value="_selectedProvider" Class="mt-3">
                         <MudRadio T="PaymentProvider" Value="PaymentProvider.Stripe">@Lang["Card"]</MudRadio>
                         <MudRadio T="PaymentProvider" Value="PaymentProvider.MokoAfrika">@Lang["Mobile Money"]</MudRadio>
+                        @* Only offered when admins have set up at least one partner insurer *@
                         @if (_insurers.Count > 0)
                         {
                             <MudRadio T="PaymentProvider" Value="PaymentProvider.Insurance">@Lang["Insurance / medical aid"]</MudRadio>
                         }
                     </MudRadioGroup>
 
+                    @* Insurance: which insurer, the member number, and the main member if covered as a dependant *@
                     @if (_selectedProvider == PaymentProvider.Insurance)
                     {
                         <MudSelect T="Guid?" @bind-Value="_insurerId" Label="@Lang["Insurer"]" Class="mt-2">
@@ -207,12 +212,14 @@ else
     private string? _mokoMessage;
     private CancellationTokenSource? _mokoPollCts;
 
+    // Insurance: the latest claim for this appointment, the insurers to choose from, and the form
     private InsuranceClaimDto? _claim;
     private List<InsurerDto> _insurers = [];
     private Guid? _insurerId;
     private string _memberNumber = "";
     private string _memberName = "";
 
+    // Enables the pay / send button once the chosen method's required fields are filled in
     private bool CanPay => _selectedProvider switch
     {
         PaymentProvider.Stripe => true,
@@ -221,6 +228,7 @@ else
         _ => false,
     };
 
+    // Green when covered, blue while waiting, amber when declined or rejected
     private static Severity ClaimSeverity(InsuranceClaimStatus status) => status switch
     {
         InsuranceClaimStatus.Approved or InsuranceClaimStatus.Settled => Severity.Success,
@@ -246,6 +254,7 @@ else
 
             _payment = await Payments.GetByAppointmentAsync(AppointmentId);
             _claim = await Payments.GetClaimByAppointmentAsync(AppointmentId);
+            // Insurers are only needed while there's still something to pay
             if (_payment?.Status == PaymentStatus.Pending)
             {
                 try { _insurers = await Payments.GetInsurersAsync(); }
