@@ -219,6 +219,7 @@
 @code {
     [Inject] private IPaymentApiClient PaymentsApi { get; set; } = default!;
     [Inject] private IAppointmentApiClient AppointmentsApi { get; set; } = default!;
+    [Inject] private IIdentityApiClient Identity { get; set; } = default!;
     [Inject] private IJSRuntime JS { get; set; } = default!;
     [Inject] private ILanguageService Lang { get; set; } = default!;
 
@@ -279,7 +280,7 @@
         try
         {
             var paymentsTask = PaymentsApi.GetMineAsDoctorAsync();
-            var appointmentsTask = AppointmentsApi.GetMineAsync(); // for the patient names
+            var appointmentsTask = DoctorAppointments.GetMineWithPatientNamesAsync(AppointmentsApi, Identity); // for the patient names
             var claimsTask = PaymentsApi.GetMyClaimsAsDoctorAsync();
             _payments = await paymentsTask;
             _appointments = (await appointmentsTask).ToDictionary(a => a.Id);

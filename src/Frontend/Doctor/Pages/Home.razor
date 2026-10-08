@@ -85,6 +85,7 @@
 
 @code {
     [Inject] private IAppointmentApiClient AppointmentsApi { get; set; } = default!;
+    [Inject] private IIdentityApiClient Identity { get; set; } = default!;
     [Inject] private IAdminApiClient Admin { get; set; } = default!;
     [Inject] private AuthenticationStateProvider AuthState { get; set; } = default!;
     [Inject] private ILanguageService Lang { get; set; } = default!;
@@ -105,7 +106,7 @@
 
         try
         {
-            var appointmentsTask = AppointmentsApi.GetMineAsync();
+            var appointmentsTask = DoctorAppointments.GetMineWithPatientNamesAsync(AppointmentsApi, Identity);
             var profileTask = Admin.GetMyProfileAsync();
             var appointments = await appointmentsTask;
             var fee = (await profileTask)?.ConsultationFee ?? 0;

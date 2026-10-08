@@ -37,6 +37,9 @@ public class IdentityApiClient(HttpClient http) : IIdentityApiClient
     public Task<HttpResponseMessage> ChangePasswordAsync(ChangePasswordRequest req) =>
         http.PostAsJsonAsync("api/auth/change-password", req, JsonDefaults.Options);
 
+    public async Task<List<PatientNameDto>> GetMyPatientNamesAsync() =>
+        await http.GetFromJsonAsync<List<PatientNameDto>>("api/patients/mine/names") ?? [];
+
     public async Task<List<PatientContactDto>> GetMyPatientsAsync() =>
         await http.GetFromJsonAsync<List<PatientContactDto>>("api/patients/mine", JsonDefaults.Options) ?? [];
 

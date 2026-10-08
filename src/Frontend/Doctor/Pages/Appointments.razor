@@ -188,6 +188,7 @@ else
 
 @code {
     [Inject] private IAppointmentApiClient AppointmentsApi { get; set; } = default!;
+    [Inject] private IIdentityApiClient Identity { get; set; } = default!;
     [Inject] private IAvailabilityApiClient Availability { get; set; } = default!;
     [Inject] private AuthenticationStateProvider AuthState { get; set; } = default!;
     [Inject] private ILanguageService Lang { get; set; } = default!;
@@ -224,7 +225,7 @@ else
             var user = (await AuthState.GetAuthenticationStateAsync()).User;
             Guid.TryParse(user.FindFirst(ClaimTypes.NameIdentifier)?.Value, out _doctorId);
 
-            var appointmentsTask = AppointmentsApi.GetMineAsync();
+            var appointmentsTask = DoctorAppointments.GetMineWithPatientNamesAsync(AppointmentsApi, Identity);
             var scheduleTask = Availability.GetMyScheduleAsync();
             _appointments = await appointmentsTask;
             _schedule = (await scheduleTask).ToDictionary(d => d.Day);
