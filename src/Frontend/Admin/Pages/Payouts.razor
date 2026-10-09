@@ -166,6 +166,53 @@
         {
             <MudAlert Severity="Severity.Error" Class="mt-3">@_error</MudAlert>
         }
+
+        @* LandaDoc's own money at Moko Afrika: what patients paid in, and what payouts can draw on *@
+        <div class="ld-card po-wallets">
+            <div class="po-wallets-head">
+                <span>@Lang["Mobile money wallets (Moko Afrika)"]</span>
+                <button type="button" class="ld-btn ld-btn-sm" disabled="@_walletsLoading" @onclick="LoadWalletsAsync">@Lang["Refresh"]</button>
+            </div>
+            @if (_walletsLoading)
+            {
+                <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+            }
+            else if (_wallets is null)
+            {
+                <div class="ld-empty">@Lang["The balances couldn't be read from Moko Afrika. Check the mobile money settings, then refresh."]</div>
+            }
+            else if (_wallets.Count == 0)
+            {
+                <div class="ld-empty">@Lang["Moko Afrika returned no wallets."]</div>
+            }
+            else
+            {
+                <div class="ld-table-wrap">
+                    <table class="ld-table">
+                        <thead>
+                            <tr>
+                                <th>@Lang["Operator"]</th>
+                                <th>@Lang["Currency"]</th>
+                                <th class="ld-num">@Lang["Received from patients"]</th>
+                                <th class="ld-num">@Lang["Available for payouts"]</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in WalletRows)
+                            {
+                                <tr>
+                                    <td class="po-name">@row.Operator</td>
+                                    <td class="ld-muted">@row.Currency</td>
+                                    <td class="ld-num">@WalletAmount(row.Received, row.Currency)</td>
+                                    <td class="ld-num po-amount">@WalletAmount(row.ForPayouts, row.Currency)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <div class="ld-muted po-wallets-note">@Lang["A payout through an operator needs enough in its payout wallet, in the payout's currency."]</div>
+            }
+        </div>
     }
 </div>
 
@@ -190,6 +237,32 @@
     private Guid? _historyFor;
     private List<PayoutDto>? _history;
 
+    // LandaDoc's Moko Afrika wallets; null when they couldn't be read
+    private List<MobileMoneyWalletDto>? _wallets;
+    private bool _walletsLoading = true;
+
+    // One row per operator and currency: the "debit" wallet (payments received) next to the
+    // "credit" one (what payouts draw on)
+    private record WalletRow(string Operator, string Currency, decimal? Received, decimal? ForPayouts);
+
+    private IEnumerable<WalletRow> WalletRows => (_wallets ?? [])
+        .GroupBy(w => (Operator: w.Operator, Currency: w.Currency.ToUpperInvariant()))
+        .OrderBy(g => g.Key.Operator).ThenBy(g => g.Key.Currency == "USD" ? 0 : 1)
+        .Select(g => new WalletRow(g.Key.Operator, g.Key.Currency,
+            g.Where(w => w.WalletType == "debit").Select(w => (decimal?)w.Amount).Sum(),
+            g.Where(w => w.WalletType == "credit").Select(w => (decimal?)w.Amount).Sum()));
+
+    private static string WalletAmount(decimal? amount, string currency) => amount is null ? "—"
+        : currency == "USD" ? "$" + amount.Value.ToString("#,0.00", System.Globalization.CultureInfo.InvariantCulture)
+        : amount.Value.ToString("#,0.##", System.Globalization.CultureInfo.InvariantCulture) + " " + currency;
+
+    private async Task LoadWalletsAsync()
+    {
+        _walletsLoading = true;
+        _wallets = await PaymentsApi.GetMobileMoneyWalletsAsync();
+        _walletsLoading = false;
+    }
+
     protected override async Task OnInitializedAsync()
     {
         try
@@ -203,6 +276,11 @@
             _loadFailed = true;
         }
         _loading = false;
+        if (!_loadFailed)
+        {
+            StateHasChanged();
+            await LoadWalletsAsync();   // asks Moko Afrika, so it comes after the doctors' balances
+        }
     }
 
     private async Task ReloadAsync() => _balances = await PaymentsApi.GetPayoutBalancesAsync();

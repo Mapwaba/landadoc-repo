@@ -34,6 +34,8 @@ public interface IPaymentApiClient
     Task<DoctorPayoutsDto?> GetMyPayoutsAsync();
     Task<HttpResponseMessage> SaveMyPayoutAccountAsync(SavePayoutAccountRequest request);
     Task<List<DoctorBalanceDto>> GetPayoutBalancesAsync();
+    // LandaDoc's wallets at Moko Afrika (FreshPay); null when they couldn't be read
+    Task<List<MobileMoneyWalletDto>?> GetMobileMoneyWalletsAsync();
     Task<DoctorPayoutsDto?> GetDoctorPayoutsAsync(Guid doctorId);
     Task<HttpResponseMessage> VerifyPayoutAccountAsync(Guid doctorId);
     Task<HttpResponseMessage> RecordPayoutAsync(Guid doctorId, RecordPayoutRequest request);

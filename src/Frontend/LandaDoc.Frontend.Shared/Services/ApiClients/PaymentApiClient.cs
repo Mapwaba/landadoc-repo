@@ -77,6 +77,19 @@ public class PaymentApiClient(HttpClient http) : IPaymentApiClient
     public async Task<List<DoctorBalanceDto>> GetPayoutBalancesAsync() =>
         await http.GetFromJsonAsync<List<DoctorBalanceDto>>("api/payouts/balances", JsonDefaults.Options) ?? [];
 
+    public async Task<List<MobileMoneyWalletDto>?> GetMobileMoneyWalletsAsync()
+    {
+        try
+        {
+            var resp = await http.GetAsync("api/payouts/mobile-money-wallets");
+            return resp.IsSuccessStatusCode ? await resp.Content.ReadFromJsonAsync<List<MobileMoneyWalletDto>>(JsonDefaults.Options) : null;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or System.Text.Json.JsonException or TaskCanceledException)
+        {
+            return null;
+        }
+    }
+
     public Task<DoctorPayoutsDto?> GetDoctorPayoutsAsync(Guid doctorId) =>
         http.GetFromJsonAsync<DoctorPayoutsDto>($"api/payouts/doctor/{doctorId}", JsonDefaults.Options);
 

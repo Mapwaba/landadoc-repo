@@ -378,6 +378,15 @@ public static class Translations
         ["No appointments this day."] = new() { ["en"] = "No appointments this day.", ["fr"] = "Aucun rendez-vous ce jour." },
         ["No open slots this day."] = new() { ["en"] = "No open slots this day.", ["fr"] = "Aucun créneau ouvert ce jour." },
         // Slot times are the doctor's local time; a viewer elsewhere also sees their own (SlotTimes)
+        // Admin Payouts: LandaDoc's wallets at Moko Afrika
+        ["Mobile money wallets (Moko Afrika)"] = new() { ["en"] = "Mobile money wallets (Moko Afrika)", ["fr"] = "Portefeuilles mobile money (Moko Afrika)" },
+        ["Refresh"] = new() { ["en"] = "Refresh", ["fr"] = "Actualiser" },
+        ["Currency"] = new() { ["en"] = "Currency", ["fr"] = "Devise" },
+        ["Received from patients"] = new() { ["en"] = "Received from patients", ["fr"] = "Reçu des patients" },
+        ["Available for payouts"] = new() { ["en"] = "Available for payouts", ["fr"] = "Disponible pour les versements" },
+        ["The balances couldn't be read from Moko Afrika. Check the mobile money settings, then refresh."] = new() { ["en"] = "The balances couldn't be read from Moko Afrika. Check the mobile money settings, then refresh.", ["fr"] = "Les soldes n'ont pas pu être lus chez Moko Afrika. Vérifiez les réglages mobile money, puis actualisez." },
+        ["Moko Afrika returned no wallets."] = new() { ["en"] = "Moko Afrika returned no wallets.", ["fr"] = "Moko Afrika n'a renvoyé aucun portefeuille." },
+        ["A payout through an operator needs enough in its payout wallet, in the payout's currency."] = new() { ["en"] = "A payout through an operator needs enough in its payout wallet, in the payout's currency.", ["fr"] = "Un versement via un opérateur nécessite un solde suffisant dans son portefeuille de versement, dans la devise du versement." },
         ["slotZoneNote"] = new() { ["en"] = "Times are {0} time, where the doctor works. Your own time is shown next to each.", ["fr"] = "Les heures sont celles de {0}, où exerce le médecin. Votre heure est indiquée à côté." },
         ["yourTime"] = new() { ["en"] = "{0} your time", ["fr"] = "{0} chez vous" },
         ["Slots are unavailable right now."] = new() { ["en"] = "Slots are unavailable right now.", ["fr"] = "Les créneaux sont indisponibles pour le moment." },
