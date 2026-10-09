@@ -24,6 +24,19 @@
     }
     else
     {
+        @* Narrows the figures, claims, transactions and the PDF / CSV to one way of paying *@
+        <div class="pay-search ld-no-print">
+            <div class="ld-input-wrap">
+                <input class="ld-input pay-search-input" type="search" placeholder="@Lang["Search by mobile money or insurer..."]" @bind="_query" @bind:event="oninput" />
+                <span class="pay-search-icon"><MudIcon Icon="@Icons.Material.Outlined.Search" Style="font-size:17px;" /></span>
+            </div>
+        </div>
+        @if (Searching)
+        {
+            @* On paper the search box is gone, so say the figures are filtered *@
+            <div class="ld-print-only pay-print-filter">@string.Format(Lang["searchFilter"], _query.Trim())</div>
+        }
+
         <div class="ld-stats">
             <div class="ld-stat">
                 <div class="ld-stat-icon ld-tint-green"><MudIcon Icon="@Icons.Material.Outlined.AttachMoney" /></div>
@@ -184,7 +197,7 @@
             }
             @if (ClaimsIn(_claimTab).Count == 0)
             {
-                <div class="ld-empty">@Lang[$"claimTabEmpty.{_claimTab}"]</div>
+                <div class="ld-empty">@(Searching ? Lang["No claim matches your search."] : Lang[$"claimTabEmpty.{_claimTab}"])</div>
             }
             else
             {
@@ -300,13 +313,13 @@
         <div class="ld-card">
             <div class="pay-head">
                 <span>@Lang["Transaction history"]</span>
-                <button type="button" class="ld-btn ld-btn-sm" @onclick="Export" disabled="@(_payments.Count == 0)">
+                <button type="button" class="ld-btn ld-btn-sm" @onclick="Export" disabled="@(Shown.Count == 0)">
                     <MudIcon Icon="@Icons.Material.Outlined.Download" Style="font-size:16px;" /> @Lang["Export"]
                 </button>
             </div>
-            @if (_payments.Count == 0)
+            @if (Shown.Count == 0)
             {
-                <div class="ld-empty">@Lang["No payments yet."]</div>
+                <div class="ld-empty">@(_payments.Count == 0 ? Lang["No payments yet."] : Lang["No payment matches your search."])</div>
             }
             else
             {
@@ -323,7 +336,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var p in _payments)
+                            @foreach (var p in Shown)
                             {
                                 <tr>
                                     <td class="ld-muted">@p.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy")</td>
@@ -428,9 +441,21 @@
     private bool _busy;
     private string? _claimError;
 
+    // Search by how it was paid: "mobile", "card", "insurance" or an insurer's name. Matches the
+    // Method column, ignoring case and accents ("Societe" finds "Société").
+    private string _query = "";
+    private bool Searching => !string.IsNullOrWhiteSpace(_query);
+
+    private bool Matches(params string?[] values) => !Searching || values.Any(v => v is not null
+        && CultureInfo.InvariantCulture.CompareInfo.IndexOf(v, _query.Trim(), CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace) >= 0);
+
+    // The transactions and claims the search leaves; the figures, tables and exports all use these
+    private List<PaymentDto> Shown => _payments.Where(p => Matches(MethodLabel(p), p.Provider == PaymentProvider.Insurance ? Lang["Insurance"] : null)).ToList();
+    private List<InsuranceClaimDto> ShownClaims => _claims.Where(c => Matches(c.InsurerName, Lang["Insurance"])).ToList();
+
     // Money actually received: card / mobile money payments, plus insurance claims the insurer has paid.
     // An approved claim completes the booking in the ledger but stays "Owed by insurers" until settled.
-    private List<PaymentDto> Paid => _payments
+    private List<PaymentDto> Paid => Shown
         .Where(p => p.Status == PaymentStatus.Completed)
         .Where(p => p.Provider != PaymentProvider.Insurance || ClaimFor(p)?.Status == InsuranceClaimStatus.Settled)
         .ToList();
@@ -439,7 +464,7 @@
     private InsuranceClaimDto? ClaimFor(PaymentDto p) =>
         _claims.FirstOrDefault(c => p.ProviderRef == $"claim_{c.Id:N}");
 
-    private List<InsuranceClaimDto> ClaimsIn(ClaimTab tab) => _claims.Where(c => tab switch
+    private List<InsuranceClaimDto> ClaimsIn(ClaimTab tab) => ShownClaims.Where(c => tab switch
     {
         ClaimTab.Review => c.Status == InsuranceClaimStatus.Submitted,
         ClaimTab.Owed => c.Status == InsuranceClaimStatus.Approved,
@@ -718,12 +743,16 @@
     // The PDF version of this page: the key figures, every insurance claim and every transaction
     private PdfReport BuildReport()
     {
-        var dates = _payments.Select(p => p.CreatedAt.ToLocalTime()).ToList();
+        var payments = Shown;
+        var claims = ShownClaims;
+        var dates = payments.Select(p => p.CreatedAt.ToLocalTime()).ToList();
+        var period = dates.Count == 0 ? null : $"{Lang["Period"]}: {dates.Min():dd/MM/yyyy} - {dates.Max():dd/MM/yyyy}";
+        var filter = Searching ? string.Format(Lang["searchFilter"], _query.Trim()) : null;
         var report = new PdfReport
         {
             FileName = "landadoc-payments",
             Title = Lang["Payments & billing"],
-            Subtitle = dates.Count == 0 ? null : $"{Lang["Period"]}: {dates.Min():dd/MM/yyyy} - {dates.Max():dd/MM/yyyy}",
+            Subtitle = string.Join(" · ", new[] { period, filter }.Where(s => s is not null)) is { Length: > 0 } sub ? sub : null,
             Stats =
             [
                 new(Lang["Total net revenue"], Money(Paid.Sum(p => p.NetAmount))),
@@ -751,13 +780,13 @@
             });
         }
 
-        if (_claims.Count > 0)
+        if (claims.Count > 0)
         {
             report.Sections.Add(new PdfSection
             {
                 Title = Lang["Insurance claims"],
                 Columns = [new(Lang["Date"]), new(Lang["Patient"]), new(Lang["Insurer"]), new(Lang["Member no."]), new(Lang["Auth. no."]), new(Lang["Amount"], Right: true), new(Lang["Status"])],
-                Rows = _claims.OrderByDescending(c => c.CreatedAt).Select(c => new List<PdfCell>
+                Rows = claims.OrderByDescending(c => c.CreatedAt).Select(c => new List<PdfCell>
                 {
                     c.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy"),
                     PatientName(c.AppointmentId),
@@ -773,9 +802,9 @@
         report.Sections.Add(new PdfSection
         {
             Title = Lang["Transaction history"],
-            Note = _payments.Count == 0 ? null : Lang["Totals only count the money received."],
+            Note = payments.Count == 0 ? null : Lang["Totals only count the money received."],
             Columns = [new(Lang["Date"]), new(Lang["Patient"]), new(Lang["Gross"], Right: true), new(Lang["Platform fee"], Right: true), new(Lang["Net (received)"], Right: true), new(Lang["Method"]), new(Lang["Status"])],
-            Rows = _payments.Select(p => new List<PdfCell>
+            Rows = payments.Select(p => new List<PdfCell>
             {
                 p.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy"),
                 PatientName(p.AppointmentId),
@@ -786,7 +815,7 @@
                 new(Lang[$"paymentStatus.{p.Status}"], PillClass(p.Status)),
             }).ToList(),
             Total = [Lang["Total"], "", Money(Paid.Sum(p => p.GrossAmount)), Money(Paid.Sum(p => p.PlatformFee)), Money(Paid.Sum(p => p.NetAmount)), "", ""],
-            EmptyText = Lang["No payments yet."],
+            EmptyText = Searching ? Lang["No payment matches your search."] : Lang["No payments yet."],
         });
         return report;
     }
@@ -798,7 +827,7 @@
     {
         var csv = new StringBuilder();
         csv.AppendLine("Date,Patient,Gross,Platform fee,Net,Status,Method,Reference");
-        foreach (var p in _payments)
+        foreach (var p in Shown)
         {
             var patient = _appointments.TryGetValue(p.AppointmentId, out var appt) ? appt.PatientName ?? "" : "";
             csv.AppendLine(string.Join(",",

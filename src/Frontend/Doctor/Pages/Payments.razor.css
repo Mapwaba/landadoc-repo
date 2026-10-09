@@ -10,6 +10,34 @@
     color: var(--ld-text);
 }
 
+/* ── Search by mobile money or insurer ────────────────────────────── */
+
+.pay-search {
+    max-width: 360px;
+    margin-bottom: 16px;
+}
+
+.pay-search-input {
+    padding-left: 36px !important;
+    padding-right: 12px !important;
+}
+
+.pay-search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #9CA3AF;
+    display: flex;
+    pointer-events: none;
+}
+
+.pay-print-filter {
+    margin-bottom: 12px;
+    font-size: 12.5px;
+    color: var(--ld-text-muted);
+}
+
 /* ── Insurance claims ────────────────────────────────────────────── */
 
 .claims-card {
