@@ -895,3 +895,39 @@ html, body {
 .ld-pw-rules li.met {
     color: #15803D;
 }
+
+/* ── Notifications list (Components/NotificationList.razor) ─────────── */
+
+.ld-notif-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.ld-notif-counts {
+    font-size: 13.5px;
+    color: var(--ld-text-muted);
+}
+
+.ld-notif-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.ld-notif-size {
+    width: 110px;
+}
+
+.ld-notif-pager {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 12px;
+    font-size: 13px;
+}

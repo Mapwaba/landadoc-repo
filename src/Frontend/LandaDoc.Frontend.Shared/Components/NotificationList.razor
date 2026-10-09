@@ -1,0 +1,138 @@
+@using Blazored.LocalStorage
+@using LandaDoc.Shared.DTOs
+@using LandaDoc.Frontend.Shared.Services.ApiClients
+@* A user's notifications, page by page: 10, 20, 30, 50 or 100 per page (the choice is remembered
+   in this browser), either all of them or only the unread ones. Clicking one marks it read.
+   Used by the Notifications page of the Patient and Doctor web apps. *@
+<div class="ld-notif-bar">
+    <div class="ld-notif-counts">
+        @if (_page is not null)
+        {
+            @string.Format(Lang["notifCounts"], _page.TotalCount, _page.UnreadCount)
+        }
+    </div>
+    <div class="ld-notif-controls">
+        <MudButtonGroup Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary">
+            <MudButton Variant="@(_unreadOnly ? Variant.Outlined : Variant.Filled)" OnClick="@(() => SetFilter(false))">@Lang["All"]</MudButton>
+            <MudButton Variant="@(_unreadOnly ? Variant.Filled : Variant.Outlined)" OnClick="@(() => SetFilter(true))">@Lang["Unread"]</MudButton>
+        </MudButtonGroup>
+        <MudSelect T="int" Value="_pageSize" ValueChanged="SetPageSize" Label="@Lang["Per page"]"
+                   Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" Class="ld-notif-size">
+            @foreach (var size in NotificationPageDto.PageSizes)
+            {
+                <MudSelectItem T="int" Value="@size">@size</MudSelectItem>
+            }
+        </MudSelect>
+    </div>
+</div>
+
+@if (_loading)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else if (_failed)
+{
+    <MudAlert Severity="Severity.Warning">@Lang["Your notifications couldn't be loaded. Please try again in a minute."]</MudAlert>
+}
+else if (_page is null || _page.Items.Count == 0)
+{
+    <MudText>@(_unreadOnly ? Lang["No unread notifications."] : Lang["No notifications."])</MudText>
+}
+else
+{
+    <MudList T="string">
+        @foreach (var n in _page.Items)
+        {
+            var notification = n;
+            <MudListItem T="string" OnClick="@(() => MarkRead(notification))">
+                <div style="@(notification.IsRead ? "" : "font-weight:bold")">
+                    @notification.Title
+                    <MudText Typo="Typo.body2">@notification.Body</MudText>
+                    <MudText Typo="Typo.caption">@notification.CreatedAt.ToLocalTime().ToString("g")</MudText>
+                </div>
+            </MudListItem>
+        }
+    </MudList>
+
+    <div class="ld-notif-pager">
+        <span class="ld-muted">@string.Format(Lang["notifRange"], First, Last, _page.TotalCount)</span>
+        @if (PageCount > 1)
+        {
+            <MudPagination Count="PageCount" Selected="_page.Page" SelectedChanged="GoTo" Size="Size.Small" Color="Color.Primary" />
+        }
+    </div>
+}
+
+@code {
+    [Inject] private INotificationApiClient NotificationsApi { get; set; } = default!;
+    [Inject] private ILocalStorageService LocalStorage { get; set; } = default!;
+    [Inject] private ILanguageService Lang { get; set; } = default!;
+
+    private const string PageSizeKey = "landadoc-notifications-per-page";
+
+    private bool _loading = true;
+    private bool _failed;
+    private NotificationPageDto? _page;
+    private int _pageSize = NotificationPageDto.DefaultPageSize;
+    private bool _unreadOnly;
+
+    private int PageCount => _page is null ? 1 : Math.Max(1, (_page.TotalCount + _page.PageSize - 1) / _page.PageSize);
+    private int First => _page is null || _page.TotalCount == 0 ? 0 : (_page.Page - 1) * _page.PageSize + 1;
+    private int Last => _page is null ? 0 : First + _page.Items.Count - 1;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // The size this person chose last time, in this browser (a convenience: 20 otherwise)
+        try
+        {
+            var saved = await LocalStorage.GetItemAsStringAsync(PageSizeKey);
+            if (int.TryParse(saved, out var size) && NotificationPageDto.PageSizes.Contains(size)) _pageSize = size;
+        }
+        catch (Exception) { }
+        await LoadAsync(1);
+    }
+
+    private async Task LoadAsync(int page)
+    {
+        _loading = true;
+        _failed = false;
+        try
+        {
+            _page = await NotificationsApi.GetPageAsync(page, _pageSize, _unreadOnly);
+        }
+        catch (Exception)
+        {
+            _failed = true;
+        }
+        _loading = false;
+    }
+
+    private Task GoTo(int page) => LoadAsync(page);
+
+    private async Task SetPageSize(int size)
+    {
+        if (size == _pageSize) return;
+        // Stay on the same notifications: the page that holds the first one shown now
+        var firstShown = Math.Max(First, 1);
+        _pageSize = size;
+        try { await LocalStorage.SetItemAsStringAsync(PageSizeKey, size.ToString()); }
+        catch (Exception) { }
+        await LoadAsync((firstShown - 1) / size + 1);
+    }
+
+    private async Task SetFilter(bool unreadOnly)
+    {
+        if (unreadOnly == _unreadOnly) return;
+        _unreadOnly = unreadOnly;
+        await LoadAsync(1);
+    }
+
+    private async Task MarkRead(NotificationDto n)
+    {
+        if (n.IsRead || _page is null) return;
+        if (!await NotificationsApi.MarkReadAsync(n.Id)) return;
+
+        var items = _page.Items.Select(i => i.Id == n.Id ? i with { IsRead = true } : i).ToList();
+        _page = _page with { Items = items, UnreadCount = Math.Max(0, _page.UnreadCount - 1) };
+    }
+}
