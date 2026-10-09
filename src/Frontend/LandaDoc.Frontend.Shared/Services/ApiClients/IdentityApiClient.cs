@@ -26,6 +26,9 @@ public class IdentityApiClient(HttpClient http) : IIdentityApiClient
     public Task<HttpResponseMessage> UpdateAddressAsync(UpdateAddressRequest req) =>
         http.PutAsJsonAsync("api/auth/me/address", req, JsonDefaults.Options);
 
+    public Task<HttpResponseMessage> UpdatePhotoAsync(string? photoDataUrl) =>
+        http.PutAsJsonAsync("api/auth/me/photo", new UpdatePhotoRequest(photoDataUrl), JsonDefaults.Options);
+
     // Best effort with a short timeout: logging must never hold up signing out
     public async Task ReportSessionEndedAsync(string reason)
     {

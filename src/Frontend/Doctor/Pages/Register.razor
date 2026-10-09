@@ -8,6 +8,9 @@
     <MudPaper Class="pa-6" MaxWidth="640px" Style="width:100%;">
         <MudForm @ref="_form">
             <MudText Typo="Typo.subtitle1" Class="mb-2"><b>@Lang["Your account"]</b></MudText>
+            <div class="mb-4">
+                <PhotoPicker @bind-Value="_photo" Required="true" ShowMissing="_submitted" Hint="@Lang["doctorPhotoHint"]" />
+            </div>
             <MudGrid Spacing="2">
                 <MudItem xs="12" sm="6">
                     <MudTextField T="string" Label="@Lang["First name"]" @bind-Value="_firstName" Required="true" Disabled="_accountCreated" />
@@ -144,6 +147,7 @@
     private string? _province;
     private string? _city;
     private string? _postalCode;
+    private string? _photo;   // required: patients see it when they choose a doctor
 
     // Verification documents chosen on the form, by kind, and the kinds already sent
     private readonly Dictionary<string, IBrowserFile> _files = [];
@@ -186,6 +190,11 @@
         _submitted = true;
         await _form.ValidateAsync();
         if (!_form.IsValid) return;
+        if (_photo is null)
+        {
+            _error = Lang["Add a photo of yourself."];
+            return;
+        }
         if (VerificationDocumentKinds.Required.Any(k => !_files.ContainsKey(k)))
         {
             _error = Lang["Attach your ID card or passport and your membership card."];
@@ -198,7 +207,7 @@
             if (!_accountCreated && !await CreateAccountAsync()) return;
 
             var resp = await Admin.CreateMyProfileAsync(new CreateOwnDoctorProfileRequest(
-                _firstName, _lastName, _specialty, null, _licenseNumber, _clinicIds.ToList(), _consultationFee));
+                _firstName, _lastName, _specialty, null, _licenseNumber, _clinicIds.ToList(), _consultationFee, _photo));
 
             // A name clash says so; any other conflict means the profile already exists
             // (e.g. a double click), which is fine.

@@ -20,7 +20,16 @@ else
 {
     @* Who the doctor is *@
     <div class="profile-card">
-        <div class="profile-avatar">@Initials</div>
+        <div class="profile-avatar">
+            @if (_doctor.PhotoDataUrl is { } photo)
+            {
+                <img class="ld-photo-img" src="@photo" alt="" />
+            }
+            else
+            {
+                @Initials
+            }
+        </div>
         <div class="profile-main">
             <h2 class="profile-name">@Lang["Dr."] @_doctor.FirstName @_doctor.LastName</h2>
             <div class="profile-specialty">@Lang[_doctor.Specialty]</div>

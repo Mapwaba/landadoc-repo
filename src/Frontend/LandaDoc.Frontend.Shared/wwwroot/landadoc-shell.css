@@ -931,3 +931,98 @@ html, body {
     margin-top: 12px;
     font-size: 13px;
 }
+
+/* ── Profile photos (PhotoPicker, and wherever a doctor or patient is pictured) ── */
+
+/* Round frame: the photo when there is one, otherwise the icon or initials inside */
+.ld-photo {
+    flex: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--ld-primary-soft);
+    color: var(--ld-primary);
+}
+
+.ld-photo-lg {
+    width: 84px;
+    height: 84px;
+}
+
+.ld-photo-missing {
+    box-shadow: 0 0 0 2px var(--ld-danger);
+}
+
+/* Drop into any avatar circle: fills it, cropped to the circle */
+.ld-photo img,
+img.ld-photo-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+    display: block;
+}
+
+.ld-photo-picker {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.ld-photo-text {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.ld-photo-title {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--ld-text);
+}
+
+.ld-photo-tag {
+    margin-left: 6px;
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--ld-text-muted);
+}
+
+.ld-photo-hint {
+    font-size: 12.5px;
+    color: var(--ld-text-muted);
+}
+
+.ld-photo-hint-missing {
+    color: var(--ld-danger);
+}
+
+.ld-photo-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+/* The file input is invisible over its label button */
+.ld-photo-pick {
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.ld-photo-pick.disabled {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.ld-photo-pick .ld-photo-input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+}

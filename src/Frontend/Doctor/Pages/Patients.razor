@@ -63,7 +63,16 @@
                                 <tr>
                                     <td>
                                         <div class="ld-person">
-                                            <span class="pt-avatar"><MudIcon Icon="@Icons.Material.Outlined.Person" Style="font-size:18px;" /></span>
+                                            <span class="pt-avatar">
+                                                @if (p.Contact?.PhotoDataUrl is { } photo)
+                                                {
+                                                    <img class="ld-photo-img" src="@photo" alt="" />
+                                                }
+                                                else
+                                                {
+                                                    <MudIcon Icon="@Icons.Material.Outlined.Person" Style="font-size:18px;" />
+                                                }
+                                            </span>
                                             <div>
                                                 <div>@p.Name</div>
                                                 <div class="pt-id">ID: #@ShortId(p.Id)</div>

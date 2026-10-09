@@ -18,6 +18,11 @@ else if (_me is null)
 }
 else
 {
+    @* Optional photo, saved as soon as it's chosen or removed *@
+    <MudPaper Class="pa-6 mb-4" MaxWidth="720px">
+        <PhotoPicker Value="@_photo" ValueChanged="SavePhoto" Disabled="_savingPhoto" Hint="@Lang["patientPhotoHint"]" />
+    </MudPaper>
+
     <MudPaper Class="pa-6 mb-4" MaxWidth="720px">
         <MudText Typo="Typo.h6" Class="mb-3">@Lang["My details"]</MudText>
         <MudGrid Spacing="2">
@@ -88,6 +93,9 @@ else
     private string _lastName = "";
     private string? _phone;
     private bool _savingDetails;
+
+    private string? _photo;
+    private bool _savingPhoto;
     private string? _detailsError;
 
     private string? _country;
@@ -118,8 +126,29 @@ else
             _city = _me.City;
             _postalCode = _me.PostalCode;
             _idNumber = _me.IdNumber;
+            _photo = _me.AvatarUrl;
         }
         _loading = false;
+    }
+
+    private async Task SavePhoto(string? photo)
+    {
+        _savingPhoto = true;
+        try
+        {
+            var resp = await Identity.UpdatePhotoAsync(photo);
+            if (resp.IsSuccessStatusCode)
+            {
+                _photo = photo;
+                Snackbar.Add(photo is null ? Lang["Photo removed."] : Lang["Photo saved."], Severity.Success);
+            }
+            else Snackbar.Add(Lang["Your photo couldn't be saved. Please try again."], Severity.Error);
+        }
+        catch (Exception)
+        {
+            Snackbar.Add(Lang["Your photo couldn't be saved. Please try again."], Severity.Error);
+        }
+        _savingPhoto = false;
     }
 
     private async Task SaveDetails()

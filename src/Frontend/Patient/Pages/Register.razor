@@ -7,6 +7,9 @@
 <div class="d-flex justify-center mt-8">
     <MudPaper Class="pa-6" MaxWidth="500px" Style="width:100%;">
         <MudForm @ref="_form">
+            <div class="mb-4">
+                <PhotoPicker @bind-Value="_photo" Hint="@Lang["patientPhotoHint"]" />
+            </div>
             <MudTextField T="string" Label="@Lang["First name"]" @bind-Value="_firstName" Required="true" Class="mb-3" />
             <MudTextField T="string" Label="@Lang["Last name"]" @bind-Value="_lastName" Required="true" Class="mb-3" />
             <MudTextField T="string" Label="@Lang["Email"]" @bind-Value="_email" InputType="InputType.Email" Required="true" Class="mb-3" />
@@ -67,6 +70,7 @@
     private string? _province;
     private string? _city;
     private string? _postalCode;
+    private string? _photo;   // optional profile picture
     private bool _submitting;
     private string? _error;
 
@@ -89,7 +93,8 @@
             _dateOfBirth is null ? null : DateOnly.FromDateTime(_dateOfBirth.Value),
             string.IsNullOrWhiteSpace(_gender) ? null : _gender,
             _country, _province, _city, _postalCode,
-            string.IsNullOrWhiteSpace(_idNumber) ? null : _idNumber.Trim());
+            string.IsNullOrWhiteSpace(_idNumber) ? null : _idNumber.Trim(),
+            _photo);
 
         var resp = await Identity.RegisterPatientAsync(req);
         var duplicate = await DuplicateAccountMessages.ForAsync(resp, Lang, isDoctor: false);

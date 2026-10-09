@@ -126,7 +126,16 @@
                 </button>
             </div>
             <div class="pp-body">
-                <div class="pp-avatar"><MudIcon Icon="@Icons.Material.Outlined.Person" Style="font-size:38px;" /></div>
+                <div class="pp-avatar">
+                    @if (_doctor.PhotoDataUrl is { } photo)
+                    {
+                        <img class="ld-photo-img" src="@photo" alt="" />
+                    }
+                    else
+                    {
+                        <MudIcon Icon="@Icons.Material.Outlined.Person" Style="font-size:38px;" />
+                    }
+                </div>
                 <div class="pp-name">@Lang["Dr."] @_doctor.FirstName @_doctor.LastName</div>
                 <div class="pp-specialty">@Lang[_doctor.Specialty]</div>
                 @if (_doctor.Clinics.Count > 0)

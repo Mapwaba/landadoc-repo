@@ -28,7 +28,16 @@
             @* Patient card *@
             <div class="ld-card pf-card">
                 <div class="pf-card-top">
-                    <div class="pf-avatar"><MudIcon Icon="@Icons.Material.Outlined.Person" Style="font-size:34px;" /></div>
+                    <div class="pf-avatar">
+                        @if (_contact?.PhotoDataUrl is { } photo)
+                        {
+                            <img class="ld-photo-img" src="@photo" alt="" />
+                        }
+                        else
+                        {
+                            <MudIcon Icon="@Icons.Material.Outlined.Person" Style="font-size:34px;" />
+                        }
+                    </div>
                     <div class="pf-name">@_name</div>
                     <div class="pf-born">
                         @Lang["Born on"] @(_contact?.DateOfBirth is { } dob ? dob.ToString("d MMMM yyyy", Culture) : "—")

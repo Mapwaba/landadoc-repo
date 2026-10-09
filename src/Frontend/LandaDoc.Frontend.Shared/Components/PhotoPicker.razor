@@ -1,0 +1,98 @@
+@using LandaDoc.Shared.Models
+@* Profile picture chooser. The picture is shrunk in the browser to a small JPEG (ProfilePhoto.Size)
+   and handed back as a data: URL, which the page saves with the rest of the profile. Required for
+   doctors (registration and profile), optional for patients, who can also remove it. *@
+
+<div class="ld-photo-picker">
+    <div class="ld-photo ld-photo-lg @(ShowMissing && Value is null ? "ld-photo-missing" : "")">
+        @if (Value is not null)
+        {
+            <img src="@Value" alt="" />
+        }
+        else
+        {
+            <MudIcon Icon="@Icons.Material.Outlined.Person" Style="font-size:38px;" />
+        }
+    </div>
+    <div class="ld-photo-text">
+        <div class="ld-photo-title">
+            @Lang["Profile photo"]
+            <span class="ld-photo-tag">@(Required ? Lang["Required"] : Lang["Optional"])</span>
+        </div>
+        <div class="ld-photo-hint @(ShowMissing && Value is null ? "ld-photo-hint-missing" : "")">@(Hint ?? Lang["A clear photo of your face. JPEG, PNG or WebP."])</div>
+        <div class="ld-photo-actions">
+            <label class="ld-btn ld-btn-sm ld-photo-pick @(Disabled || _reading ? "disabled" : "")">
+                @(Value is null ? Lang["Choose a photo"] : Lang["Change photo"])
+                <InputFile class="ld-photo-input" accept="image/jpeg,image/png,image/webp" OnChange="Pick" disabled="@(Disabled || _reading)" />
+            </label>
+            @if (!Required && Value is not null)
+            {
+                <button type="button" class="ld-btn ld-btn-sm" disabled="@Disabled" @onclick="Remove">@Lang["Remove"]</button>
+            }
+        </div>
+        @if (_error is not null)
+        {
+            <div class="ld-field-error">@_error</div>
+        }
+    </div>
+</div>
+
+@code {
+    [Inject] private ILanguageService Lang { get; set; } = default!;
+
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public EventCallback<string?> ValueChanged { get; set; }
+    [Parameter] public bool Required { get; set; }
+    // Highlights an empty required picker after the form was submitted
+    [Parameter] public bool ShowMissing { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public string? Hint { get; set; }
+
+    // Phone photos are several MB; anything bigger than this isn't worth shrinking
+    private const long MaxSourceBytes = 20_000_000;
+
+    private bool _reading;
+    private string? _error;
+
+    private async Task Pick(InputFileChangeEventArgs e)
+    {
+        _error = null;
+        var file = e.File;
+        if (file.ContentType is not ("image/jpeg" or "image/png" or "image/webp"))
+        {
+            _error = Lang["Choose a JPEG, PNG or WebP photo."];
+            return;
+        }
+        if (file.Size > MaxSourceBytes)
+        {
+            _error = Lang["This photo is too large. Choose one under 20 MB."];
+            return;
+        }
+
+        _reading = true;
+        try
+        {
+            // The browser scales it to fit the square; the page crops it to a circle
+            var small = await file.RequestImageFileAsync("image/jpeg", ProfilePhoto.Size, ProfilePhoto.Size);
+            await using var stream = small.OpenReadStream(ProfilePhoto.MaxLength);
+            using var buffer = new MemoryStream();
+            await stream.CopyToAsync(buffer);
+            var dataUrl = $"data:image/jpeg;base64,{Convert.ToBase64String(buffer.ToArray())}";
+            if (!ProfilePhoto.IsValid(dataUrl))
+                _error = Lang["This photo couldn't be used. Please try another one."];
+            else
+                await ValueChanged.InvokeAsync(dataUrl);
+        }
+        catch (Exception)
+        {
+            _error = Lang["This photo couldn't be used. Please try another one."];
+        }
+        _reading = false;
+    }
+
+    private Task Remove()
+    {
+        _error = null;
+        return ValueChanged.InvokeAsync(null);
+    }
+}

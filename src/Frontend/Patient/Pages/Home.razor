@@ -144,7 +144,16 @@ else
                 <MudItem xs="12" sm="6" md="4">
                     <div class="landadoc-card doctor-card">
                         <div class="doctor-card-header">
-                            <div class="doctor-avatar">@Initials(doctor.FirstName, doctor.LastName)</div>
+                            <div class="doctor-avatar">
+                                @if (doctor.PhotoDataUrl is { } photo)
+                                {
+                                    <img class="ld-photo-img" src="@photo" alt="" />
+                                }
+                                else
+                                {
+                                    @Initials(doctor.FirstName, doctor.LastName)
+                                }
+                            </div>
                             <div>
                                 <div class="doctor-name">@Lang["Dr."] @doctor.FirstName @doctor.LastName</div>
                                 <div class="doctor-specialty">@Lang[doctor.Specialty]</div>

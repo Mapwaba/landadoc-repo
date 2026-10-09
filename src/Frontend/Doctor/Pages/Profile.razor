@@ -23,6 +23,9 @@
         @* First-time setup for a doctor account without a profile yet *@
         <MudPaper Class="pa-6">
             <MudForm @ref="_form">
+                <div class="mb-4">
+                    <PhotoPicker @bind-Value="_photo" Required="true" ShowMissing="_infoSubmitted" Hint="@Lang["doctorPhotoHint"]" />
+                </div>
                 <MudTextField T="string" Label="@Lang["First name"]" @bind-Value="_firstName" Required="true" Class="mb-3" />
                 <MudTextField T="string" Label="@Lang["Last name"]" @bind-Value="_lastName" Required="true" Class="mb-3" />
                 <MudSelect T="string" Label="@Lang["Specialty"]" @bind-Value="_specialty" Required="true" Class="mb-3">
@@ -60,6 +63,9 @@
                 <MudIcon Icon="@Icons.Material.Outlined.Badge" Style="font-size:19px;" /> @Lang["Doctor information"]
             </div>
             <div class="ld-card-body">
+                <div class="mb-4">
+                    <PhotoPicker @bind-Value="_photo" Required="true" ShowMissing="_infoSubmitted" Hint="@Lang["doctorPhotoHint"]" />
+                </div>
                 <div class="ld-form-grid">
                     <div class="ld-field">
                         <label>@Lang["First name"]</label>
@@ -196,6 +202,14 @@
     }
     else
     {
+        @* Doctors from before photos were required are asked for one here *@
+        @if (_photo is null)
+        {
+            <MudAlert Severity="Severity.Warning" Class="mb-4">
+                @Lang["Add a photo of yourself so patients can recognise you. You'll need one to save changes to your profile."]
+                <button type="button" class="ld-btn ld-btn-sm ld-btn-primary" style="margin-left:8px;" @onclick="StartEdit">@Lang["Add my photo"]</button>
+            </MudAlert>
+        }
         @* Public profile, as patients see it *@
         <div class="ld-card">
             <div class="pp-banner">
@@ -204,7 +218,16 @@
                 </button>
             </div>
             <div class="pp-body">
-                <div class="pp-avatar"><MudIcon Icon="@Icons.Material.Outlined.Person" Style="font-size:38px;" /></div>
+                <div class="pp-avatar">
+                    @if (_photo is not null)
+                    {
+                        <img class="ld-photo-img" src="@_photo" alt="" />
+                    }
+                    else
+                    {
+                        <MudIcon Icon="@Icons.Material.Outlined.Person" Style="font-size:38px;" />
+                    }
+                </div>
                 <div class="pp-name">@Lang["Dr."] @_firstName @_lastName</div>
                 <div class="pp-specialty">@Lang[_specialty]</div>
                 @if (MyClinicNames.Count > 0)
@@ -271,6 +294,7 @@
     private string? _bio;
     private IReadOnlyCollection<Guid> _clinicIds = [];
     private decimal _consultationFee;
+    private string? _photo;   // required: shown to patients in search and on the profile
     private List<ClinicDto> _clinics = [];
     private DoctorProfileDto? _saved;   // last saved profile, restored when an edit is cancelled
     private string? _savedPhone;
@@ -337,6 +361,7 @@
         _bio = profile.Bio;
         _clinicIds = profile.Clinics.Select(c => c.Id).ToList();
         _consultationFee = profile.ConsultationFee;
+        _photo = profile.PhotoDataUrl;
     }
 
     private void StartEdit()
@@ -357,12 +382,18 @@
     private async Task CreateProfile()
     {
         _error = null;
+        _infoSubmitted = true;
         await _form.ValidateAsync();
         if (!_form.IsValid) return;
+        if (_photo is null)
+        {
+            _error = Lang["Add a photo of yourself."];
+            return;
+        }
 
         _saving = true;
         var resp = await Admin.CreateMyProfileAsync(new CreateOwnDoctorProfileRequest(
-            _firstName, _lastName, _specialty, _bio, _licenseNumber, _clinicIds.ToList(), _consultationFee));
+            _firstName, _lastName, _specialty, _bio, _licenseNumber, _clinicIds.ToList(), _consultationFee, _photo));
         var duplicate = await DuplicateAccountMessages.ForAsync(resp, Lang, isDoctor: true);
         _saving = false;
 
@@ -394,6 +425,11 @@
             _error = Lang["Please fill in the highlighted fields."];
             return;
         }
+        if (_photo is null)
+        {
+            _error = Lang["Add a photo of yourself."];
+            return;
+        }
 
         _saving = true;
         try
@@ -410,7 +446,8 @@
 
             var profileResp = await Admin.UpdateMyProfileAsync(new UpdateOwnDoctorProfileRequest(
                 _bio ?? "", _clinicIds.ToList(), _consultationFee,
-                _firstName.Trim(), _lastName.Trim(), _specialty, _licenseNumber ?? ""));
+                _firstName.Trim(), _lastName.Trim(), _specialty, _licenseNumber ?? "",
+                _photo == _saved?.PhotoDataUrl ? null : _photo));   // null leaves an unchanged photo alone
             duplicate = await DuplicateAccountMessages.ForAsync(profileResp, Lang, isDoctor: true);
 
             if (duplicate is not null)

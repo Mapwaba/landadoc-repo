@@ -11,6 +11,8 @@ public interface IIdentityApiClient
     Task<HttpResponseMessage> UpdateMeAsync(UpdateMeRequest req);
     // Where the signed-in user lives, and (patients) their ID / passport number
     Task<HttpResponseMessage> UpdateAddressAsync(UpdateAddressRequest req);
+    // A patient's profile picture (a ProfilePhoto data: URL), or null to remove it
+    Task<HttpResponseMessage> UpdatePhotoAsync(string? photoDataUrl);
     // 200 with a fresh AuthResponse, or 400 when the current password is wrong
     Task<HttpResponseMessage> ChangePasswordAsync(ChangePasswordRequest req);
     // Tells Identity why the browser is ending the session, for the logs ("inactive", ...)
