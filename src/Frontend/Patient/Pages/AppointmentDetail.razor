@@ -18,6 +18,10 @@ else
         <MudText Typo="Typo.h4">@string.Format(Lang["appointmentWithDoctor"], _doctorName)</MudText>
         <MudText Typo="Typo.subtitle1" Class="mt-1">@_appointment.SlotStart.ToString("f")</MudText>
         <MudText Typo="Typo.subtitle2" Class="mt-1">@string.Format(Lang["refNumber"], _appointment.RefNumber)</MudText>
+        @if (_bookedFor is not null)
+        {
+            <MudText Class="mt-1"><b>@string.Format(Lang["bookedFor"], _bookedFor)</b></MudText>
+        }
         <MudChip T="string" Class="mt-2">@Lang[$"status.{_appointment.Status}"]</MudChip>
         @if (!string.IsNullOrWhiteSpace(_appointment.Motif))
         {
@@ -199,6 +203,11 @@ else
     [Inject] private IAvailabilityApiClient Availability { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
     [Inject] private ILanguageService Lang { get; set; } = default!;
+    [Inject] private IIdentityApiClient Identity { get; set; } = default!;
+    [Inject] private AuthenticationStateProvider AuthState { get; set; } = default!;
+
+    // Set when the signed-in patient booked this for a relative: "Ruth Mbuyi (your daughter)"
+    private string? _bookedFor;
 
     private bool _loading = true;
     private AppointmentDto? _appointment;
@@ -256,6 +265,11 @@ else
             var doctor = await Search.GetDoctorAsync(_appointment.DoctorId);
             _doctorName = doctor is null ? Lang["Unknown doctor"] : $"{Lang["Dr."]} {doctor.FirstName} {doctor.LastName}";
 
+            var user = (await AuthState.GetAuthenticationStateAsync()).User;
+            Guid.TryParse(user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out var me);
+            if (_appointment.PatientId != me)
+                _bookedFor = FamilyLabels.For(_appointment.PatientId, me, await FamilyLabels.LoadAsync(Identity), Lang);
+
             _payment = await Payments.GetByAppointmentAsync(AppointmentId);
             _claim = await Payments.GetClaimByAppointmentAsync(AppointmentId);
             // Insurers are only needed while there's still something to pay
@@ -264,7 +278,9 @@ else
                 try { _insurers = await Payments.GetInsurersForDoctorAsync(_appointment.DoctorId); }
                 catch (Exception) { _insurers = []; } // insurance just isn't offered then
             }
-            _documents = await Documents.GetForAppointmentAsync(AppointmentId);
+            // A relative's medical documents stay theirs: whoever booked for them doesn't see them
+            try { _documents = await Documents.GetForAppointmentAsync(AppointmentId); }
+            catch (HttpRequestException) { _documents = []; }
 
             if (_appointment.Status == AppointmentStatus.Completed)
             {

@@ -18,6 +18,7 @@ else
     <MudTable Items="_appointments" Hover="true">
         <HeaderContent>
             <MudTh>@Lang["Doctor"]</MudTh>
+            <MudTh>@Lang["Patient"]</MudTh>
             <MudTh>@Lang["Date"]</MudTh>
             <MudTh>@Lang["Motif"]</MudTh>
             <MudTh>@Lang["Status"]</MudTh>
@@ -25,6 +26,7 @@ else
         </HeaderContent>
         <RowTemplate>
             <MudTd>@DoctorName(context.DoctorId)</MudTd>
+            <MudTd>@(FamilyLabels.For(context.PatientId, _me, _family, Lang) ?? Lang["Me"])</MudTd>
             <MudTd>@context.SlotStart.ToString("g")</MudTd>
             <MudTd>@(context.Motif ?? "—")</MudTd>
             <MudTd><MudChip T="string" Color="@StatusColor(context.Status)">@Lang[$"status.{context.Status}"]</MudChip></MudTd>
@@ -37,14 +39,23 @@ else
     [Inject] private IAppointmentApiClient AppointmentsApi { get; set; } = default!;
     [Inject] private ISearchApiClient SearchApi { get; set; } = default!;
     [Inject] private ILanguageService Lang { get; set; } = default!;
+    [Inject] private IIdentityApiClient Identity { get; set; } = default!;
+    [Inject] private AuthenticationStateProvider AuthState { get; set; } = default!;
 
     private bool _loading = true;
     private List<AppointmentDto> _appointments = [];
     private Dictionary<Guid, string> _doctorNames = [];
+    // Includes appointments booked for relatives, labelled with their name
+    private Guid _me;
+    private Dictionary<Guid, string> _family = [];
 
     protected override async Task OnInitializedAsync()
     {
+        var user = (await AuthState.GetAuthenticationStateAsync()).User;
+        Guid.TryParse(user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out _me);
+        var familyTask = FamilyLabels.LoadAsync(Identity);
         _appointments = await AppointmentsApi.GetMineAsync();
+        _family = await familyTask;
 
         var uniqueDoctorIds = _appointments.Select(a => a.DoctorId).Distinct().ToList();
         var resolved = await Task.WhenAll(uniqueDoctorIds.Select(async id =>
