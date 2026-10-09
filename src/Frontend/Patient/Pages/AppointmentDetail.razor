@@ -124,7 +124,11 @@ else
                 else
                 {
                     <MudRadioGroup T="PaymentProvider" @bind-Value="_selectedProvider" Class="mt-3">
-                        <MudRadio T="PaymentProvider" Value="PaymentProvider.Stripe">@Lang["Card"]</MudRadio>
+                        @* No card where the payer lives in the DRC: mobile money or insurance only *@
+                        @if (_cardAllowed)
+                        {
+                            <MudRadio T="PaymentProvider" Value="PaymentProvider.Stripe">@Lang["Card"]</MudRadio>
+                        }
                         <MudRadio T="PaymentProvider" Value="PaymentProvider.MokoAfrika">@Lang["Mobile Money"]</MudRadio>
                         @* Only offered when this doctor takes at least one partner insurer *@
                         @if (_insurers.Count > 0)
@@ -218,6 +222,7 @@ else
     private bool _payingNow;
     private string? _paymentError;
     private PaymentProvider _selectedProvider = PaymentProvider.Stripe;
+    private bool _cardAllowed = true;
     private string _mokoFullName = "";
     private string _mokoPhoneNumber = "";
     private MobileMoneyOperator _mokoOperator = MobileMoneyOperator.Airtel;
@@ -267,6 +272,8 @@ else
 
             var user = (await AuthState.GetAuthenticationStateAsync()).User;
             Guid.TryParse(user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out var me);
+            _cardAllowed = PaymentMethods.CardAllowed(user.FindFirst(PaymentMethods.CountryClaim)?.Value);
+            if (!_cardAllowed) _selectedProvider = PaymentProvider.MokoAfrika;
             if (_appointment.PatientId != me)
                 _bookedFor = FamilyLabels.For(_appointment.PatientId, me, await FamilyLabels.LoadAsync(Identity), Lang);
 
