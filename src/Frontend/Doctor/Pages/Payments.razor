@@ -426,6 +426,10 @@
 
     private bool _loading = true;
     private bool _loadFailed;
+    // The payment history is insert-only: a booking has a Pending row, then one for each outcome
+    // (paid, failed, expired, another attempt...). _ledger keeps every row; the page shows
+    // _payments, one row per booking with its latest status.
+    private List<PaymentDto> _ledger = [];
     private List<PaymentDto> _payments = [];
     private Dictionary<Guid, AppointmentDto> _appointments = [];
     private List<InsuranceClaimDto> _claims = [];
@@ -457,6 +461,16 @@
     // Money actually received: card / mobile money payments, plus insurance claims the insurer has paid.
     // An approved claim completes the booking in the ledger but stays "Owed by insurers" until settled.
     private List<PaymentDto> Paid => Received(_payments);
+
+    private void SetLedger(List<PaymentDto> ledger)
+    {
+        _ledger = ledger;
+        _payments = ledger
+            .GroupBy(p => p.AppointmentId)
+            .Select(booking => booking.OrderByDescending(p => p.CreatedAt).First())
+            .OrderByDescending(p => p.CreatedAt)
+            .ToList();
+    }
 
     private List<PaymentDto> Received(IEnumerable<PaymentDto> payments) => payments
         .Where(p => p.Status == PaymentStatus.Completed)
@@ -515,7 +529,7 @@
             var paymentsTask = PaymentsApi.GetMineAsDoctorAsync();
             var appointmentsTask = DoctorAppointments.GetMineWithPatientNamesAsync(AppointmentsApi, Identity); // for the patient names
             var claimsTask = PaymentsApi.GetMyClaimsAsDoctorAsync();
-            _payments = await paymentsTask;
+            SetLedger(await paymentsTask);
             _appointments = (await appointmentsTask).ToDictionary(a => a.Id);
             _claims = await claimsTask;
         }
@@ -588,7 +602,7 @@
             {
                 _actionClaimId = null;
                 _claims = await PaymentsApi.GetMyClaimsAsDoctorAsync();
-                _payments = await PaymentsApi.GetMineAsDoctorAsync();
+                SetLedger(await PaymentsApi.GetMineAsDoctorAsync());
                 await LoadPayoutsAsync();   // a settled claim's fee changes the balance
             }
             else
@@ -695,7 +709,7 @@
 
     // LandaDoc's fee on an approved claim (taken from the balance once the insurer pays)
     private decimal? ClaimFee(InsuranceClaimDto claim) =>
-        _payments.FirstOrDefault(p => p.ProviderRef == $"claim_{claim.Id:N}")?.PlatformFee;
+        _ledger.FirstOrDefault(p => p.ProviderRef == $"claim_{claim.Id:N}")?.PlatformFee;
 
     private void SetAcceptsAll(bool value)
     {
