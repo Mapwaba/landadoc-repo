@@ -417,7 +417,27 @@ else
                 : isMoko
                 ? Lang["Could not start the mobile money payment. Please try again."]
                 : Lang["Could not start payment. Please try again shortly."];
+            // A refusal from the operator says why ("Customer number is incorrect…"): show it
+            if (resp.StatusCode == System.Net.HttpStatusCode.UnprocessableEntity && await ReasonAsync(resp) is { } reason)
+                _paymentError = $"{_paymentError} ({reason})";
             _payingNow = false;
+        }
+    }
+
+    // The "error" text of a refused request, if it has one
+    private static async Task<string?> ReasonAsync(HttpResponseMessage resp)
+    {
+        try
+        {
+            var body = await resp.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+            return body.ValueKind == System.Text.Json.JsonValueKind.Object && body.TryGetProperty("error", out var e)
+                && e.ValueKind == System.Text.Json.JsonValueKind.String && !string.IsNullOrWhiteSpace(e.GetString())
+                ? e.GetString()
+                : null;
+        }
+        catch (Exception)
+        {
+            return null;
         }
     }
 
