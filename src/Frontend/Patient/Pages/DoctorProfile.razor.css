@@ -337,6 +337,22 @@
     font-weight: 600;
 }
 
+/* The viewer's own time under the doctor's, when their clocks differ (SlotTimes) */
+.slot-yours {
+    display: block;
+    margin-top: 2px;
+    font-size: 10.5px;
+    font-weight: 500;
+    color: var(--ld-text-muted);
+}
+
+.slot-zone-note {
+    margin: 6px 0 8px;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--ld-text-muted);
+}
+
 .slot-open {
     border: 1px solid var(--ld-border);
     background: var(--ld-surface);

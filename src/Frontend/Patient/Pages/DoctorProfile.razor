@@ -131,11 +131,21 @@ else
                         }
                         else
                         {
+                            @if (SlotTimes.Note(_selected, _slots, _slotZone, Lang) is { } zoneNote)
+                            {
+                                <div class="slot-zone-note">@zoneNote</div>
+                            }
                             <div class="slot-grid">
                                 @foreach (var slot in _slots)
                                 {
                                     var s = slot;
-                                    <button type="button" class="slot slot-open @(s == _selectedSlot ? "chosen" : "")" @onclick="@(() => _selectedSlot = s)">@s</button>
+                                    <button type="button" class="slot slot-open @(s == _selectedSlot ? "chosen" : "")" @onclick="@(() => _selectedSlot = s)">
+                                        @s
+                                        @if (SlotTimes.ForViewer(_selected, s, _slotZone, Lang.CurrentLanguage) is { } yours)
+                                        {
+                                            <span class="slot-yours">@yours</span>
+                                        }
+                                    </button>
                                 }
                             </div>
                         }
@@ -156,7 +166,7 @@ else
                     else
                     {
                         <div class="booking-summary">
-                            <div class="booking-time">@_selectedSlot</div>
+                            <div class="booking-time">@SlotTimes.Label(_selected, _selectedSlot, _slotZone, Lang)</div>
                             <div class="booking-date">@SelectedTitle</div>
                         </div>
                     }
@@ -249,6 +259,7 @@ else
     private bool _loadingSlots;
     private bool _slotsFailed;
     private List<string> _slots = [];
+    private string? _slotZone;   // the doctor's clock the times are on, e.g. "Africa/Kinshasa"
     private string? _selectedSlot;
 
     // Booking form
@@ -375,10 +386,11 @@ else
         try
         {
             var day = _selected;
-            var slots = await Availability.GetSlotsAsync(DoctorId, day);
+            var list = await Availability.GetSlotListAsync(DoctorId, day);
             if (day != _selected) return;   // the patient clicked another day meanwhile
-            _slots = slots;
-            _openCounts[day] = slots.Count;   // keep the calendar tag in step with what we just saw
+            _slots = list.Slots;
+            _slotZone = list.TimeZone;
+            _openCounts[day] = _slots.Count;   // keep the calendar tag in step with what we just saw
         }
         catch (Exception)
         {

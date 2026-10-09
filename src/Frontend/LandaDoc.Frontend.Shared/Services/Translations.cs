@@ -377,6 +377,9 @@ public static class Translations
         ["Blocked slots"] = new() { ["en"] = "Blocked slots", ["fr"] = "Créneaux bloqués" },
         ["No appointments this day."] = new() { ["en"] = "No appointments this day.", ["fr"] = "Aucun rendez-vous ce jour." },
         ["No open slots this day."] = new() { ["en"] = "No open slots this day.", ["fr"] = "Aucun créneau ouvert ce jour." },
+        // Slot times are the doctor's local time; a viewer elsewhere also sees their own (SlotTimes)
+        ["slotZoneNote"] = new() { ["en"] = "Times are {0} time, where the doctor works. Your own time is shown next to each.", ["fr"] = "Les heures sont celles de {0}, où exerce le médecin. Votre heure est indiquée à côté." },
+        ["yourTime"] = new() { ["en"] = "{0} your time", ["fr"] = "{0} chez vous" },
         ["Slots are unavailable right now."] = new() { ["en"] = "Slots are unavailable right now.", ["fr"] = "Les créneaux sont indisponibles pour le moment." },
         ["Your appointments couldn't be loaded. Please try again in a minute."] = new() { ["en"] = "Your appointments couldn't be loaded. Please try again in a minute.", ["fr"] = "Vos rendez-vous n'ont pas pu être chargés. Veuillez réessayer dans une minute." },
         ["Your account"] = new() { ["en"] = "Your account", ["fr"] = "Votre compte" },

@@ -52,7 +52,7 @@ else
                     @if (_selectedSlot is not null)
                     {
                         <MudAlert Severity="Severity.Success" Class="mt-4">
-                            @string.Format(Lang["newSlotFor"], _newDate.Value.ToString("dd/MM/yyyy")) <b>@_selectedSlot</b>
+                            @string.Format(Lang["newSlotFor"], _newDate.Value.ToString("dd/MM/yyyy")) <b>@SlotTimes.Label(NewDay, _selectedSlot, _slotZone, Lang)</b>
                             <MudButton Size="Size.Small" Variant="Variant.Text" Class="ml-2" OnClick="ClearSelection">@Lang["Change"]</MudButton>
                         </MudAlert>
                     }
@@ -65,9 +65,13 @@ else
                         <MudText Typo="Typo.subtitle1" Class="mt-4 mb-2">
                             @string.Format(Lang["availableSlotsFor"], _newDate.Value.ToString("dd/MM/yyyy"))
                         </MudText>
+                        @if (SlotTimes.Note(NewDay, _slots, _slotZone, Lang) is { } zoneNote)
+                        {
+                            <MudText Typo="Typo.caption" Class="d-block mb-1">@zoneNote</MudText>
+                        }
                         @foreach (var slot in _slots)
                         {
-                            <MudChip T="string" Class="mr-1 mb-1" OnClick="@(() => SelectSlot(slot))">@slot</MudChip>
+                            <MudChip T="string" Class="mr-1 mb-1" OnClick="@(() => SelectSlot(slot))">@SlotTimes.Label(NewDay, slot, _slotZone, Lang)</MudChip>
                         }
                     }
                 }
@@ -259,7 +263,9 @@ else
     private DateTime? _newDate;
     private bool _loadingSlots;
     private List<string> _slots = [];
+    private string? _slotZone;   // the doctor's clock the times are on
     private string? _selectedSlot;
+    private DateOnly NewDay => DateOnly.FromDateTime(_newDate ?? DateTime.Today);
     private bool _rescheduling;
     private string? _rescheduleError;
 
@@ -305,7 +311,9 @@ else
         if (_newDate is null || _appointment is null) return;
 
         _loadingSlots = true;
-        _slots = await Availability.GetSlotsAsync(_appointment.DoctorId, DateOnly.FromDateTime(_newDate.Value));
+        var list = await Availability.GetSlotListAsync(_appointment.DoctorId, DateOnly.FromDateTime(_newDate.Value));
+        _slots = list.Slots;
+        _slotZone = list.TimeZone;
         _loadingSlots = false;
     }
 
