@@ -155,7 +155,9 @@
             var days = _rows.Where(r => r.Enabled)
                 .Select(r => new ScheduleDayDto(r.Day, r.Open, r.Close, r.SlotMinutes))
                 .ToList();
-            var resp = await Availability.SetMyScheduleAsync(new UpdateScheduleRequest(days));
+            // The hours are on the doctor's own clock: the browser's zone ("Africa/Lubumbashi") lets
+            // the server tell which of today's slots have already started
+            var resp = await Availability.SetMyScheduleAsync(new UpdateScheduleRequest(days, TimeZoneInfo.Local.Id));
 
             if (resp.IsSuccessStatusCode) Snackbar.Add(Lang["Schedule saved."], Severity.Success);
             else _error = Lang["Could not save your schedule. Please try again."];
