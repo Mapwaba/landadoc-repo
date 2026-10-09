@@ -164,8 +164,8 @@ else
                             <MudSelectItem T="MobileMoneyOperator" Value="MobileMoneyOperator.Airtel">Airtel Money</MudSelectItem>
                             <MudSelectItem T="MobileMoneyOperator" Value="MobileMoneyOperator.Orange">Orange Money</MudSelectItem>
                             <MudSelectItem T="MobileMoneyOperator" Value="MobileMoneyOperator.Mpesa">M-Pesa</MudSelectItem>
-                            @* Africell (FreshPay's "afrimoney") isn't offered yet: FreshPay lists it as
-                               "integration in progress". Add it back once FreshPay enables it. *@
+                            @* Sent to FreshPay as "afrimoney"; its sandbox has no Africell test numbers *@
+                            <MudSelectItem T="MobileMoneyOperator" Value="MobileMoneyOperator.Africell">Africell (Afrimoney)</MudSelectItem>
                         </MudSelect>
                     }
 
