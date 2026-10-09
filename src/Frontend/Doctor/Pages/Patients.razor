@@ -77,7 +77,13 @@
                                             <div class="pt-sub">@AgeLabel(dob)</div>
                                         }
                                     </td>
-                                    <td>@(string.IsNullOrWhiteSpace(p.Contact?.Phone) ? "—" : p.Contact!.Phone)</td>
+                                    <td>
+                                        @(string.IsNullOrWhiteSpace(p.Contact?.Phone) ? "—" : p.Contact!.Phone)
+                                        @if (p.Contact?.GuardianName is { } guardian)
+                                        {
+                                            <div class="pt-sub">@string.Format(Lang["guardianLabel"], guardian)</div>
+                                        }
+                                    </td>
                                     <td>
                                         @if (p.LastVisit is { } last)
                                         {

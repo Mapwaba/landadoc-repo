@@ -237,6 +237,8 @@ public static class Translations
         ["Me"] = new() { ["en"] = "Me", ["fr"] = "Moi" },
         ["A family member"] = new() { ["en"] = "A family member", ["fr"] = "Un proche" },
         ["bookedFor"] = new() { ["en"] = "For {0}", ["fr"] = "Pour {0}" },
+        ["Guardian"] = new() { ["en"] = "Guardian", ["fr"] = "Responsable" },
+        ["guardianLabel"] = new() { ["en"] = "Guardian: {0}", ["fr"] = "Responsable : {0}" },
         ["Seen in the last 30 days"] = new() { ["en"] = "Seen in the last 30 days", ["fr"] = "Vus ces 30 derniers jours" },
         ["Totals only count the money received."] = new() { ["en"] = "Totals only count the money received.", ["fr"] = "Les totaux ne comptent que l'argent reçu." },
         ["Gross"] = new() { ["en"] = "Gross", ["fr"] = "Brut" },

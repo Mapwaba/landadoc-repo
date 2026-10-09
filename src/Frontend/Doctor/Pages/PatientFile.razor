@@ -35,6 +35,10 @@
                     </div>
                 </div>
                 <div class="pf-card-body">
+                    @if (_contact?.GuardianName is { } guardian)
+                    {
+                        <div class="pf-line"><MudIcon Icon="@Icons.Material.Outlined.FamilyRestroom" Style="font-size:17px;" /> @string.Format(Lang["guardianLabel"], guardian)</div>
+                    }
                     <div class="pf-line"><MudIcon Icon="@Icons.Material.Outlined.Phone" Style="font-size:17px;" /> @(Blank(_contact?.Phone) ?? Lang["Not provided"])</div>
                     <div class="pf-line"><MudIcon Icon="@Icons.Material.Outlined.MailOutline" Style="font-size:17px;" /> @(Blank(_contact?.Email) ?? Lang["Not provided"])</div>
 
@@ -318,6 +322,7 @@
                     new(Lang["Name"], _name),
                     new(Lang["Born on"], _contact?.DateOfBirth is { } dob ? $"{dob.ToString("d MMMM yyyy", Culture)} ({string.Format(Lang["ageYears"], Age(dob))})" : "-"),
                     new(Lang["Sex"], _contact?.Gender is { } g ? Lang[g] : "-"),
+                    new(Lang["Guardian"], _contact?.GuardianName ?? "-"),
                     new(Lang["Phone"], Blank(_contact?.Phone) ?? Lang["Not provided"]),
                     new(Lang["Email"], Blank(_contact?.Email) ?? Lang["Not provided"]),
                 ],
