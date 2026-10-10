@@ -119,7 +119,7 @@ class L10n extends ChangeNotifier {
     // ── Doctor app ──
     'doctorOnly': {'en': 'This app is for doctors. Patients use the LandaDoc Patient app.', 'fr': 'Cette application est réservée aux médecins. Les patients utilisent l\'application LandaDoc Patient.'},
     'patientOnly': {'en': 'This app is for patients. Doctors use the LandaDoc Doctor app.', 'fr': 'Cette application est réservée aux patients. Les médecins utilisent l\'application LandaDoc Médecin.'},
-    'registerOnWeb': {'en': 'New doctors register on the LandaDoc website (with your ID and membership card).', 'fr': 'Les nouveaux médecins s\'inscrivent sur le site LandaDoc (avec votre pièce d\'identité et votre carte de membre).'},
+    'registerOnWeb': {'en': 'Opens the LandaDoc website, where you also add your ID and membership card.', 'fr': 'Ouvre le site LandaDoc, où vous ajoutez aussi votre pièce d\'identité et votre carte de membre.'},
     'awaitingApproval': {'en': 'Your account is waiting for LandaDoc to approve it. You can sign in, but patients can\'t book you yet.', 'fr': 'Votre compte attend la validation de LandaDoc. Vous pouvez vous connecter, mais les patients ne peuvent pas encore vous réserver.'},
     'noProfile': {'en': 'Finish your profile on the LandaDoc website first.', 'fr': 'Complétez d\'abord votre profil sur le site LandaDoc.'},
     'agenda': {'en': 'Agenda', 'fr': 'Agenda'},

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:landadoc_common/landadoc_common.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-// Doctors sign in here; new doctors register on the website, where they upload their ID and
-// membership card for approval.
+// Doctors sign in here; "Create an account" opens the website's registration, where new doctors
+// also upload their ID and membership card for approval.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -78,8 +79,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   if (_error != null) ...[const SizedBox(height: 12), ErrorBanner(_error!)],
                   const SizedBox(height: 20),
                   FilledButton(onPressed: _busy ? null : _submit, child: _busy ? const ButtonSpinner() : Text(l.t('logIn'))),
-                  const SizedBox(height: 16),
-                  Text(l.t('registerOnWeb'), textAlign: TextAlign.center, style: TextStyle(color: Colors.grey[700])),
+                  const SizedBox(height: 12),
+                  // Registering needs a photo, specialty, licence, clinics and ID documents for approval:
+                  // that's the website's registration page, opened in the browser
+                  TextButton(
+                    onPressed: () => launchUrl(Uri.parse('${ApiConfig.doctorWebsite}/register'), mode: LaunchMode.externalApplication),
+                    child: Text('${l.t('noAccount')} ${l.t('register')}', textAlign: TextAlign.center),
+                  ),
+                  Text(l.t('registerOnWeb'), textAlign: TextAlign.center, style: TextStyle(color: Colors.grey[700], fontSize: 13)),
                   const SizedBox(height: 16),
                   const LanguageSwitch(),
                 ],
