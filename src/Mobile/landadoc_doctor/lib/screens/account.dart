@@ -22,7 +22,7 @@ class AccountScreen extends StatelessWidget {
         const SizedBox(height: 8),
         const Align(alignment: Alignment.centerLeft, child: LanguageSwitch()),
         const SizedBox(height: 24),
-        InfoBanner(l.t('webForDoctor')),
+        WebsiteNotice(l.t('webForDoctor'), ApiConfig.doctorWebsite),
         const SizedBox(height: 24),
         OutlinedButton.icon(
           onPressed: () => session.logout(),

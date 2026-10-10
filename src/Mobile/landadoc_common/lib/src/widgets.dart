@@ -1,10 +1,12 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'api.dart';
 import 'l10n.dart';
 import 'models.dart';
+import 'theme.dart';
 
 // The website's logo (cross + "LandaDoc — doctor on time!"), at the top of login and register
 class BrandHeader extends StatelessWidget {
@@ -54,6 +56,43 @@ class InfoBanner extends StatelessWidget {
           Expanded(child: Text(message)),
         ]),
       );
+}
+
+// A note about what's done on the website, with the website's address to tap (opens the browser)
+class WebsiteNotice extends StatelessWidget {
+  final String message;
+  final String url;
+  const WebsiteNotice(this.message, this.url, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: brandSoft, borderRadius: BorderRadius.circular(8)),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Icon(Icons.info_outline, color: primary, size: 20),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(message),
+            const SizedBox(height: 6),
+            InkWell(
+              onTap: () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Flexible(
+                  child: Text(Uri.parse(url).host,
+                      style: TextStyle(color: primary, fontWeight: FontWeight.w600, decoration: TextDecoration.underline, decorationColor: primary)),
+                ),
+                const SizedBox(width: 4),
+                Icon(Icons.open_in_new, size: 16, color: primary),
+              ]),
+            ),
+          ]),
+        ),
+      ]),
+    );
+  }
 }
 
 class ButtonSpinner extends StatelessWidget {

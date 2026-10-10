@@ -11,6 +11,11 @@ class ApiConfig {
   static const admin = String.fromEnvironment('ADMIN_URL', defaultValue: 'https://landadoc-admin.onrender.com/');
   static const document = String.fromEnvironment('DOCUMENT_URL', defaultValue: 'https://landadoc-document.onrender.com/');
 
+  // The websites, for what the apps leave to them (family, documents, payments…). Change them here
+  // (or with --dart-define) once the landadoc.cd addresses are live.
+  static const patientWebsite = String.fromEnvironment('PATIENT_WEBSITE', defaultValue: 'https://landadoc-patient.vercel.app');
+  static const doctorWebsite = String.fromEnvironment('DOCTOR_WEBSITE', defaultValue: 'https://landadoc-doctor.vercel.app');
+
   // Render's free services can take up to a minute to wake up
   static const timeout = Duration(seconds: 70);
 }
