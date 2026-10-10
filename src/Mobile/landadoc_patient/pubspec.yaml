@@ -66,6 +66,10 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  # The website's logo (LandaDoc.Frontend.Shared/wwwroot/landadoc-logo.png)
+  assets:
+    - assets/landadoc-logo.png
+
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

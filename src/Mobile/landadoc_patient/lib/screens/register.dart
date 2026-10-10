@@ -82,6 +82,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         );
 
     return Scaffold(
+      backgroundColor: Colors.white,   // the logo has a white background
       appBar: AppBar(title: Text(l.t('register'))),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -91,6 +92,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                const BrandHeader(width: 200),
+                const SizedBox(height: 24),
                 field(_first, l.t('firstName')),
                 field(_last, l.t('lastName')),
                 field(_email, l.t('email'), type: TextInputType.emailAddress),

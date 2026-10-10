@@ -6,22 +6,20 @@ import 'api.dart';
 import 'l10n.dart';
 import 'models.dart';
 
+// The website's logo (cross + "LandaDoc — doctor on time!"), at the top of login and register
 class BrandHeader extends StatelessWidget {
-  const BrandHeader({super.key});
+  final double width;
+  const BrandHeader({this.width = 240, super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final l = context.watch<L10n>();
-    final primary = Theme.of(context).colorScheme.primary;
-    return Column(
-      children: [
-        Icon(Icons.local_hospital_rounded, size: 56, color: primary),
-        const SizedBox(height: 8),
-        Text('LandaDoc', style: Theme.of(context).textTheme.headlineMedium?.copyWith(color: primary, fontWeight: FontWeight.w700)),
-        Text(l.t('tagline'), style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey[600])),
-      ],
-    );
-  }
+  Widget build(BuildContext context) => Center(
+        child: Image.asset(
+          'assets/landadoc-logo.png',
+          width: width,
+          filterQuality: FilterQuality.high,
+          semanticLabel: 'LandaDoc',
+        ),
+      );
 }
 
 class ErrorBanner extends StatelessWidget {
