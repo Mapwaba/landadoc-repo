@@ -13,6 +13,8 @@ public interface IPaymentApiClient
     Task<List<InsurerDto>> GetInsurersAsync();
     Task<HttpResponseMessage> CreateInsurerAsync(SaveInsurerRequest request);
     Task<HttpResponseMessage> UpdateInsurerAsync(Guid id, SaveInsurerRequest request);
+    // 204 when deleted; 200 with a DeleteInsurerResult (SwitchedOff) when claims were made with it
+    Task<HttpResponseMessage> DeleteInsurerAsync(Guid id);
     // The active insurers a doctor takes (what a patient may choose for that doctor)
     Task<List<InsurerDto>> GetInsurersForDoctorAsync(Guid doctorId);
     // The calling doctor's own choice of insurers

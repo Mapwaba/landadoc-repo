@@ -381,6 +381,12 @@ public static class Translations
         // Admin Payouts: LandaDoc's wallets at Moko Afrika
         ["Mobile money wallets (Moko Afrika)"] = new() { ["en"] = "Mobile money wallets (Moko Afrika)", ["fr"] = "Portefeuilles mobile money (Moko Afrika)" },
         ["Refresh"] = new() { ["en"] = "Refresh", ["fr"] = "Actualiser" },
+        // Admin Insurers: deleting one
+        ["Delete insurer"] = new() { ["en"] = "Delete insurer", ["fr"] = "Supprimer l'assureur" },
+        ["deleteInsurerQuestion"] = new() { ["en"] = "Delete {0}? Patients will no longer be able to choose it. If insurance claims were made with it, it's switched off instead, so those claims stay intact.", ["fr"] = "Supprimer {0} ? Les patients ne pourront plus le choisir. Si des demandes de prise en charge y sont liées, il est désactivé à la place, pour conserver ces demandes." },
+        ["insurerDeleted"] = new() { ["en"] = "{0} was deleted.", ["fr"] = "{0} a été supprimé." },
+        ["insurerSwitchedOff"] = new() { ["en"] = "{0} has insurance claims, so it was switched off instead of deleted: patients no longer see it, and its claims are kept.", ["fr"] = "{0} a des demandes de prise en charge : il a été désactivé au lieu d'être supprimé. Les patients ne le voient plus et ses demandes sont conservées." },
+        ["Could not delete the insurer. Please try again."] = new() { ["en"] = "Could not delete the insurer. Please try again.", ["fr"] = "Impossible de supprimer l'assureur. Veuillez réessayer." },
         ["Currency"] = new() { ["en"] = "Currency", ["fr"] = "Devise" },
         ["Received from patients"] = new() { ["en"] = "Received from patients", ["fr"] = "Reçu des patients" },
         ["Available for payouts"] = new() { ["en"] = "Available for payouts", ["fr"] = "Disponible pour les versements" },

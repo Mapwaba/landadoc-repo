@@ -3,7 +3,8 @@
 
 @* Partner insurers / medical aids. Active ones are offered to patients at checkout; switching
    one off hides it from new checkouts but keeps existing claims intact. The same form is used
-   to add an insurer and to edit one (_editingId says which). *@
+   to add an insurer and to edit one (_editingId says which). Deleting an insurer that claims
+   were made with switches it off instead, so those claims keep their insurer. *@
 
 <PageTitle>Insurers</PageTitle>
 
@@ -68,8 +69,15 @@ else
                     @(context.IsActive ? Lang["Active"] : Lang["Inactive"])
                 </MudChip>
             </MudTd>
-            <MudTd Style="text-align:right;">
-                <MudButton Size="Size.Small" OnClick="@(() => Edit(context))">@Lang["Edit"]</MudButton>
+            <MudTd Style="text-align:right; white-space:nowrap;">
+                <MudTooltip Text="@Lang["Edit"]">
+                    <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" Color="Color.Primary"
+                                   aria-label="@Lang["Edit"]" OnClick="@(() => Edit(context))" />
+                </MudTooltip>
+                <MudTooltip Text="@Lang["Delete"]">
+                    <MudIconButton Icon="@Icons.Material.Outlined.Delete" Size="Size.Small" Color="Color.Error"
+                                   aria-label="@Lang["Delete"]" Disabled="@(_deletingId == context.Id)" OnClick="@(() => Delete(context))" />
+                </MudTooltip>
             </MudTd>
         </RowTemplate>
     </MudTable>
@@ -78,6 +86,10 @@ else
 @code {
     [Inject] private IPaymentApiClient Payments { get; set; } = default!;
     [Inject] private ILanguageService Lang { get; set; } = default!;
+    [Inject] private IDialogService Dialogs { get; set; } = default!;
+    [Inject] private ISnackbar Snackbar { get; set; } = default!;
+
+    private Guid? _deletingId;   // the insurer being deleted, its button disabled meanwhile
 
     private bool _loading = true;
     private bool _loadFailed;
@@ -134,6 +146,44 @@ else
         _isActive = isActive;
         _formError = null;
         _showForm = true;
+    }
+
+    // Asks first; an insurer that has claims can't go, and the admin is told to switch it off
+    private async Task Delete(InsurerDto insurer)
+    {
+        var confirmed = await Dialogs.ShowMessageBoxAsync(
+            Lang["Delete insurer"],
+            string.Format(Lang["deleteInsurerQuestion"], insurer.Name),
+            yesText: Lang["Delete"], cancelText: Lang["Cancel"]);
+        if (confirmed != true) return;
+
+        _deletingId = insurer.Id;
+        try
+        {
+            var resp = await Payments.DeleteInsurerAsync(insurer.Id);
+            if (resp.StatusCode == System.Net.HttpStatusCode.OK)
+            {
+                // It has claims: kept for them, but no longer offered to patients
+                if (_editingId == insurer.Id) CloseForm();
+                Snackbar.Add(string.Format(Lang["insurerSwitchedOff"], insurer.Name), Severity.Info);
+                await Load();
+            }
+            else if (resp.IsSuccessStatusCode || resp.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                if (_editingId == insurer.Id) CloseForm();
+                Snackbar.Add(string.Format(Lang["insurerDeleted"], insurer.Name), Severity.Success);
+                await Load();
+            }
+            else
+            {
+                Snackbar.Add(Lang["Could not delete the insurer. Please try again."], Severity.Error);
+            }
+        }
+        catch (Exception)
+        {
+            Snackbar.Add(Lang["Could not delete the insurer. Please try again."], Severity.Error);
+        }
+        _deletingId = null;
     }
 
     private void CloseForm()

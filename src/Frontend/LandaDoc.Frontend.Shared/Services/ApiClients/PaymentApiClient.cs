@@ -36,6 +36,9 @@ public class PaymentApiClient(HttpClient http) : IPaymentApiClient
     public Task<HttpResponseMessage> UpdateInsurerAsync(Guid id, SaveInsurerRequest request) =>
         http.PutAsJsonAsync($"api/insurers/{id}", request, JsonDefaults.Options);
 
+    public Task<HttpResponseMessage> DeleteInsurerAsync(Guid id) =>
+        http.DeleteAsync($"api/insurers/{id}");
+
     public async Task<List<InsurerDto>> GetInsurersForDoctorAsync(Guid doctorId) =>
         await http.GetFromJsonAsync<List<InsurerDto>>($"api/insurers/doctor/{doctorId}", JsonDefaults.Options) ?? [];
 
