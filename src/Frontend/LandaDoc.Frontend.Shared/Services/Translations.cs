@@ -381,6 +381,17 @@ public static class Translations
         // Admin Payouts: LandaDoc's wallets at Moko Afrika
         ["Mobile money wallets (Moko Afrika)"] = new() { ["en"] = "Mobile money wallets (Moko Afrika)", ["fr"] = "Portefeuilles mobile money (Moko Afrika)" },
         ["Refresh"] = new() { ["en"] = "Refresh", ["fr"] = "Actualiser" },
+        // Admin Clinics: editing, switching off and deleting
+        ["New clinic"] = new() { ["en"] = "New clinic", ["fr"] = "Nouvelle clinique" },
+        ["Edit clinic"] = new() { ["en"] = "Edit clinic", ["fr"] = "Modifier la clinique" },
+        ["Offered to doctors"] = new() { ["en"] = "Offered to doctors", ["fr"] = "Proposée aux médecins" },
+        ["Clinics couldn't be loaded. Please try again in a minute."] = new() { ["en"] = "Clinics couldn't be loaded. Please try again in a minute.", ["fr"] = "Les cliniques n'ont pas pu être chargées. Veuillez réessayer dans une minute." },
+        ["Could not save the clinic."] = new() { ["en"] = "Could not save the clinic.", ["fr"] = "Impossible d'enregistrer la clinique." },
+        ["Delete clinic"] = new() { ["en"] = "Delete clinic", ["fr"] = "Supprimer la clinique" },
+        ["deleteClinicQuestion"] = new() { ["en"] = "Delete {0}? Doctors will no longer be able to choose it. If doctors already work there, it's switched off instead, so their profiles stay as they are.", ["fr"] = "Supprimer {0} ? Les médecins ne pourront plus la choisir. Si des médecins y exercent déjà, elle est désactivée à la place, pour que leurs profils restent inchangés." },
+        ["clinicDeleted"] = new() { ["en"] = "{0} was deleted.", ["fr"] = "{0} a été supprimée." },
+        ["clinicSwitchedOff"] = new() { ["en"] = "Doctors work at {0}, so it was switched off instead of deleted: it's no longer offered to doctors, and stays on the profiles of those who work there.", ["fr"] = "Des médecins exercent à {0} : elle a été désactivée au lieu d'être supprimée. Elle n'est plus proposée aux médecins et reste sur le profil de ceux qui y exercent." },
+        ["Could not delete the clinic. Please try again."] = new() { ["en"] = "Could not delete the clinic. Please try again.", ["fr"] = "Impossible de supprimer la clinique. Veuillez réessayer." },
         // Admin Insurers: deleting one
         ["Delete insurer"] = new() { ["en"] = "Delete insurer", ["fr"] = "Supprimer l'assureur" },
         ["deleteInsurerQuestion"] = new() { ["en"] = "Delete {0}? Patients will no longer be able to choose it. If insurance claims were made with it, it's switched off instead, so those claims stay intact.", ["fr"] = "Supprimer {0} ? Les patients ne pourront plus le choisir. Si des demandes de prise en charge y sont liées, il est désactivé à la place, pour conserver ces demandes." },

@@ -41,4 +41,6 @@ public interface IAdminApiClient
     // Admin-only clinic management
     Task<HttpResponseMessage> CreateClinicAsync(CreateClinicRequest req);
     Task<HttpResponseMessage> UpdateClinicAsync(Guid id, UpdateClinicRequest req);
+    // 204 when deleted; 200 with a DeleteClinicResult (SwitchedOff) when doctors work there
+    Task<HttpResponseMessage> DeleteClinicAsync(Guid id);
 }

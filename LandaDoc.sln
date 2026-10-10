@@ -71,6 +71,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LandaDoc.Payment.Tests", "t
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LandaDoc.Availability.Tests", "tests\LandaDoc.Availability.Tests\LandaDoc.Availability.Tests.csproj", "{CFF36E70-313E-44D9-861A-E4377B96A246}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LandaDoc.Admin.Tests", "tests\LandaDoc.Admin.Tests\LandaDoc.Admin.Tests.csproj", "{40928F01-5BD1-43A4-A704-4DF4AD95E5F8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -285,6 +287,18 @@ Global
 		{CFF36E70-313E-44D9-861A-E4377B96A246}.Release|x64.Build.0 = Release|Any CPU
 		{CFF36E70-313E-44D9-861A-E4377B96A246}.Release|x86.ActiveCfg = Release|Any CPU
 		{CFF36E70-313E-44D9-861A-E4377B96A246}.Release|x86.Build.0 = Release|Any CPU
+		{40928F01-5BD1-43A4-A704-4DF4AD95E5F8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{40928F01-5BD1-43A4-A704-4DF4AD95E5F8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{40928F01-5BD1-43A4-A704-4DF4AD95E5F8}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{40928F01-5BD1-43A4-A704-4DF4AD95E5F8}.Debug|x64.Build.0 = Debug|Any CPU
+		{40928F01-5BD1-43A4-A704-4DF4AD95E5F8}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{40928F01-5BD1-43A4-A704-4DF4AD95E5F8}.Debug|x86.Build.0 = Debug|Any CPU
+		{40928F01-5BD1-43A4-A704-4DF4AD95E5F8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{40928F01-5BD1-43A4-A704-4DF4AD95E5F8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{40928F01-5BD1-43A4-A704-4DF4AD95E5F8}.Release|x64.ActiveCfg = Release|Any CPU
+		{40928F01-5BD1-43A4-A704-4DF4AD95E5F8}.Release|x64.Build.0 = Release|Any CPU
+		{40928F01-5BD1-43A4-A704-4DF4AD95E5F8}.Release|x86.ActiveCfg = Release|Any CPU
+		{40928F01-5BD1-43A4-A704-4DF4AD95E5F8}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -322,5 +336,6 @@ Global
 		{40BD9B29-456B-4403-AB5D-A6726ACEBC79} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{6A40045F-91AE-42FB-AFCB-C68C194044C6} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{CFF36E70-313E-44D9-861A-E4377B96A246} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{40928F01-5BD1-43A4-A704-4DF4AD95E5F8} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal

@@ -103,4 +103,7 @@ public class AdminApiClient(HttpClient http) : IAdminApiClient
 
     public Task<HttpResponseMessage> UpdateClinicAsync(Guid id, UpdateClinicRequest req) =>
         http.PatchAsJsonAsync($"api/clinics/{id}", req);
+
+    public Task<HttpResponseMessage> DeleteClinicAsync(Guid id) =>
+        http.DeleteAsync($"api/clinics/{id}");
 }

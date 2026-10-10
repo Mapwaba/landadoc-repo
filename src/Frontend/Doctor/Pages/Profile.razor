@@ -37,7 +37,7 @@
                 <MudTextField T="string" Label="@Lang["License number"]" @bind-Value="_licenseNumber" Class="mb-3" />
                 <MudTextField T="string" Label="@Lang["Bio"]" @bind-Value="_bio" Lines="3" Class="mb-3" />
                 <MudSelect T="Guid" Label="@Lang["Clinics"]" MultiSelection="true" @bind-SelectedValues="_clinicIds" ToStringFunc="ClinicName" Class="mb-3">
-                    @foreach (var clinic in _clinics)
+                    @foreach (var clinic in PickableClinics)
                     {
                         <MudSelectItem T="Guid" Value="@clinic.Id">@clinic.Name (@clinic.City)</MudSelectItem>
                     }
@@ -103,7 +103,7 @@
                         <label>@Lang["Clinics"]</label>
                         <MudSelect T="Guid" MultiSelection="true" @bind-SelectedValues="_clinicIds" ToStringFunc="ClinicName" Variant="Variant.Outlined" Margin="Margin.Dense"
                                    Placeholder="@Lang["Choose your clinics"]">
-                            @foreach (var clinic in _clinics)
+                            @foreach (var clinic in PickableClinics)
                             {
                                 <MudSelectItem T="Guid" Value="@clinic.Id">@clinic.Name (@clinic.City)</MudSelectItem>
                             }
@@ -313,6 +313,10 @@
     private bool _pwSubmitted;
     private bool _changingPassword;
     private string? _pwError;
+
+    // Clinics offered in the pickers: those still active, plus any the doctor already works at
+    private IEnumerable<ClinicDto> PickableClinics =>
+        _clinics.Where(c => c.IsActive || (_saved?.Clinics.Any(s => s.Id == c.Id) ?? false));
 
     private List<string> MyClinicNames =>
         _clinics.Where(c => _clinicIds.Contains(c.Id)).Select(c => c.Name.ToUpperInvariant()).ToList();
