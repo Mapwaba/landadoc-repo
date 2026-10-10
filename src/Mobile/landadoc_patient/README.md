@@ -1,6 +1,6 @@
 # LandaDoc — Patient mobile app (Flutter)
 
-Replaces the .NET MAUI Patient.Mobile app. Built to stay light on low-cost Android phones and
+Replaced the .NET MAUI Patient.Mobile app (since removed). Built to stay light on low-cost Android phones and
 expensive data: a handful of packages, doctor photos downloaded once and cached, a week of free
 times per request, and the patient's appointments saved on the phone for offline reading.
 

@@ -1,6 +1,6 @@
 # LandaDoc — Doctor mobile app (Flutter)
 
-Replaces the .NET MAUI Doctor.Mobile app with the daily work only; payments, payouts, rates,
+Replaced the .NET MAUI Doctor.Mobile app (since removed), with the daily work only; payments, payouts, rates,
 the weekly schedule, the profile and registration (with ID documents) stay on the website.
 Shares its server calls, sign-in, texts, widgets and logo with the Patient app through
 `../landadoc_common`.

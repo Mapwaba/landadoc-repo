@@ -2,8 +2,8 @@ using LandaDoc.Shared.DTOs;
 
 namespace LandaDoc.Frontend.Shared.Services;
 
-// Pure in-memory holder, deliberately free of any IJSRuntime/localStorage dependency, registered
-// as a Singleton (see TokenStore's own comment for why TokenStore itself can't be the singleton).
+// Pure in-memory holder of the tokens, registered as a Singleton so every TokenStore instance
+// shares it (see TokenStore's comment).
 public sealed class TokenCache
 {
     public string? AccessToken { get; set; }
@@ -12,34 +12,14 @@ public sealed class TokenCache
     public SemaphoreSlim Gate { get; } = new(1, 1);
 }
 
-// Centralizes the token storage keys so the auth state provider and the
-// bearer-attaching handler never drift out of sync with each other. Where the tokens are kept is
-// ITokenStorage: per-tab session storage on the web (closing the tab signs out), localStorage in
-// the mobile apps.
+// Centralizes the token storage keys so the auth state provider and the bearer-attaching handler
+// never drift out of sync with each other. The tokens are kept in per-tab session storage
+// (SessionTokenStorage), so closing the tab or browser signs the user out.
 //
-// TokenStore is Scoped (so its ILocalStorageService is always a live, WebView-attached one -
-// see below), but the actual token values live in the injected TokenCache singleton, shared by
-// every TokenStore instance regardless of which DI scope constructed it. This split exists
-// because of two separate MAUI Blazor Hybrid failure modes discovered the hard way:
-//
-// 1. IHttpClientFactory resolves message handlers (AuthorizationMessageHandler) from its own
-//    internal DI scope, separate from the scope the rest of the app uses - so the handler's
-//    TokenStore is a *different instance* than the one components inject. Caching values on
-//    TokenStore itself wouldn't help the handler's copy.
-// 2. JS interop (which Blazored.LocalStorage relies on) is thread-affine to the UI dispatcher.
-//    AuthorizationMessageHandler runs inside the HttpClient pipeline, which resumes on a
-//    thread-pool thread (a ConfigureAwait(false) inside IHttpClientFactory's built-in logging
-//    handler drops the dispatcher's SynchronizationContext before our handler ever runs), so a
-//    localStorage read triggered from there hangs forever instead of throwing. Making TokenStore
-//    itself a singleton does NOT fix this: a singleton's dependencies are constructed once from
-//    the root provider, and here the resulting ILocalStorageService ends up bound to no live
-//    WebView at all, so any JS interop call through it throws "Cannot invoke JavaScript outside
-//    of a WebView context" - worse than the hang. TokenCache has no such dependency, so it's
-//    safe to share globally, and every TokenStore's real JS interop only ever runs from a
-//    properly-scoped call site (i.e. a component's own lifecycle method).
-//
-// EnsureLoadedAsync must be awaited once from a component lifecycle method (on the dispatcher)
-// before any HttpClient call can reach the handler - see Routes.razor in the mobile hosts.
+// TokenStore is Scoped, but the token values live in the TokenCache singleton: IHttpClientFactory
+// resolves message handlers (AuthorizationMessageHandler) from its own DI scope, so the handler's
+// TokenStore is a different instance from the one components inject, and caching values on
+// TokenStore itself wouldn't reach it. (The mobile apps are Flutter, in src/Mobile.)
 public class TokenStore(ITokenStorage storage, TokenCache cache)
 {
     private const string AccessTokenKey = "landadoc_access_token";

@@ -1,9 +1,9 @@
 # Deploying LandaDoc to an OVH VPS
 
 Everything (9 backend services, 3 Blazor WASM frontends, Postgres, Redis, RabbitMQ, MinIO, Caddy) runs via `docker-compose.prod.yml` on one VPS.
-`src/LandaDoc.Gateway` and the `.Mobile` (MAUI) projects are not part of this
+`src/LandaDoc.Gateway` and the Flutter mobile apps (`src/Mobile`) are not part of this
 deployment — the gateway is an unused stub, and the mobile apps ship through
-app stores, not a web server.
+app stores (or as APKs), not a web server.
 
 ## 1. Provision the VPS
 

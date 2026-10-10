@@ -9,7 +9,7 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
-builder.Services.AddLandaDocFrontendShared(builder.Configuration, signOutWhenTabCloses: true);
+builder.Services.AddLandaDocFrontendShared(builder.Configuration);
 
 var host = builder.Build();
 await host.Services.GetRequiredService<ILanguageService>().InitializeAsync();

@@ -10,26 +10,19 @@ namespace LandaDoc.Frontend.Shared;
 
 public static class ServiceCollectionExtensions
 {
-    // Takes IServiceCollection/IConfiguration rather than WebAssemblyHostBuilder so both the
-    // Blazor WASM heads (Admin/Doctor/Patient) and the MAUI Blazor Hybrid heads
-    // (Patient.Mobile/Doctor.Mobile) can register the exact same services.
-    // signOutWhenTabCloses: the web apps keep the login in per-tab session storage, so closing the
-    // tab or browser signs the user out; the mobile apps keep it in localStorage.
-    public static void AddLandaDocFrontendShared(this IServiceCollection services, IConfiguration configuration, bool signOutWhenTabCloses = false)
+    // Everything the three web apps (Patient, Doctor, Admin) register alike. The login is kept in
+    // per-tab session storage, so closing the tab or browser signs the user out.
+    public static void AddLandaDocFrontendShared(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddMudServices();
         services.AddBlazoredLocalStorage();
 
         services.AddScoped<ILanguageService, LanguageService>();
 
-        // TokenCache (the in-memory token cache, no IJSRuntime dependency) is a singleton shared by
-        // every scope; TokenStore itself stays Scoped so its ILocalStorageService is always a live,
-        // WebView-attached one. See TokenStore's own comment for why this split - not just making
-        // TokenStore a singleton - is what MAUI Blazor Hybrid actually needs here.
+        // TokenCache is a singleton shared by every scope, TokenStore stays Scoped: see TokenStore
         services.AddSingleton<TokenCache>();
         services.AddScoped<TokenStore>();
-        if (signOutWhenTabCloses) services.AddScoped<ITokenStorage, SessionTokenStorage>();
-        else services.AddScoped<ITokenStorage, LocalTokenStorage>();
+        services.AddScoped<ITokenStorage, SessionTokenStorage>();
         services.AddScoped<JwtAuthenticationStateProvider>();
         services.AddScoped<AuthenticationStateProvider>(
             sp => sp.GetRequiredService<JwtAuthenticationStateProvider>());
