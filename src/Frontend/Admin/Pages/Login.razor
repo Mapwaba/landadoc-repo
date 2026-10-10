@@ -7,8 +7,8 @@
 <div class="d-flex justify-center mt-8">
     <MudPaper Class="pa-6" MaxWidth="450px" Style="width:100%;">
         <MudForm @ref="_form">
-            <MudTextField T="string" Label="@Lang["Email"]" @bind-Value="_email" InputType="InputType.Email" Required="true" Class="mb-3" />
-            <MudTextField T="string" Label="@Lang["Password"]" @bind-Value="_password" InputType="InputType.Password" Required="true" Class="mb-3" />
+            <MudTextField Immediate="true" OnKeyDown="SubmitOnEnter" T="string" Label="@Lang["Email"]" @bind-Value="_email" InputType="InputType.Email" Required="true" Class="mb-3" />
+            <MudTextField Immediate="true" OnKeyDown="SubmitOnEnter" T="string" Label="@Lang["Password"]" @bind-Value="_password" InputType="InputType.Password" Required="true" Class="mb-3" />
 
             @if (_error is not null)
             {
@@ -33,6 +33,13 @@
     private string _password = "";
     private bool _submitting;
     private string? _error;
+
+    // Enter in a text field sends the form, like clicking the button. The fields bind as the user
+    // types (Immediate), so what was just typed is what gets sent.
+    private async Task SubmitOnEnter(KeyboardEventArgs e)
+    {
+        if (e.Key is "Enter" or "NumpadEnter" && !_submitting) await Submit();
+    }
 
     private async Task Submit()
     {

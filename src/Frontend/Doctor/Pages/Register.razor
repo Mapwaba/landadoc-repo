@@ -13,25 +13,25 @@
             </div>
             <MudGrid Spacing="2">
                 <MudItem xs="12" sm="6">
-                    <MudTextField T="string" Label="@Lang["First name"]" @bind-Value="_firstName" Required="true" Disabled="_accountCreated" />
+                    <MudTextField Immediate="true" OnKeyDown="SubmitOnEnter" T="string" Label="@Lang["First name"]" @bind-Value="_firstName" Required="true" Disabled="_accountCreated" />
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudTextField T="string" Label="@Lang["Last name"]" @bind-Value="_lastName" Required="true" Disabled="_accountCreated" />
+                    <MudTextField Immediate="true" OnKeyDown="SubmitOnEnter" T="string" Label="@Lang["Last name"]" @bind-Value="_lastName" Required="true" Disabled="_accountCreated" />
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudTextField T="string" Label="@Lang["Email"]" @bind-Value="_email" InputType="InputType.Email" Required="true" Disabled="_accountCreated" />
+                    <MudTextField Immediate="true" OnKeyDown="SubmitOnEnter" T="string" Label="@Lang["Email"]" @bind-Value="_email" InputType="InputType.Email" Required="true" Disabled="_accountCreated" />
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudTextField T="string" Label="@Lang["Phone"]" @bind-Value="_phone" Required="true" RequiredError="@Lang["Enter your phone number."]"
+                    <MudTextField Immediate="true" OnKeyDown="SubmitOnEnter" T="string" Label="@Lang["Phone"]" @bind-Value="_phone" Required="true" RequiredError="@Lang["Enter your phone number."]"
                                   InputType="InputType.Telephone" Disabled="_accountCreated" />
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudTextField T="string" Label="@Lang["Password"]" @bind-Value="_password" InputType="InputType.Password" Required="true"
+                    <MudTextField OnKeyDown="SubmitOnEnter" T="string" Label="@Lang["Password"]" @bind-Value="_password" InputType="InputType.Password" Required="true"
                                   Immediate="true" MaxLength="@PasswordPolicy.MaxLength"
                                   Validation="@(new Func<string, string?>(ValidatePassword))" Disabled="_accountCreated" />
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudTextField T="string" Label="@Lang["Confirm password"]" @bind-Value="_confirmPassword" InputType="InputType.Password" Required="true"
+                    <MudTextField OnKeyDown="SubmitOnEnter" T="string" Label="@Lang["Confirm password"]" @bind-Value="_confirmPassword" InputType="InputType.Password" Required="true"
                                   Immediate="true" Validation="@(new Func<string, string?>(ValidateConfirmation))" Disabled="_accountCreated" />
                 </MudItem>
                 @if (!_accountCreated)
@@ -53,7 +53,7 @@
                     </MudSelect>
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudTextField T="string" Label="@Lang["License number"]" @bind-Value="_licenseNumber" Required="true" />
+                    <MudTextField Immediate="true" OnKeyDown="SubmitOnEnter" T="string" Label="@Lang["License number"]" @bind-Value="_licenseNumber" Required="true" />
                 </MudItem>
                 <MudItem xs="12" sm="6">
                     <MudSelect T="Guid" Label="@Lang["Clinics"]" MultiSelection="true" @bind-SelectedValues="_clinicIds" ToStringFunc="ClinicName"
@@ -184,6 +184,13 @@
 
     // One form, two calls: create the account (which logs the doctor in), then create their
     // profile, which waits as Pending until an admin approves it.
+    // Enter in a text field sends the form, like clicking the button. The fields bind as the user
+    // types (Immediate), so what was just typed is what gets sent.
+    private async Task SubmitOnEnter(KeyboardEventArgs e)
+    {
+        if (e.Key is "Enter" or "NumpadEnter" && !_submitting) await Submit();
+    }
+
     private async Task Submit()
     {
         _error = null;

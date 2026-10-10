@@ -13,7 +13,9 @@ public static class ServiceCollectionExtensions
     // Takes IServiceCollection/IConfiguration rather than WebAssemblyHostBuilder so both the
     // Blazor WASM heads (Admin/Doctor/Patient) and the MAUI Blazor Hybrid heads
     // (Patient.Mobile/Doctor.Mobile) can register the exact same services.
-    public static void AddLandaDocFrontendShared(this IServiceCollection services, IConfiguration configuration)
+    // signOutWhenTabCloses: the web apps keep the login in per-tab session storage, so closing the
+    // tab or browser signs the user out; the mobile apps keep it in localStorage.
+    public static void AddLandaDocFrontendShared(this IServiceCollection services, IConfiguration configuration, bool signOutWhenTabCloses = false)
     {
         services.AddMudServices();
         services.AddBlazoredLocalStorage();
@@ -26,6 +28,8 @@ public static class ServiceCollectionExtensions
         // TokenStore a singleton - is what MAUI Blazor Hybrid actually needs here.
         services.AddSingleton<TokenCache>();
         services.AddScoped<TokenStore>();
+        if (signOutWhenTabCloses) services.AddScoped<ITokenStorage, SessionTokenStorage>();
+        else services.AddScoped<ITokenStorage, LocalTokenStorage>();
         services.AddScoped<JwtAuthenticationStateProvider>();
         services.AddScoped<AuthenticationStateProvider>(
             sp => sp.GetRequiredService<JwtAuthenticationStateProvider>());

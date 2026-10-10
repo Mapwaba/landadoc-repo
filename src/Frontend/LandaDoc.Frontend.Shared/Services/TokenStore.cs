@@ -1,4 +1,3 @@
-using Blazored.LocalStorage;
 using LandaDoc.Shared.DTOs;
 
 namespace LandaDoc.Frontend.Shared.Services;
@@ -13,8 +12,10 @@ public sealed class TokenCache
     public SemaphoreSlim Gate { get; } = new(1, 1);
 }
 
-// Centralizes the localStorage keys so the auth state provider and the
-// bearer-attaching handler never drift out of sync with each other.
+// Centralizes the token storage keys so the auth state provider and the
+// bearer-attaching handler never drift out of sync with each other. Where the tokens are kept is
+// ITokenStorage: per-tab session storage on the web (closing the tab signs out), localStorage in
+// the mobile apps.
 //
 // TokenStore is Scoped (so its ILocalStorageService is always a live, WebView-attached one -
 // see below), but the actual token values live in the injected TokenCache singleton, shared by
@@ -39,15 +40,15 @@ public sealed class TokenCache
 //
 // EnsureLoadedAsync must be awaited once from a component lifecycle method (on the dispatcher)
 // before any HttpClient call can reach the handler - see Routes.razor in the mobile hosts.
-public class TokenStore(ILocalStorageService localStorage, TokenCache cache)
+public class TokenStore(ITokenStorage storage, TokenCache cache)
 {
     private const string AccessTokenKey = "landadoc_access_token";
     private const string RefreshTokenKey = "landadoc_refresh_token";
 
     public async Task SaveAsync(AuthResponse response)
     {
-        await localStorage.SetItemAsStringAsync(AccessTokenKey, response.Token);
-        await localStorage.SetItemAsStringAsync(RefreshTokenKey, response.RefreshToken);
+        await storage.SetAsync(AccessTokenKey, response.Token);
+        await storage.SetAsync(RefreshTokenKey, response.RefreshToken);
         cache.AccessToken = response.Token;
         cache.RefreshToken = response.RefreshToken;
         cache.Loaded = true;
@@ -67,8 +68,8 @@ public class TokenStore(ILocalStorageService localStorage, TokenCache cache)
 
     public async Task ClearAsync()
     {
-        await localStorage.RemoveItemAsync(AccessTokenKey);
-        await localStorage.RemoveItemAsync(RefreshTokenKey);
+        await storage.RemoveAsync(AccessTokenKey);
+        await storage.RemoveAsync(RefreshTokenKey);
         cache.AccessToken = null;
         cache.RefreshToken = null;
         cache.Loaded = true;
@@ -81,8 +82,8 @@ public class TokenStore(ILocalStorageService localStorage, TokenCache cache)
         try
         {
             if (cache.Loaded) return;
-            cache.AccessToken = await localStorage.GetItemAsStringAsync(AccessTokenKey);
-            cache.RefreshToken = await localStorage.GetItemAsStringAsync(RefreshTokenKey);
+            cache.AccessToken = await storage.GetAsync(AccessTokenKey);
+            cache.RefreshToken = await storage.GetAsync(RefreshTokenKey);
             cache.Loaded = true;
         }
         finally

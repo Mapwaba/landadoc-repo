@@ -10,14 +10,14 @@
             <div class="mb-4">
                 <PhotoPicker @bind-Value="_photo" Hint="@Lang["patientPhotoHint"]" />
             </div>
-            <MudTextField T="string" Label="@Lang["First name"]" @bind-Value="_firstName" Required="true" Class="mb-3" />
-            <MudTextField T="string" Label="@Lang["Last name"]" @bind-Value="_lastName" Required="true" Class="mb-3" />
-            <MudTextField T="string" Label="@Lang["Email"]" @bind-Value="_email" InputType="InputType.Email" Required="true" Class="mb-3" />
-            <MudTextField T="string" Label="@Lang["Password"]" @bind-Value="_password" InputType="InputType.Password" Required="true"
+            <MudTextField Immediate="true" OnKeyDown="SubmitOnEnter" T="string" Label="@Lang["First name"]" @bind-Value="_firstName" Required="true" Class="mb-3" />
+            <MudTextField Immediate="true" OnKeyDown="SubmitOnEnter" T="string" Label="@Lang["Last name"]" @bind-Value="_lastName" Required="true" Class="mb-3" />
+            <MudTextField Immediate="true" OnKeyDown="SubmitOnEnter" T="string" Label="@Lang["Email"]" @bind-Value="_email" InputType="InputType.Email" Required="true" Class="mb-3" />
+            <MudTextField Immediate="true" OnKeyDown="SubmitOnEnter" T="string" Label="@Lang["Password"]" @bind-Value="_password" InputType="InputType.Password" Required="true"
                            RequiredError="@Lang["Password is required"]" Validation="@(new Func<string, string?>(ValidatePassword))" HelperText="@Lang["At least 8 characters"]" Class="mb-3" />
-            <MudTextField T="string" Label="@Lang["Confirm password"]" @bind-Value="_confirmPassword" InputType="InputType.Password" Required="true"
+            <MudTextField OnKeyDown="SubmitOnEnter" T="string" Label="@Lang["Confirm password"]" @bind-Value="_confirmPassword" InputType="InputType.Password" Required="true"
                           Immediate="true" Validation="@(new Func<string, string?>(ValidateConfirmation))" Class="mb-3" />
-            <MudTextField T="string" Label="@Lang["Phone"]" @bind-Value="_phone" Required="true" RequiredError="@Lang["Enter your phone number."]"
+            <MudTextField Immediate="true" OnKeyDown="SubmitOnEnter" T="string" Label="@Lang["Phone"]" @bind-Value="_phone" Required="true" RequiredError="@Lang["Enter your phone number."]"
                           InputType="InputType.Telephone" Class="mb-3" />
             <MudDatePicker Label="@Lang["Date of birth"]" @bind-Date="_dateOfBirth" Class="mb-3" />
             <MudSelect T="string" Label="@Lang["Gender"]" @bind-Value="_gender" Class="mb-3">
@@ -25,7 +25,7 @@
                 <MudSelectItem Value="@("Female")">@Lang["Female"]</MudSelectItem>
                 <MudSelectItem Value="@("Other")">@Lang["Other"]</MudSelectItem>
             </MudSelect>
-            <MudTextField T="string" Label="@Lang["ID card or passport number"]" @bind-Value="_idNumber" MaxLength="50" Class="mb-3"
+            <MudTextField Immediate="true" OnKeyDown="SubmitOnEnter" T="string" Label="@Lang["ID card or passport number"]" @bind-Value="_idNumber" MaxLength="50" Class="mb-3"
                           Required="true" RequiredError="@Lang["Enter your ID card or passport number."]" />
             <div class="mb-3">
                 <AddressFields @bind-Country="_country" @bind-Province="_province" @bind-City="_city" @bind-PostalCode="_postalCode" CountryRequired="true" />
@@ -79,6 +79,13 @@
 
     private string? ValidateConfirmation(string confirmation) =>
         confirmation == _password ? null : Lang["The passwords don't match."];
+
+    // Enter in a text field sends the form, like clicking the button. The fields bind as the user
+    // types (Immediate), so what was just typed is what gets sent.
+    private async Task SubmitOnEnter(KeyboardEventArgs e)
+    {
+        if (e.Key is "Enter" or "NumpadEnter" && !_submitting) await Submit();
+    }
 
     private async Task Submit()
     {
