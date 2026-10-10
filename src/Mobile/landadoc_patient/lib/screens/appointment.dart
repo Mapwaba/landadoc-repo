@@ -4,13 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:landadoc_common/landadoc_common.dart';
 
-import '../api.dart';
-import '../l10n.dart';
-import '../models.dart';
-import '../session.dart';
-import '../widgets.dart';
-import 'appointments.dart';
 
 // One appointment and its payment. Mobile Money: the patient gets a prompt on their phone; this
 // screen checks every few seconds until the payment is recorded (or fails). Card (outside the
@@ -175,7 +170,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                   child: ListView(padding: const EdgeInsets.all(16), children: [
                     Row(children: [
                       Expanded(child: Text(a.doctorName ?? '—', style: Theme.of(context).textTheme.titleLarge)),
-                      StatusChip(a.status, l.t(a.statusKey)),
+                      AppointmentStatusChip(a.status, l.t(a.statusKey)),
                     ]),
                     if (a.specialty != null) Text(a.specialty!, style: TextStyle(color: Theme.of(context).colorScheme.primary)),
                     const SizedBox(height: 8),

@@ -2,12 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:landadoc_common/landadoc_common.dart';
 
-import '../api.dart';
-import '../l10n.dart';
-import '../models.dart';
-import '../session.dart';
-import '../widgets.dart';
 import 'appointment.dart';
 
 // The patient's appointments, upcoming first. The last list is saved on the phone, so it still
@@ -42,7 +38,7 @@ class AppointmentsScreenState extends State<AppointmentsScreen> {
     final prefs = await SharedPreferences.getInstance();
     try {
       final json = await session.api.myAppointmentsRaw();
-      await prefs.setString(Session.appointmentsCacheKey, json);
+      await prefs.setString(session.appointmentsCacheKey, json);
       if (mounted) {
         setState(() {
           _items = Api.parseAppointments(json);
@@ -50,7 +46,7 @@ class AppointmentsScreenState extends State<AppointmentsScreen> {
         });
       }
     } on ApiException catch (e) {
-      final saved = prefs.getString(Session.appointmentsCacheKey);
+      final saved = prefs.getString(session.appointmentsCacheKey);
       if (!mounted) return;
       if (e.offline && saved != null) {
         setState(() {
@@ -114,7 +110,7 @@ class _Section extends StatelessWidget {
             title: Text(a.doctorName ?? '—', style: const TextStyle(fontWeight: FontWeight.w600)),
             subtitle: Text([format.format(a.slotStart), if (a.clinicName != null) a.clinicName!].join('\n')),
             isThreeLine: a.clinicName != null,
-            trailing: StatusChip(a.status, l.t(a.statusKey)),
+            trailing: AppointmentStatusChip(a.status, l.t(a.statusKey)),
             onTap: () async {
               await Navigator.of(context).push(MaterialPageRoute(builder: (_) => AppointmentScreen(a.id)));
               onChanged();
@@ -122,26 +118,5 @@ class _Section extends StatelessWidget {
           ),
         ),
     ]);
-  }
-}
-
-class StatusChip extends StatelessWidget {
-  final AppointmentStatus status;
-  final String label;
-  const StatusChip(this.status, this.label, {super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final (bg, fg) = switch (status) {
-      AppointmentStatus.confirmed => (const Color(0xFFDCFCE7), const Color(0xFF166534)),
-      AppointmentStatus.completed => (const Color(0xFFE0E7FF), const Color(0xFF3730A3)),
-      AppointmentStatus.cancelled => (const Color(0xFFFEE2E2), const Color(0xFF991B1B)),
-      _ => (const Color(0xFFFEF3C7), const Color(0xFF92400E)),
-    };
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
-      child: Text(label, style: TextStyle(color: fg, fontSize: 12, fontWeight: FontWeight.w600)),
-    );
   }
 }

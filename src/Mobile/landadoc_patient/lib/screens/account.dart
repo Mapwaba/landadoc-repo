@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:landadoc_common/landadoc_common.dart';
 
-import '../l10n.dart';
-import '../session.dart';
-import '../widgets.dart';
 
 class AccountScreen extends StatelessWidget {
   const AccountScreen({super.key});

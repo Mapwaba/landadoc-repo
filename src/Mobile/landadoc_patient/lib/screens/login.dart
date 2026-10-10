@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:landadoc_common/landadoc_common.dart';
 
-import '../api.dart';
-import '../l10n.dart';
-import '../session.dart';
-import '../widgets.dart';
 import 'register.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -38,7 +35,7 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       await context.read<Session>().login(_email.text, _password.text);
     } on ApiException catch (e) {
-      setState(() => _error = e.offline ? l.t('networkError') : l.t('wrongLogin'));
+      setState(() => _error = e.offline ? l.t('networkError') : e.code == 'wrong-role' ? l.t('patientOnly') : l.t('wrongLogin'));
     } finally {
       if (mounted) setState(() => _busy = false);
     }

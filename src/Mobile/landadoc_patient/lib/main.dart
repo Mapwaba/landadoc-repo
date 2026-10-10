@@ -1,20 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:landadoc_common/landadoc_common.dart';
 import 'package:provider/provider.dart';
 
-import 'l10n.dart';
 import 'screens/home.dart';
 import 'screens/login.dart';
-import 'session.dart';
 
 // LandaDoc for patients: find a doctor, book, pay with Mobile Money, follow appointments.
 // Kept deliberately small for low-cost Android phones and expensive data: few packages, photos
 // loaded once and cached, a week of free times per request, appointments saved for offline reading.
+// What it shares with the Doctor app (server calls, sign-in, texts, widgets) is in landadoc_common.
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final l10n = L10n();
   await l10n.load();
-  final session = Session();
+  final session = Session(role: 'Patient');
   runApp(MultiProvider(
     providers: [
       ChangeNotifierProvider.value(value: l10n),
@@ -24,11 +23,6 @@ Future<void> main() async {
   ));
   await session.restore();
 }
-
-// The web apps' palette (LandaDocTheme / landadoc-shell.css)
-const brandBlue = Color(0xFF2563EB);
-const brandText = Color(0xFF1E293B);
-const brandSoft = Color(0xFFEEF4FF);
 
 class LandaDocApp extends StatelessWidget {
   const LandaDocApp({super.key});
@@ -41,22 +35,9 @@ class LandaDocApp extends StatelessWidget {
       title: 'LandaDoc',
       debugShowCheckedModeBanner: false,
       locale: Locale(l10n.language),
-      supportedLocales: const [Locale('fr'), Locale('en')],
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(seedColor: brandBlue, primary: brandBlue),
-        scaffoldBackgroundColor: const Color(0xFFF7F9FC),
-        appBarTheme: const AppBarTheme(backgroundColor: Colors.white, foregroundColor: brandText, elevation: 0, scrolledUnderElevation: 1),
-        inputDecorationTheme: const InputDecorationTheme(border: OutlineInputBorder(), isDense: true),
-        filledButtonTheme: FilledButtonThemeData(
-          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-        ),
-      ),
+      supportedLocales: landaDocLocales,
+      localizationsDelegates: landaDocLocalizations,
+      theme: landaDocTheme(),
       home: session.loading
           ? const Scaffold(body: Center(child: CircularProgressIndicator()))
           : session.signedIn

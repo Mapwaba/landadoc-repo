@@ -2,12 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:landadoc_common/landadoc_common.dart';
 
-import '../api.dart';
-import '../l10n.dart';
-import '../models.dart';
-import '../session.dart';
-import '../widgets.dart';
 import 'doctor.dart';
 
 // Doctors matching a name, specialty or city. The search waits until the patient stops typing

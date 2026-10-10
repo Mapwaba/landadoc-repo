@@ -1,13 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:landadoc_common/landadoc_common.dart';
 
-import '../api.dart';
-import '../clock.dart';
-import '../l10n.dart';
-import '../models.dart';
-import '../session.dart';
-import '../widgets.dart';
 import 'appointment.dart';
 
 // A doctor's profile and the next 14 days of free times, fetched in ONE request (the web page

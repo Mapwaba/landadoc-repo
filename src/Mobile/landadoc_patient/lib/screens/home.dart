@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:landadoc_common/landadoc_common.dart';
 
-import '../l10n.dart';
 import 'account.dart';
 import 'appointments.dart';
 import 'search.dart';
